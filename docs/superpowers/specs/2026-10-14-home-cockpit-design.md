@@ -1,7 +1,7 @@
 # Home Cockpit — Functional & Technical Specification
 
 - **Date:** 2026-10-14
-- **Version:** 2 — revised after [the specification review](./2026-10-14-home-cockpit-review.md) (disposition in §11)
+- **Version:** 3 — revised after [review 1](./2026-10-14-home-cockpit-review.md) and [review 2](./2026-10-14-home-cockpit-review-v2.md) (disposition in §11)
 - **Status:** Draft — for review
 - **Scope:** product definition for the MVP, the long-term shape, and detailed contracts for Stages 0–1. Later stages get their own spec revisions and implementation plans.
 
@@ -109,7 +109,7 @@ flowchart TD
 | Tests | `jest-expo`, `@testing-library/react-native` | SDK-matched |
 | Lint / format | ESLint (`eslint-config-expo`), Prettier | — |
 
-**Minimum Home Assistant version:** recorded in Stage 0 from the household instance (target: the installed release, expected 2026.10.x). The app checks `ha_version` at connect and shows a warning below the minimum.
+**Minimum Home Assistant version:** recorded in Stage 0 from the household instance (target: the installed release, expected 2026.10.x). Below the minimum, the app **refuses** the connection with `ha_version_unsupported` (blocking error with the detected version), because the sync and registry contracts are only proven against the recorded release.
 
 ---
 
@@ -131,7 +131,7 @@ flowchart TD
 Stage 1 combines the long-term *Overview* and *Rooms* into one screen:
 
 1. **Session banner** (§4.6) — hidden when ready.
-2. **Needs attention** — items derived from domain policy (§5.5): e.g. a jammed or unknown-state lock, an unlocked lock (default policy "normal = locked"), an unavailable favorite, a stale value. "Unavailable" and "unknown" never count as all-clear.
+2. **Needs attention** — items derived from domain policy (§5.5) for **visible** entities only (hiding an entity also removes it from this section): e.g. a jammed or unknown-state lock, an unlocked lock (default policy "normal = locked"), an unavailable favorite. "Unavailable" and "unknown" never count as all-clear. Each entity appears at most once here, and an entity listed here is not repeated in Favorites. Session-level staleness is **not** listed per entity: while the session is not ready, the banner carries a single home-level notice and this section shows "Status unknown while disconnected" instead of its items.
 3. **Favorites** — user-pinned entities.
 4. **Rooms** — one section per area, then **Unassigned**. Room resolution: app override → entity area → device area → Unassigned.
 5. Pull-to-refresh renews the HA subscription (§6.3).
@@ -158,7 +158,7 @@ During a command, the card shows the command's lifecycle state (§6.5) next to t
 
 - Header: name, room, physical device (manufacturer/model when known), availability, and freshness: last changed, last updated, received by the app.
 - Capability-gated controls (Stage 2):
-  - **lock**: Lock / Unlock (+ Open if supported); code prompt if required; related battery reading via shared physical device.
+  - **lock**: Lock / Unlock (+ Open if supported); related battery reading via shared physical device. **Unlock and Open** both require a deliberate confirmation step (authorization), which is separate from entering a device-required code. Both follow the same no-replay rules (§6.5).
   - **climate**: single target or low/high range according to declared features; modes from `hvac_modes` (including `auto` and `heat_cool` as distinct modes); min/max/step and unit respected; low ≤ high validated; null readings shown as "—".
   - **fan**: on/off; percentage slider honoring `percentage_step` when supported; preset selector when the fan is preset-only.
   - **switch**: on/off.
@@ -196,6 +196,7 @@ Error causes are presented as **likely causes**, not definitive diagnoses — a 
 ### 4.7 Entity selection and visibility (Settings → Entities)
 
 - **Default visible:** entities in supported domains that are not disabled or hidden in HA, and whose `entity_category` is neither `diagnostic` nor `config`. This keeps the fridge readings and Ring events while dropping firmware/signal entities.
+- **HA registry entries vs running entities:** a disabled HA entity has no state; choosing "show" in Cockpit cannot enable it. Settings lists such entries separately ("Disabled in Home Assistant") with an explanation that enabling happens in HA; Cockpit performs no HA configuration changes.
 - Users can **favorite**, **hide**, or **show** any entity, and override its room.
 - A **Diagnostics** filter shows hidden/diagnostic entities, unresolved plan placements, and storage/migration notices with counts.
 - Visibility, favorites and placement are independent: an unplaced entity is still visible and actionable.
@@ -217,19 +218,29 @@ Error causes are presented as **likely causes**, not definitive diagnoses — a 
 - `entityId` (e.g. `lock.front_door`) is the **current HA address**, used for service calls. It can be renamed in HA.
 - `key` is the **app identity**: the entity registry entry id when available, else `entity:<entityId>` for unregistered entities. Preferences and placements reference `key`.
 - Reconciliation cases are distinct: *renamed* (same key, new entityId → preferences follow), *missing* (key absent from the snapshot → shown in Diagnostics, preferences kept), *re-created* (new key with an old entityId → treated as a new entity; Diagnostics offers to transfer preferences).
+- **Identity survives metadata outages.** The last known `entityId → registry id` mapping is persisted per profile as versioned **metadata** (not device state). When the entity registry cannot be loaded, keys come from that mapping; a failed registry request is never treated as proof that an entry was removed. Fallback keys `entity:<entityId>` are used only when no identity was ever known.
+- **Alias rule:** when an entity first seen with a fallback key later receives a registry id, preferences and placements referencing `entity:<entityId>` are migrated to the registry key in one step, and the fallback key is recorded as an alias so open routes still resolve.
 
 ### 5.2 Backend interface (`src/session/types.ts`)
 
 ```ts
 export interface HomeBackend {
-  /** Opens and authenticates. Rejects with SessionError. Idempotent while open. */
+  /**
+   * Opens, authenticates and completes the first synchronization.
+   * Resolves only when the first complete snapshot has been emitted (session usable).
+   * Rejects with SessionError (incl. synchronization timeout). Idempotent while open.
+   */
   start(): Promise<void>;
   /** Intentional close: cancels timers/retries; never reconnects afterwards. */
   stop(): void;
   /** Complete replacement snapshots; every emission is the full current set. */
   onSnapshot(listener: (snapshot: HomeSnapshot) => void): Unsubscribe;
   onStatus(listener: (status: SessionStatus) => void): Unsubscribe;
-  /** Renews the subscription and emits a fresh complete snapshot. */
+  /**
+   * Starts a new subscription epoch and resolves only after the server's initial
+   * snapshot for that epoch has been received and emitted. Cached replays never satisfy it.
+   * Concurrent calls (refresh, foreground, reconnect) are coalesced into one epoch.
+   */
   resync(): Promise<void>;
   /** Liveness check with a deadline; resolves false on timeout. */
   ping(timeoutMs: number): Promise<boolean>;
@@ -245,8 +256,24 @@ export interface HomeSnapshot {
   entities: Record<string, EntityRecord>;   // keyed by entityId
   devices: Record<string, PhysicalDevice>;  // keyed by HA device id
   areas: Record<string, Area>;              // keyed by HA area id
-  registryAvailable: boolean; // false → entities are ungrouped, keys fall back to entity:<id>
+  syncEpoch: number;          // increments per subscription epoch; results from older epochs are discarded
+  config: HomeConfig;
+  metadata: {                 // per-registry freshness; failure never changes known identities (§5.1)
+    entities: MetadataStatus;
+    devices: MetadataStatus;
+    areas: MetadataStatus;
+  };
 }
+
+export interface HomeConfig {
+  /** From HA's configuration (`unit_system.temperature`), never from the phone locale. */
+  temperatureUnit: '°C' | '°F';
+  haVersion: string;
+}
+
+export type MetadataStatus =
+  | { kind: 'fresh'; loadedAt: string }
+  | { kind: 'stale'; lastLoadedAt: string | null; reason: 'timeout' | 'error' | 'forbidden' };
 
 export interface ServiceCall {
   domain: string;
@@ -261,7 +288,7 @@ export type ServiceCallResult =
   | { kind: 'unknown'; reason: 'timeout' | 'connection_lost' }; // may or may not have executed
 ```
 
-Snapshots are always **complete**. The store replaces its entity set from each snapshot, so entities removed in HA disappear (or move to "missing" for preference purposes). Unchanged entity objects keep their identity between snapshots (the official client preserves unchanged objects), so per-entity selectors avoid needless re-renders.
+Snapshots are always **complete**. The store replaces its entity set from each snapshot, so entities removed in HA disappear (or move to "missing" for preference purposes). The backend **deliberately preserves** object identity: when mapping a new snapshot, an `EntityRecord` whose raw state, attributes and metadata are unchanged reuses the previous record object (shallow comparison in the mapper). This does not rely on the client's internal identity, so per-entity selectors avoid needless re-renders.
 
 ### 5.3 Core records (`src/core/types.ts`)
 
@@ -308,7 +335,8 @@ export type SessionError =
   | { code: 'invalid_url'; detail: string }
   | { code: 'unreachable'; likelyCauses: UnreachableCause[] }
   | { code: 'auth_invalid' }                          // retries stop until credentials change
-  | { code: 'ha_version_unsupported'; haVersion: string }
+  | { code: 'ha_version_unsupported'; haVersion: string }   // blocking (§3.3)
+  | { code: 'sync_timeout'; phase: 'initial' | 'resync' }   // retryable
   | { code: 'storage'; detail: string }
   | { code: 'unknown'; detail: string };
 
@@ -335,7 +363,7 @@ export type ClimateCapability = {
   target: 'single' | 'range' | 'both' | 'none';
   hvacModes: string[];         // as declared, incl. 'auto' and 'heat_cool'
   min: number; max: number; step: number;
-  unit: string;                // HA's configured temperature unit; values are sent in this unit
+  unit: '°C' | '°F';           // from HomeConfig.temperatureUnit; values displayed and sent in this unit
 };
 
 export type FanCapability = {
@@ -352,7 +380,7 @@ export type Capability =
   | LockCapability | ClimateCapability | FanCapability | SwitchCapability | ReadOnlyCapability;
 
 /** Returns null for unsupported domains (they are ignored). */
-export function getCapability(entity: EntityRecord): Capability | null;
+export function getCapability(entity: EntityRecord, config: HomeConfig): Capability | null;
 ```
 
 Supported domains: `lock`, `climate`, `fan`, `switch`, `camera`, `sensor`, `binary_sensor`, `event`. Others are ignored.
@@ -431,22 +459,25 @@ src/
 Connection sequence (`HomeAssistantBackend`):
 1. Validate & normalize URL (§4.1). Status `connecting`.
 2. `createConnection` with `createLongLivedTokenAuth` → `authenticating`. `auth_invalid` → `error(auth_invalid, retrying: false)`.
-3. `synchronizing`: subscribe to entities via the client's `subscribeEntities` (authoritative feed: initial full state + updates in one subscription — no separate `get_states`, so no fetch/subscribe race) and load the area/device/entity registries. Entity-registry access for the chosen HA user is verified in Stage 0; if it fails, `registryAvailable = false` and entities remain usable ungrouped.
+3. `synchronizing`: load HA configuration (`get_config` → `HomeConfig`), open an entity subscription epoch (authoritative feed: initial full state + updates in one subscription — no separate `get_states`, so no fetch/subscribe race), and load the area/device/entity registries. Entity-registry access for the chosen HA user is verified in Stage 0.
+   - **Deadlines:** configuration + initial entity snapshot must arrive within **15 s**, otherwise `error(sync_timeout, retrying: true)` with a Retry action; late responses of the timed-out attempt are discarded by epoch. Registries are **optional** with a **10 s** deadline: a timeout or error yields a degraded snapshot (`metadata.*.kind = 'stale'`) that keeps known identities (§5.1) and shows a Diagnostics notice.
 4. When both the first entity set and the registries have arrived → first `HomeSnapshot`, status `ready`. Controls enable only in `ready`.
 5. Registry changes (`*_registry_updated` events) trigger a registry reload and a new snapshot.
 
 Reconnect: the official client's own retry schedule is used; Cockpit adds no reconnect loop. On socket loss → `reconnecting`. On reconnection → `synchronizing` → a fresh complete snapshot (renewed subscription) → `ready`. Stage 0 verifies that an entity deleted while disconnected disappears; if the client's resubscription does not guarantee that, the backend forces a new subscription on reconnect.
 
-Heartbeat (foreground only): `ping` every 30 s with a 10 s deadline. A missed deadline closes the socket so the client reconnects.
+Heartbeat (foreground only): `ping` every 30 s with a 10 s deadline. A missed deadline triggers **forced recovery** through the client's `connection.reconnect(true)`. `connection.close()` is reserved for intentional disconnect/forget, because it disables reconnection.
+
+**Fresh-snapshot mechanism.** The official client's high-level `subscribeEntities` caches the collection on the connection with an unsubscribe grace period, so an immediate unsubscribe/resubscribe can replay cached state without contacting the server. Cockpit therefore does **not** use it for epochs. Each epoch issues an explicit server subscription through the client's lower-level API (`connection.subscribeMessage` with `{ type: 'subscribe_entities' }`) and decodes the compressed entity stream in `src/session/homeAssistant/entityStream.ts` (pure, unit-tested). The previous epoch's subscription is unsubscribed after the new epoch's initial snapshot arrives. Stage 0 proves this against the pinned client release; private client fields and timed waits are not used.
 
 ### 6.3 Refresh
 
-Pull-to-refresh calls `resync()`: unsubscribe and resubscribe entities, reload registries, emit a new complete snapshot. The client's `entitiesColl.refresh()` is not used (it is not guaranteed to work for the modern entity collection in the pinned release).
+Pull-to-refresh calls `resync()`: a new subscription epoch (§6.2) plus a registry reload; it resolves after the server's initial snapshot for that epoch. The resync deadline is 15 s; on timeout the previous snapshot stays displayed, the session goes to `error(retrying: true)`, and late epoch results are discarded. The client's `entitiesColl.refresh()` is not used.
 
 ### 6.4 App lifecycle (`AppState`)
 
 - **→ background:** stop heartbeat, camera polling and 3D rendering; cancel unsent (debounced) commands; keep tracking already-sent commands until their deadline; the OS may suspend the socket.
-- **→ foreground (every time):** status → `synchronizing`; `ping(5 s)`; if the ping fails, force reconnect; in all cases run `resync()` before returning to `ready`. Controls stay disabled until then.
+- **→ foreground (every time):** first reconcile command deadlines from their recorded timestamps (background timers may not have fired: any sent command past its deadline becomes `unconfirmed` immediately); status → `synchronizing`; `ping(5 s)`; if the ping fails, `reconnect(true)`; in all cases run `resync()` before returning to `ready`. Controls stay disabled until then.
 
 ### 6.5 Commands (`src/commands/`)
 
@@ -470,7 +501,8 @@ export interface CommandRecord {
   label: string;                   // "Unlock Front door"
   issuedAt: string;
   deadline: string;
-  status: 'sending' | 'accepted' | 'confirmed' | 'failed' | 'unconfirmed';
+  status: 'sending' | 'accepted' | 'confirmed' | 'failed' | 'unconfirmed' | 'superseded';
+  baselineRevision: number;        // entity observation revision at dispatch (§6.5 Ordering)
   error?: string;
 }
 ```
@@ -478,21 +510,45 @@ export interface CommandRecord {
 Rules:
 - **Only in `ready`.** Commands are refused otherwise (UI disabled, and refused again in the command layer).
 - **Lifecycle:** `sending` → (`ServiceCallResult.accepted`) `accepted` → (a snapshot satisfies the desired-state predicate) `confirmed`. `rejected` → `failed`. `unknown` result, connection loss or deadline passed → `unconfirmed`. A late matching update after `unconfirmed` upgrades it to `confirmed`.
-- **Predicates:** lock → state equals target; climate → target attribute(s) within half a `step`; fan → state and percentage within half a `percentage_step`; switch → state. Attribute-only updates count.
+- **Predicates (every semantic command):**
+
+  | Command | Confirmed when |
+  |---|---|
+  | `setLockState(locked)` / `(unlocked)` | state equals `locked` / `unlocked` |
+  | `setLockState(open)` | state becomes `open` or `opening` at least once after dispatch; if the integration exposes no persistent open state (Stage 0), only `accepted` is reported, worded "Open requested — HA accepted" |
+  | `setClimateTarget` | target attribute(s) within half a `step` |
+  | `setHvacMode` | state equals the requested mode |
+  | `setFanOn` | state equals `on` / `off` |
+  | `setFanPercentage` | `percentage` within half a `percentage_step` |
+  | `setFanPreset` | `preset_mode` equals the requested preset |
+  | `setSwitch` | state equals `on` / `off` |
+
+  Attribute-only updates count.
+- **Ordering:** the tracker records, at dispatch, the entity's **baseline observation revision** (a local monotonically increasing counter per entity, not HA timestamps vs the phone clock) and observes every update from dispatch onward — a matching update that arrives **before** the service-call acknowledgement is kept, and the predicate is re-evaluated when the acknowledgement arrives. A terminal status (`confirmed`, `failed`) is never downgraded by a late acknowledgement.
+- **Already satisfied:** if the latest observation already satisfies the target, no service call is sent; the UI reports "Already locked" (explicit no-op).
+- **Late reconciliation window:** an `unconfirmed` command can still become `confirmed` within **5 minutes** of its deadline, only for the same profile and entity key, and only until a newer command for that entity supersedes it. After a reconnect, the wording is "Home Assistant now shows Locked" — it reports state, not which actor caused it. After the window, a matching change is ordinary state, not a command outcome.
+- **Meaning of `failed`:** HA returned an error. The UI says "Home Assistant reported an error", without claiming that no physical effect occurred.
+- **Assumed-state integrations** (`assumed_state: true`): confirmation is labeled "Confirmed (state assumed by the integration)".
 - **No invented state:** the card keeps the last observed value, qualified by the command status. Nothing is rolled back.
-- **Per-entity serialization:** one in-flight command per entity; a new command for the same entity waits for the previous to leave `sending`. Climate targets and fan percentage are **coalesced**: rapid changes debounce (600 ms) and only the last value is sent.
-- **No replay:** commands are never queued while not ready and never re-sent after reconnect. An `unconfirmed` unlock tells the user to check the door; it is not retried.
+- **Actuator policy per kind:**
+  - **Locks:** a new command is **refused** while the previous one is `sending` or `accepted` (awaiting confirmation). After an `unconfirmed` outcome, the next lock action is enabled only after a fresh observation of the entity (a new snapshot epoch or a state update newer than the outcome).
+  - **Climate target, fan percentage:** only the latest unsent intent is kept (600 ms debounce). Dispatch is serialized per entity: the next value is sent only after the previous call returns a `ServiceCallResult`; a newer value **supersedes** the previous command (status `superseded`, not shown to the user). Only the final target's confirmation is reported.
+  - **HVAC mode, fan on/off, fan preset, switch:** one in-flight call per entity; further taps while `sending` are ignored.
+- **Eligibility is revalidated immediately before dispatch** (including after a confirmation dialog): session `ready`, same profile, the key still maps to the same `entityId`, the entity is available, and the capability still declares the action. Otherwise nothing is sent and the dialog explains why.
+- **No replay:** every unsent intent (debounced or queued) is **dropped** as soon as the session leaves `ready`, not only on timers. Commands are never re-sent after reconnect. An `unconfirmed` unlock or open tells the user to check the door; it is not retried.
 - **Deadlines (initial, tuned from Stage 0 measurements):** lock 45 s (30 s vendor polling), climate 30 s, fan/switch 15 s. Stored in `constants/config.ts`.
 - `unconfirmed` and `failed` outcomes stay visible on the card until the next observed change or dismissal.
 
 ### 6.6 Credentials and network
 
-- **Storage:** token in SecureStore under `profile:<profileId>:token`; profile metadata (`url`, `allowInsecureHttp`) in AsyncStorage. Write order: token, then metadata; on load, a token without metadata or metadata without token is treated as "not configured" and both are cleaned up.
+- **Storage:** each profile has a random **storage id** (UUID without dashes → alphanumeric). Token in SecureStore under `profile.<storageId>.token` — SecureStore keys only allow alphanumerics, `.`, `-`, `_`, so the human-readable profile id (`ha:<origin>`) is never used as a key. Profile metadata (`storageId`, normalized origin, `allowInsecureHttp`) lives in AsyncStorage under `profiles`, keyed by profile id. Write order: token, then metadata; on load, a token without metadata or metadata without token is treated as "not configured" and both are cleaned up. Acceptance: HTTPS origin with a non-default port and an IPv6 origin both save, load and forget correctly without collisions.
 - **Profile binding:** profile id = `ha:<normalized origin>`. Editing the URL creates a different profile; a token is never reused for another origin. Caches and preferences are per profile.
 - **No cross-origin authorization:** the bearer header is only attached to requests whose origin equals the profile origin (camera images included; redirects to another origin are not followed with credentials).
 - **Logging:** never log tokens, headers or full HA payloads in production builds.
 - **Reinstall/backup:** SecureStore and AsyncStorage survive reinstall differently on iOS and Android; the validation checklist includes "reinstall → app either has a consistent profile or none".
-- **HTTP on the LAN** (opt-in): iOS `NSAllowsLocalNetworking` + `NSLocalNetworkUsageDescription` in `ios.infoPlist`; Android cleartext via `expo-build-properties`. Apple's `NSAllowsLocalNetworking` is documented for unqualified and `.local` names — whether it covers a raw IP for both WebSocket and image loading is **verified in Stage 0 on installed builds**; if not, an explicit exception for the configured host is added.
+- **HTTP on the LAN** (opt-in) is **build-time configuration**; nothing in Settings changes native configuration.
+  - **Android (validated target):** cleartext allowed via `expo-build-properties` (`usesCleartextTraffic`). Stage 0 proves WebSocket and authenticated image loading over `http://<LAN IP>:8123` on the Pixel 9.
+  - **iOS (deferred, §8):** `NSAllowsLocalNetworking` + `NSLocalNetworkUsageDescription`. Before iOS is supported, a support matrix of address forms (`.local`, IPv4, IPv6) × iOS versions is tested against Apple's current ATS documentation (including IP-address exceptions on iOS 17+); unsupported forms require HTTPS. A change of exception requires a rebuild.
 - **HA authorization model:** per-occupant HA login (authorization-code + refresh token, no Cockpit backend) is a Stage 4 item; Stage 1 uses a long-lived token of a dedicated HA user.
 
 ### 6.7 Preferences persistence
@@ -543,14 +599,14 @@ Gates are acceptance criteria, not calendar estimates.
 
 | Stage | Deliverable | Exit criterion |
 |---|---|---|
-| **0 — Prove the dependencies** | Hardware/firmware inventory and HA entity/capability matrix (`docs/stage0/inventory.md`); project scaffold (Expo SDK 57, dev builds, lockfile); `home-assistant-js-websocket` connect/subscribe/reconnect proof under Hermes on an installed Android build (Pixel 9; iOS deferred, §8); one real read and one real action per category; registry access with the chosen HA user; Ring still-image proof; HTTP-on-LAN proof; HA installation; throwaway 3D prototype (offline bundle, picking vs orbit, callbacks, on the Pixel 9) | Each device works through HA or a limitation/scope change is recorded; Ring images proven, not inferred; minimum HA version recorded; 3D feasible or fallback chosen |
+| **0 — Prove the dependencies** | Hardware/firmware inventory and HA entity/capability matrix (`docs/stage0/inventory.md`); project scaffold (Expo SDK 57, dev builds, lockfile); `home-assistant-js-websocket` connect/subscribe/reconnect proof under Hermes on an installed Android build (Pixel 9; iOS deferred, §8); one real action per **controllable** category (lock, climate, fan, switch), an observed external change for sensor/event categories, and a proven image response for cameras; immediate-resync proof (explicit subscription epoch) against the pinned client release; registry access with the chosen HA user; Ring still-image proof; HTTP-on-LAN proof; HA installation; throwaway 3D prototype (offline bundle, picking vs orbit, callbacks, on the Pixel 9) | Each device works through HA or a limitation/scope change is recorded; Ring images proven, not inferred; minimum HA version recorded; 3D feasible or fallback chosen |
 | **1 — Trustworthy read-only home** | Session lifecycle & synchronization, registries, session banner, connection settings, entity visibility/favorites/rooms, versioned preferences, demo mode, Home (Needs attention + Favorites + Rooms), Device detail (read-only), Diagnostics | Cold start, foreground recovery, server restart, entity removal and demo/HA switching all produce correct, qualified state |
 | **2 — Safe household controls** | Capability-aware lock/climate/fan/switch controls, command tracking, camera images & event display, targeted grouping (fridge, camera + events, lock + battery), readable errors | All retained MVP controls work on real hardware, including delayed or uncertain outcomes, with no stale command replay |
 | **3 — Spatial cockpit** | House geometry & placements, 3D scene & markers, list/plan toggle | Works offline from the bundle, updates live, meets the agreed performance/accessibility budget; scene failure leaves the app usable |
 | **4 — Everyday household use** *(candidates)* | Per-occupant HA login, Activity view from HA history, config export/import, HA scenes/scripts, household thresholds, tablet layout, optional 2D plan | Occupants complete common tasks independently and can restore configuration after reinstall |
 | **5 — Demonstrated needs only** | Plan editor, live camera viewing, richer alerts, local/remote endpoint switching, widgets | Each addition has a real household use case and an owner |
 
-Each stage gets its own implementation plan. Stage 0 code other than the scaffold is throwaway.
+Each stage gets its own implementation plan. Stage 0 prototype UI code is throwaway, but its **proof results and selected package versions are kept** as artifacts in `docs/stage0/`.
 
 ---
 
@@ -580,6 +636,8 @@ Cockpit-native push requires an HA-side integration and APNs/FCM delivery path �
 
 ## 11. Review disposition
 
+### Review 1
+
 | Review item | Disposition |
 |---|---|
 | 1 — Command outcome instead of rollback | **Accepted.** §6.5: lifecycle with `unconfirmed`, predicates, serialization, coalescing, no replay. Deadlines are per-domain initial values tuned in Stage 0. |
@@ -595,6 +653,21 @@ Cockpit-native push requires an HA-side integration and APNs/FCM delivery path �
 | 11 — Persistence first, migrations | **Accepted.** Preferences in Stage 1 with migrations, corrupt-JSON recovery, per-profile separation. |
 | 12 — 3D feasibility gate | **Accepted.** Throwaway prototype in Stage 0; single floor in v1; conditions separate from colors; error boundary. |
 | Product direction / navigation | **Accepted, staged:** Overview + Rooms on one screen in Stage 1; Activity is a Stage 4 candidate. |
+
+### Review 2
+
+| Review item | Disposition |
+|---|---|
+| 1 — Invalid SecureStore key | **Accepted.** §6.6: random alphanumeric storage id per profile; profile id never used as a key. |
+| 2 — Resubscribe may replay cache | **Accepted.** §6.2: explicit `subscribe_entities` epochs through the client's lower-level API, own stream decoder; `resync()` resolves on the server's initial snapshot; `syncEpoch` in snapshots; concurrent requests coalesced. Proven in Stage 0. |
+| 3 — Serialization ended too early | **Accepted.** §6.5 actuator policy per kind; locks refuse a new command until confirmation; all unsent intents dropped when leaving `ready`. |
+| 4 — Confirmation ordering & window | **Accepted.** Baseline revision, state-before-ack, explicit no-op, 5-minute late window, predicates for every command, wording of `failed` and assumed state. |
+| 5 — Identity during registry outage | **Accepted.** §5.1 persisted identity mapping, alias rule; per-registry `MetadataStatus` replaces `registryAvailable`. |
+| 6 — Climate unit source | **Accepted.** `HomeConfig.temperatureUnit` from HA config; `getCapability(entity, config)`. |
+| 7 — Sync deadlines & recovery | **Accepted.** 15 s required sync, 10 s optional registries (degraded mode), `start()` semantics, `reconnect(true)` for heartbeat recovery, deadline reconciliation on foreground. |
+| 8 — Open = unlock policy; eligibility | **Accepted.** §4.4 and §6.5 revalidation before dispatch. |
+| 9 — iOS exceptions are build-time | **Accepted.** §6.6; iOS matrix deferred with iOS enablement (§8). |
+| Smaller clarifications | **Accepted:** version check is blocking; disabled HA entries explained; identity preserved by the mapper; Needs-attention dedup/hide/outage rules; Stage 0 proofs per category kind; Stage 0 artifacts kept. |
 
 ---
 
