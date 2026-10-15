@@ -6,15 +6,13 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { router } from "expo-router";
-import { useCockpit } from "../core/store";
-import { houseForMode } from "../spatial/plans";
+import { useHousePlan } from "../spatial/plans";
 import { colors } from "./ui";
 import { Icon } from "./EntityIcon";
 import { FloorPlanView } from "./FloorPlanView";
 
 export function HousePlanCard() {
-  const mode = useCockpit((state) => state.mode);
-  const plan = houseForMode(mode);
+  const { plan } = useHousePlan();
   const { width, fontScale } = useWindowDimensions();
   const spaces = plan.floors.reduce(
     (count, floor) => count + floor.rooms.length,

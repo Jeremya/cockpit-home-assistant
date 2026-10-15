@@ -1,15 +1,39 @@
 import type { IdentityMetadata } from "../core/types";
+import type { HousePlan, PlanPoint } from "../spatial/model";
+export interface PlanPlacement {
+  floorId: string;
+  roomId: string | null;
+  /** X/Z meters on the floor; elevation comes from the floor later. */
+  position: PlanPoint;
+}
+/** References may be unresolved (deleted room, area or entity); they are kept for diagnostics. */
+export interface SpatialPreferences {
+  plan: HousePlan | null;
+  seededFrom: { planId: string; revision: number } | null;
+  /** Plan-room ID -> HA area ID. */
+  areaLinks: Record<string, string>;
+  /** Stable entity key -> placement. */
+  placements: Record<string, PlanPlacement>;
+}
 export interface ProfilePreferences {
   favorites: string[];
   visibility: Record<string, "shown" | "hidden">;
   roomOverrides: Record<string, string>;
   cameraEventOverrides: Record<string, string[]>;
   identities: IdentityMetadata;
+  spatial: SpatialPreferences;
 }
+export type ProfilePreferencesV1 = Omit<ProfilePreferences, "spatial">;
 export interface PreferencesFile {
-  schemaVersion: 1;
+  schemaVersion: 2;
   profiles: Record<string, ProfilePreferences>;
 }
+export const emptySpatial = (): SpatialPreferences => ({
+  plan: null,
+  seededFrom: null,
+  areaLinks: {},
+  placements: {},
+});
 export const emptyIdentity = (): IdentityMetadata => ({
   schemaVersion: 1,
   entityKeys: {},
@@ -21,6 +45,7 @@ export const emptyPreferences = (): ProfilePreferences => ({
   roomOverrides: {},
   cameraEventOverrides: {},
   identities: emptyIdentity(),
+  spatial: emptySpatial(),
 });
 export function resolveAlias(
   key: string,
@@ -58,5 +83,6 @@ export function reconcilePreferences(
         values.map(resolve),
       ]),
     ),
+    spatial: { ...p.spatial, placements: rekey(p.spatial.placements) },
   };
 }

@@ -10,6 +10,8 @@ import {
 import { DemoBackend } from "./demo/DemoBackend";
 import { HomeAssistantBackend } from "./homeAssistant/HomeAssistantBackend";
 import { profileIdFor, validateSettings } from "./homeAssistant/url";
+import { houseForMode } from "../spatial/plans";
+import { resetSpatial, seedSpatial } from "../spatial/profilePlan";
 import type { HomeBackend } from "./types";
 
 export class SessionManager {
@@ -57,6 +59,7 @@ export class SessionManager {
             profileId: null,
             mode: null,
             preferences: emptyPreferences(),
+            preferencesLoadedFor: null,
           }
         : {}),
     });
@@ -93,8 +96,20 @@ export class SessionManager {
     const { file, notice } = loaded;
     if (generation !== this.generation) return;
     if (notice) this.notice(notice);
-    const prefs = file.profiles[profileId] ?? emptyPreferences();
-    useCockpit.setState({ preferences: prefs });
+    const stored = file.profiles[profileId] ?? emptyPreferences();
+    const spatial = seedSpatial(
+      stored.spatial,
+      houseForMode(settings ? "homeAssistant" : "demo"),
+    );
+    const prefs = { ...stored, spatial };
+    // Persisted with the first snapshot, so a failed attempt never creates a profile;
+    // retried on later snapshots until a write succeeds.
+    let seedPending = spatial !== stored.spatial;
+    let seedSaving = false;
+    useCockpit.setState({
+      preferences: prefs,
+      preferencesLoadedFor: profileId,
+    });
     const backend = settings
       ? new HomeAssistantBackend(settings, String(generation), {
           identities: prefs.identities,
@@ -134,16 +149,28 @@ export class SessionManager {
         const previous = useCockpit.getState().preferences;
         const preferences = reconcilePreferences(previous, snapshot.identities);
         useCockpit.setState({ snapshot, preferences });
-        if (
+        const identitiesChanged =
           JSON.stringify(previous.identities) !==
-          JSON.stringify(snapshot.identities)
-        )
-          void this.preferences
-            .saveProfile(profileId, preferences)
-            .catch(() => {
-              if (generation === this.generation)
-                this.notice("Identity metadata could not be saved.");
-            });
+          JSON.stringify(snapshot.identities);
+        const retrySeed = seedPending && !seedSaving;
+        if (!identitiesChanged && !retrySeed) return;
+        if (retrySeed) seedSaving = true;
+        void this.preferences
+          .saveProfile(profileId, preferences)
+          .then(() => {
+            seedPending = false;
+          })
+          .catch(() => {
+            if (generation === this.generation)
+              this.notice(
+                identitiesChanged
+                  ? "Identity metadata could not be saved."
+                  : "The floor plan could not be saved yet; it will be retried.",
+              );
+          })
+          .finally(() => {
+            if (retrySeed) seedSaving = false;
+          });
       }),
     ];
     await backend.setForeground(this.foreground);
@@ -173,14 +200,26 @@ export class SessionManager {
     this.foreground = active;
     await this.backend?.setForeground(active);
   }
-  updatePreferences(update: (p: ProfilePreferences) => ProfilePreferences) {
-    const { profileId, preferences } = useCockpit.getState();
-    if (!profileId) return;
+  /** Returns false without saving when the active profile's preferences are not loaded. */
+  updatePreferences(
+    update: (p: ProfilePreferences) => ProfilePreferences,
+  ): boolean {
+    const { profileId, preferences, preferencesLoadedFor } =
+      useCockpit.getState();
+    if (!profileId || preferencesLoadedFor !== profileId) return false;
     const next = update(preferences);
     useCockpit.setState({ preferences: next });
     void this.preferences
       .saveProfile(profileId, next)
       .catch(() => this.notice("Preferences could not be saved."));
+    return true;
+  }
+  /** Replaces only the plan, area links and placements; other preferences are kept. */
+  resetSpatial(): boolean {
+    const { mode } = useCockpit.getState();
+    if (!mode) return false;
+    const spatial = resetSpatial(houseForMode(mode));
+    return this.updatePreferences((p) => ({ ...p, spatial }));
   }
   notice(message: string) {
     useCockpit.setState((state) => ({

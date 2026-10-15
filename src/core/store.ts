@@ -11,6 +11,8 @@ interface CockpitState {
   status: SessionStatus;
   snapshot: HomeSnapshot | null;
   preferences: ProfilePreferences;
+  /** The profile whose stored preferences are in `preferences`; edits are refused until it matches `profileId`. */
+  preferencesLoadedFor: string | null;
   notices: string[];
 }
 export const useCockpit = create<CockpitState>(() => ({
@@ -20,5 +22,6 @@ export const useCockpit = create<CockpitState>(() => ({
   status: { kind: "idle" },
   snapshot: null,
   preferences: emptyPreferences(),
+  preferencesLoadedFor: null,
   notices: [],
 }));

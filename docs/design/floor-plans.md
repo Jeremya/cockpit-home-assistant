@@ -10,7 +10,7 @@ Personal geometry lives in `.local/home-plan.json`. The reference image and pers
 
 `npm run house:prepare` validates that configuration and writes the ignored `src/spatial/current-plan.json` module for Metro to bundle. A fresh checkout without personal configuration uses [the public sample](../../src/spatial/sample-plan.json). Demo mode always shows that sample, even when a personal plan exists. It cannot silently present simulated devices as placed in the personal house.
 
-Preparation runs after dependency installation and before the normal start, Android, web, typecheck, test and Android-export commands. Invalid configuration stops preparation without printing its contents or replacing the last generated module. After editing the local plan, run preparation again or restart through the npm scripts.
+Preparation runs after dependency installation and before the normal start, Android, web, typecheck, test and Android-export commands. Invalid configuration stops preparation without printing its contents or replacing the last generated module. After editing the local plan, run preparation again or restart through the npm scripts. A connected profile keeps the copy it was seeded with: the plan screen and Diagnostics then report a newer default, and **Diagnostics → Reset plan to default** applies it (this also clears room links and device placements).
 
 The source file is private configuration; **an exported app or web bundle contains the plan chosen during build preparation** so it can render offline. Keep personal build artifacts local. To create a shareable sample build without changing local configuration:
 
@@ -28,7 +28,9 @@ The final command restores the personal module for subsequent development. `COCK
 
 Coordinates are meters on the X/Z plane with Y up, matching the intended 3D convention. Geometry traced from an image is explicitly approximate. Printed dimensions are retained as source text, independently of the approximate polygon scale. The initial viewer does not calculate room area or infer missing dimensions. Unlabeled spaces keep neutral names until the household confirms their use.
 
-Validation checks schema version, finite/bounded coordinates, nonzero polygons, unique IDs, room vertices inside the floor and labels inside rooms. This is a layout format, not a CAD or survey model. Floor alignment, wall thickness, door/window details and elevations need refinement before a detailed 3D reconstruction.
+A floor may also list rough **furniture** footprints (kind, rectangle or ellipse, center, width × depth in meters, optional rotation in degrees counter-clockwise seen from above). They are drawn as quiet line art under the room labels, purely to help orientation; they are placed by eye from photos, never measured, and carry no device or HA meaning.
+
+Validation checks schema version, finite/bounded coordinates, nonzero polygons, unique IDs, room vertices inside the floor, labels inside rooms, and furniture centers inside the floor with bounded sizes. This is a layout format, not a CAD or survey model. Floor alignment, wall thickness, door/window details and elevations need refinement before a detailed 3D reconstruction.
 
 HA areas and entity identities remain separate. No HA areas are created and no entities are assigned from a drawing. The Home summary calls its count **HA rooms** to distinguish real area assignments from spaces on the plan. A later per-profile association will connect plan-room IDs to HA area IDs and stable entity keys; it must retain unresolved placements after registry changes.
 

@@ -1,5 +1,18 @@
-import Svg, { G, Line, Polygon, Text as SvgText } from "react-native-svg";
-import type { PlanFloor, PlanPoint, RoomKind } from "../spatial/model";
+import Svg, {
+  Ellipse,
+  G,
+  Line,
+  Polygon,
+  Rect,
+  Text as SvgText,
+} from "react-native-svg";
+import type {
+  FurnitureKind,
+  PlanFloor,
+  PlanFurniture,
+  PlanPoint,
+  RoomKind,
+} from "../spatial/model";
 import { planBounds } from "../spatial/model";
 import { colors } from "./ui";
 
@@ -11,6 +24,56 @@ const roomColors: Record<RoomKind, string> = {
   storage: "#333846",
   circulation: "#242d3b",
 };
+
+// Quiet line-art footprints: furniture orients the eye but never competes with rooms or state.
+const furnitureStyles: Record<
+  FurnitureKind,
+  { fill: string; stroke: string; dash?: string; radius: number }
+> = {
+  rug: {
+    fill: "rgba(214,222,235,0.04)",
+    stroke: "rgba(214,222,235,0.28)",
+    dash: "2.5 2",
+    radius: 1.5,
+  },
+  seating: {
+    fill: "rgba(214,222,235,0.16)",
+    stroke: "rgba(214,222,235,0.5)",
+    radius: 4,
+  },
+  table: {
+    fill: "rgba(214,222,235,0.1)",
+    stroke: "rgba(214,222,235,0.45)",
+    radius: 2,
+  },
+  counter: {
+    fill: "rgba(214,222,235,0.12)",
+    stroke: "rgba(214,222,235,0.3)",
+    radius: 1,
+  },
+  storage: {
+    fill: "rgba(214,222,235,0.08)",
+    stroke: "rgba(214,222,235,0.3)",
+    radius: 1,
+  },
+  appliance: {
+    fill: "rgba(214,222,235,0.05)",
+    stroke: "rgba(214,222,235,0.42)",
+    radius: 1.5,
+  },
+  fixture: {
+    fill: "rgba(246,178,107,0.1)",
+    stroke: "rgba(246,178,107,0.45)",
+    radius: 1.5,
+  },
+  plant: {
+    fill: "rgba(95,212,168,0.18)",
+    stroke: "rgba(95,212,168,0.5)",
+    radius: 0,
+  },
+};
+const furnitureOrder = (item: PlanFurniture) =>
+  item.kind === "rug" ? 0 : item.kind === "counter" ? 1 : 2;
 
 export function FloorPlanView({
   floor,
@@ -62,6 +125,44 @@ export function FloorPlanView({
         />
       ))}
       <G pointerEvents="none">
+        {[...(floor.furniture ?? [])]
+          .sort((a, b) => furnitureOrder(a) - furnitureOrder(b))
+          .map((item) => {
+            const style = furnitureStyles[item.kind];
+            const cx = x(item.center);
+            const cy = y(item.center);
+            const w = item.width * unit;
+            const h = item.depth * unit;
+            const shared = {
+              fill: style.fill,
+              stroke: style.stroke,
+              strokeWidth: 0.8,
+              strokeDasharray: style.dash,
+              transform: item.rotation
+                ? `rotate(${-item.rotation} ${cx} ${cy})`
+                : undefined,
+            };
+            return item.shape === "ellipse" ? (
+              <Ellipse
+                key={item.id}
+                cx={cx}
+                cy={cy}
+                rx={w / 2}
+                ry={h / 2}
+                {...shared}
+              />
+            ) : (
+              <Rect
+                key={item.id}
+                x={cx - w / 2}
+                y={cy - h / 2}
+                width={w}
+                height={h}
+                rx={Math.min(style.radius, w / 2, h / 2)}
+                {...shared}
+              />
+            );
+          })}
         {floor.lines.map((line, index) => (
           <Line
             key={index}

@@ -99,8 +99,8 @@ The final preparation restores local development configuration. Browser storage 
 | F01 | Done            | Finish native floor-plan acceptance                      | Unlocked Pixel                             |
 | F02 | P1 / S          | Reproducible sample UI smoke script                      | None                                       |
 | H01 | P0 / hardware   | Verify actual household HA capabilities                  | User's hardware/integration setup          |
-| P01 | P1 / M          | Schema-2 spatial preferences and migrations              | None                                       |
-| P02 | P1 / S          | Profile-aware plan provider and explicit reset           | P01                                        |
+| P01 | Done            | Schema-2 spatial preferences and migrations              | None                                       |
+| P02 | Done            | Profile-aware plan provider and explicit reset           | P01                                        |
 | P03 | P1 / M          | Link plan rooms to HA areas                              | P02                                        |
 | P04 | P1 / M          | Place entities on the 2D plan                            | P03                                        |
 | S01 | P1 / M          | Isolated, measured native Three.js feasibility           | None; use sample geometry                  |
@@ -184,6 +184,8 @@ interface SpatialPreferences {
 
 Done/tests: valid v1 migration including two origins and demo; v2 round-trip; malformed backup; unknown version handling; queued writes; alias collision; missing entity retains placement. No plan editor or scene in this ticket.
 
+**Status (2026-10-15): done.** `PreferencesFile` is schema 2; each profile carries `spatial`. Loading validates each version as itself and then runs the ordered migrations. A file from a newer app version is backed up to `prefs.corrupt.<timestamp>` with a distinct notice. Saved profiles are rebuilt from documented fields only. Placements follow identity aliases, and unresolved room/area/entity references are kept. Nothing reads `spatial` yet; P02 selects and seeds the plan.
+
 ### P02 — Profile-aware plan provider and reset
 
 Files: `spatial/plans.ts` (or a new `useHousePlan` selector), `HousePlanScreen`, `HousePlanCard`, `SessionManager`, Diagnostics.
@@ -193,6 +195,8 @@ Centralize plan selection: stored profile plan when present, otherwise the insta
 Never overwrite an existing plan when the bundled revision changes. Offer an explicit reset in Diagnostics, with confirmation describing that only spatial plan/links/placements are reset; favorites, visibility and credentials stay intact. Present a new-default notice without silently replacing user work. A missing/deleted selected floor or room falls back safely. Reset local view selection when profile/plan identity changes.
 
 Done/tests: profile switch isolation, new bundled revision preserves saved geometry, demo uses sample, explicit reset scope, missing floor selection. Prefer one provider over several screens independently choosing different plans.
+
+**Status (2026-10-15): done.** `useHousePlan()` in `spatial/plans.ts` is the single provider for the plan screen, the Home card and the scene lab. `SessionManager.connect` seeds an unseeded profile with a copy of the bundled default (sample for demo) and persists it with the first snapshot, so a failed attempt creates no profile. A changed bundled default is reported on the plan screen and in Diagnostics, never applied silently. Diagnostics → **Reset plan to default** (with confirmation) replaces only plan, links and placements. Verified on the Pixel: the HA profile was seeded at the current personal revision; the confirmation dialog appeared and Cancel left everything unchanged.
 
 ### P03 — Plan room ↔ HA area associations
 

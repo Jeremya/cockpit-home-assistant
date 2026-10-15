@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { useCockpit } from "../core/store";
-import { houseForMode } from "../spatial/plans";
+import { useHousePlan } from "../spatial/plans";
 import type { PlanFloor } from "../spatial/model";
 import { CockpitSceneView } from "../components/CockpitSceneView";
 import {
@@ -33,8 +32,7 @@ function fixtureMarkers(floor: PlanFloor) {
 }
 
 export function SceneLabScreen() {
-  const mode = useCockpit((state) => state.mode);
-  const plan = houseForMode(mode);
+  const { plan } = useHousePlan();
   const [floorId, setFloorId] = useState(plan.floors[0]!.id);
   const floor =
     plan.floors.find((item) => item.id === floorId) ?? plan.floors[0]!;

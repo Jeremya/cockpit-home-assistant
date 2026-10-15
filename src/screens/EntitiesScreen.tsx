@@ -36,15 +36,15 @@ export function EntitiesScreen() {
               <Switch
                 accessibilityLabel={`Show ${entity.name}`}
                 value={isVisible(entity, preferences)}
-                onValueChange={(shown) =>
+                onValueChange={(shown) => {
                   session.updatePreferences((p) => ({
                     ...p,
                     visibility: {
                       ...p.visibility,
                       [entity.key]: shown ? "shown" : "hidden",
                     },
-                  }))
-                }
+                  }));
+                }}
               />
             </View>
             <Button

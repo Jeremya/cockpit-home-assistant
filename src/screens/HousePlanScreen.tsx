@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useCockpit } from "../core/store";
-import { houseForMode } from "../spatial/plans";
+import { useHousePlan } from "../spatial/plans";
 import type { HousePlan, RoomKind } from "../spatial/model";
 import { FloorPlanView } from "../components/FloorPlanView";
 import { Icon, type IconName } from "../components/EntityIcon";
@@ -16,17 +15,22 @@ const roomIcons: Record<RoomKind, IconName> = {
   circulation: "corner-up-right",
 };
 export function HousePlanScreen() {
-  const mode = useCockpit((state) => state.mode);
-  const profileId = useCockpit((state) => state.profileId);
-  const plan = houseForMode(mode);
+  const { plan, defaultChanged, identity } = useHousePlan();
   return (
     <HousePlanContent
-      key={`${profileId}:${plan.id}:${plan.revision}`}
+      key={identity}
       plan={plan}
+      defaultChanged={defaultChanged}
     />
   );
 }
-function HousePlanContent({ plan }: { plan: HousePlan }) {
+function HousePlanContent({
+  plan,
+  defaultChanged,
+}: {
+  plan: HousePlan;
+  defaultChanged: boolean;
+}) {
   const [floorId, setFloorId] = useState(plan.floors[0]!.id);
   const [roomId, setRoomId] = useState<string | null>(null);
   const floor =
@@ -49,6 +53,14 @@ function HousePlanContent({ plan }: { plan: HousePlan }) {
             : "Illustrative layout"}
         </Body>
       </View>
+      {defaultChanged && (
+        <Panel>
+          <Body>
+            A newer default plan is available. Your saved plan is kept; reset it
+            from Diagnostics to use the new one.
+          </Body>
+        </Panel>
+      )}
       <View style={planStyles.floorTabs} accessibilityRole="tablist">
         {plan.floors.map((item) => {
           const selected = item.id === floor.id;

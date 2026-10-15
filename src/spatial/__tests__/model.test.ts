@@ -43,6 +43,32 @@ test("invalid geometry, duplicate identities and unsupported schemas cannot be b
   expect(parseHousePlan({ ...sample, schemaVersion: 20 })).toBeNull();
 });
 
+test("optional furniture footprints are validated like the rest of the floor", () => {
+  const furnished = structuredClone(sample) as Record<string, any>;
+  const floor = furnished.floors[0];
+  const sofa = {
+    id: "sample-sofa",
+    name: "Sofa",
+    kind: "seating",
+    shape: "rect",
+    center: floor.rooms[0].label,
+    width: 2,
+    depth: 0.9,
+    rotation: 90,
+  };
+  floor.furniture = [sofa];
+  expect(parseHousePlan(furnished)?.floors[0]!.furniture).toHaveLength(1);
+  for (const broken of [
+    { ...sofa, center: { x: -50, z: 0 } },
+    { ...sofa, width: 0 },
+    { ...sofa, kind: "throne" },
+    { ...sofa, id: floor.rooms[0].id },
+  ]) {
+    floor.furniture = [broken];
+    expect(parseHousePlan(furnished)).toBeNull();
+  }
+});
+
 test("a clean build uses the public sample; invalid local data preserves the previous bundle", () => {
   const temporary = mkdtempSync(join(tmpdir(), "cockpit-plan-"));
   const source = join(temporary, "personal.json");
@@ -73,4 +99,15 @@ test("a clean build uses the public sample; invalid local data preserves the pre
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
+});
+
+test("parsing returns a copy holding only documented plan fields", () => {
+  const extended = structuredClone(sample) as Record<string, any>;
+  extended.runtime = { token: "secret" };
+  extended.floors[0].rooms[0].polygon[0].y = 3;
+  const plan = parseHousePlan(extended)!;
+  expect(plan).not.toHaveProperty("runtime");
+  expect(plan.floors[0]!.rooms[0]!.polygon[0]).not.toHaveProperty("y");
+  expect(plan).toEqual(parseHousePlan(sample));
+  expect(plan.floors[0]).not.toBe(extended.floors[0]);
 });
