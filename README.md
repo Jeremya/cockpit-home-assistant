@@ -2,18 +2,21 @@
 
 An Android-first app for viewing a household's devices through Home Assistant. Built with Expo SDK 57, React Native, TypeScript, Zustand and the official HA WebSocket client. Home Assistant owns integrations and device state; Cockpit provides the household interface.
 
-The current app is **read-only**: Home with attention items, favorites and rooms; entity details; connection settings; entity visibility and room overrides; diagnostics. An offline demo home is included. Device controls, camera images and the 3D floor plan are later milestones.
+The current app is **read-only**: a room-filtered Home with attention items, favorites and a device grid; entity details; connection settings; entity visibility and room overrides; diagnostics. An offline demo home is included. Device controls, camera images and the 3D floor plan are later milestones.
+
+The interface now follows the quiet dark surfaces, outline icons and room navigation of [House Control](https://github.com/0xProbabillity/house-control). See the [previews and design roadmap](docs/design/2026-10-15-interface-direction.md) for the current native foundation and the path toward a spatial cockpit.
 
 ## Current status
 
 Recorded on 2026-10-15:
 
-- 47 tests pass across 8 suites, along with TypeScript, ESLint and formatting checks.
+- 51 tests pass across 8 suites, along with TypeScript, ESLint and formatting checks.
 - The configured HA `2026.10.1` instance passes authenticated synchronization, registry loading, ping, fresh refresh, simulated foreground return and forced reconnect: 44 entities and all three registries fresh.
 - Protocol tests cover disconnect during the first synchronization, continued updates after a refresh timeout and automatic recovery. No device service calls are sent by either proof script.
-- The ARM64 development APK builds and runs on a Pixel 9 Pro with Android 17 and Hermes. Native checks pass for HA over Wi-Fi, token persistence after process restart, foreground resync, pull-to-refresh, terminal authentication errors, Forget and demo/entity navigation.
+- The ARM64 development APK builds and runs on a Pixel 9 Pro with Android 17 and Hermes. Native checks pass for HA over Wi-Fi, token persistence after process restart, foreground resync, pull-to-refresh, terminal authentication errors, Forget and demo/entity navigation. Cold startup without Wi-Fi recovers automatically after network return; an HA restart reconnects and removes an ephemeral test entity from the native snapshot.
+- The refreshed interface renders on the Pixel. Browser checks pass for room filtering, global attention, favorite persistence and layouts at 320, 430 and 768 pixels.
 
-The Node protocol proofs and installed-app checks are recorded separately in the [Stage 0 results](docs/stage0/results.md), [HA proof report](docs/stage0/ha-proof-2026-10-15.json) and [Android validation](docs/stage0/android-validation.md). Native Wi-Fi-loss/server-restart scenarios, actual vendor compatibility and authenticated camera images remain to be verified.
+The Node protocol proofs and installed-app checks are recorded separately in the [Stage 0 results](docs/stage0/results.md), [HA proof report](docs/stage0/ha-proof-2026-10-15.json) and [Android validation](docs/stage0/android-validation.md). Actual vendor compatibility, authenticated camera images and the 3D feasibility prototype remain to be verified.
 
 ## Install and run
 
@@ -119,8 +122,8 @@ npm run format:check
 
 ## Next milestones
 
-1. Complete the remaining native fault checks: cold start without Wi-Fi, recovery when it returns, HA server restart and removal of entities while disconnected.
-2. Complete the [household capability inventory](docs/stage0/inventory.md), including real camera images and a Bluetooth path for AIRTAP. Prototype 3D feasibility on the Pixel.
+1. Prototype the spatial view on the Pixel: bundled demo geometry, room/device picking, native callbacks, rendering budget and a usable list if the scene fails.
+2. Complete the [household capability inventory](docs/stage0/inventory.md), including real room assignments, camera images and a Bluetooth path for AIRTAP.
 3. Stage 2: command tracking and capability-aware controls, then camera images and related events. Outcomes must reflect observed HA state, and reconnect must never replay a command.
 4. Stage 3: the spatial cockpit, with bundled geometry, live markers and the list view remaining usable if the scene fails. Later candidates include configuration export/import, household logins and tablet layouts.
 

@@ -7,7 +7,7 @@ Updated: 2026-10-15 after lifecycle/credential recovery corrections and installe
 ## Implemented
 
 - Expo SDK 57, Android development-client configuration, Router, TypeScript strict, Zustand and native persistence; exact package resolution in `package-lock.json`.
-- Home with attention items, favorites and room sections; entity detail; connection settings; visibility/favorites/room overrides; diagnostics; explicitly simulated demo mode.
+- Home with expandable global attention, favorites, room filtering and an adaptive device grid; entity detail; connection settings; visibility/favorites/room overrides; diagnostics; explicitly simulated demo mode. [Interface direction and previews](../design/2026-10-15-interface-direction.md).
 - Official HA client authentication and transport, with an independent decoder for the actual compressed entity stream.
 - Complete replacement snapshots, explicit subscription epochs, coalesced resync, stale-epoch rejection, bounded required synchronization and optional registry timeouts.
 - HA configuration-derived temperature units, identity preservation during registry failure, alias migration and structural sharing for unchanged entity records.
@@ -17,20 +17,20 @@ Updated: 2026-10-15 after lifecycle/credential recovery corrections and installe
 
 ## Verified here
 
-| Check | Result |
-|---|---|
-| TypeScript strict checking | Passed |
-| ESLint | Passed |
-| Behavioral/unit/component tests | 47 tests passed across 8 suites (26 tests at the original foundation checkpoint) |
-| Official-client protocol proof | Passed over real loopback WebSockets: authentication, compressed snapshot, immediate fresh resync, removed entity, coalescing, ping, forced reconnect, disconnect during first sync, active stream after resync timeout, and automatic sync retry; no device service calls |
-| Android native prebuild | Passed; manifest includes Internet permission, cleartext LAN support and SecureStore backup rules |
-| Android export | Passed; Hermes bundle generated (approximately 2.8 MB) |
-| Native Android build and installed-app checks (2026-10-15) | ARM64 debug APK assembled and installed on Pixel 9 Pro / Android 17; Hermes, HA over Wi-Fi, native token persistence, foreground/refresh, auth-error recovery actions, Forget and demo/entity navigation passed. [Validation details](android-validation.md) |
-| SDK dependency alignment | `expo install --check` passed |
-| Web demo export | Passed; web is a preview, not a native credential-persistence target |
-| Browser workflow (Chrome, mobile viewport) | Passed: demo startup, rooms, stable-key detail navigation, favorites, URL validation, entity settings; no page errors |
-| HA onboarding (2026-10-15) | HTTP 200 on port 8123; user, core configuration, analytics and integration onboarding steps all report complete |
-| Authenticated HA instance (2026-10-15) | Passed with the locally supplied token against HA `2026.10.1`: 44 entities, entity/device/area registries fresh, ping, fresh/coalesced resync, simulated foreground and forced reconnect; no service calls. [Recorded result](ha-proof-2026-10-15.json) |
+| Check                                                      | Result                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript strict checking                                 | Passed                                                                                                                                                                                                                                                                                                                     |
+| ESLint                                                     | Passed                                                                                                                                                                                                                                                                                                                     |
+| Behavioral/unit/component tests                            | 51 tests passed across 8 suites (26 tests at the original foundation checkpoint)                                                                                                                                                                                                                                           |
+| Official-client protocol proof                             | Passed over real loopback WebSockets: authentication, compressed snapshot, immediate fresh resync, removed entity, coalescing, ping, forced reconnect, disconnect during first sync, active stream after resync timeout, and automatic sync retry; no device service calls                                                 |
+| Android native prebuild                                    | Passed; manifest includes Internet permission, cleartext LAN support and SecureStore backup rules                                                                                                                                                                                                                          |
+| Android export                                             | Passed; Hermes bundle generated (approximately 2.9 MB), including the Feather icon font                                                                                                                                                                                                                                    |
+| Native Android build and installed-app checks (2026-10-15) | ARM64 debug APK assembled and installed on Pixel 9 Pro / Android 17; Hermes, HA over Wi-Fi, native token persistence, foreground/refresh, auth-error recovery actions, Forget, offline-start recovery, HA restart/removal fixture and refreshed demo/entity navigation passed. [Validation details](android-validation.md) |
+| SDK dependency alignment                                   | Original native build: passed. Follow-up check recommends Expo `~57.0.30` and Router `~57.0.28`; the tested `57.0.29` / `57.0.27` pins are retained for this UI/fault-validation change. A patch update needs a separate native smoke check.                                                                               |
+| Web demo export                                            | Passed; web is a preview, not a native credential-persistence target                                                                                                                                                                                                                                                       |
+| Browser workflow (Chrome, 320/430/768 px)                  | Passed: demo startup, room filters, global attention, selected-tab accessibility, stable-key detail navigation, favorite persistence, URL validation, entity settings and page/card bounds; no page errors                                                                                                                 |
+| HA onboarding (2026-10-15)                                 | HTTP 200 on port 8123; user, core configuration, analytics and integration onboarding steps all report complete                                                                                                                                                                                                            |
+| Authenticated HA instance (2026-10-15)                     | Passed with the locally supplied token against HA `2026.10.1`: 44 entities, entity/device/area registries fresh, ping, fresh/coalesced resync, simulated foreground and forced reconnect; no service calls. [Recorded result](ha-proof-2026-10-15.json)                                                                    |
 
 The protocol proof runs under Node. The installed Pixel app separately exercised the official client under Hermes, including a real Wi-Fi connection to HA and the native lifecycle/storage checks documented in [Android validation](android-validation.md). This is a debug development client using Metro over USB; a standalone release APK has not been validated.
 
@@ -57,9 +57,17 @@ The configured-instance proof is repeatable with `HA_ALLOW_INSECURE_HTTP=1 npm r
 
 Regression tests reproduced the original foreground-status, initial-sync interruption, frozen-stream, wrong-profile Forget, preferences-Retry, lost-registry-event and superseded-token defects before those fixes. Additional tests cover initial offline recovery and backoff, terminal retry suppression, resumed heartbeat and cancellation. The real-client protocol proof independently exercises the initial-disconnect ordering and timeout recovery.
 
+## Native fault checks completed (2026-10-15)
+
+- With Wi-Fi disabled, the Pixel cold-started the app over its USB Metro connection and showed a non-ready HA session. Enabling Wi-Fi restored HA automatically in 13 seconds, without Retry.
+- A temporary synthetic sensor appeared in the native snapshot (44 → 45 entities). Stopping the local HA container put the Pixel in reconnecting; restarting it restored ready with 44 entities and all registries fresh after 8 seconds. The ephemeral sensor was absent in HA and in the replacement native snapshot. No device services were called.
+- The revised icon font, room filter, grid and detail rendered on the installed Pixel. Browser checks also caught and corrected missing selected-state accessibility on room filters. The normal HA connection was restored after demo checks.
+
+See [Android validation](android-validation.md) for the fixture's scope, timing and reproduction. These are development-client checks; vendor hardware and production-binary behavior remain separate.
+
 ## Pending native and household gates
 
-- Complete the remaining Pixel fault checks: cold start without Wi-Fi, automatic recovery after network return, HA restart and entity removal while disconnected. Native authenticated camera images remain a later Stage 2 check.
+- Native authenticated camera images remain a later Stage 2 check; a standalone production binary still needs its own network and persistence smoke tests.
 - Validate every real vendor integration against the inventory. Neither the app's demo mode nor HA's demo integration proves Ring, Nest, Schlage, SmartThings or AIRTAP compatibility.
 - Run the 3D feasibility prototype on the Pixel before Stage 3 implementation.
 - Implement the Stage 2 command tracker and controls, including confirmation/ordering/no-replay tests, then camera images with verified freshness and redirect handling. The current UI exposes no physical controls.

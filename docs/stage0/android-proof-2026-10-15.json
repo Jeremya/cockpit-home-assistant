@@ -45,16 +45,39 @@
     "native_pull_to_refresh",
     "terminal_auth_error_preserves_retry_and_settings_after_foreground",
     "forget_prevents_automatic_reconnection_after_restart",
-    "offline_demo_and_entity_detail_navigation"
+    "offline_demo_and_entity_detail_navigation",
+    "cold_start_without_wifi_then_automatic_recovery",
+    "ha_server_restart_then_automatic_recovery",
+    "ephemeral_entity_disappears_from_native_snapshot_after_server_restart",
+    "refreshed_native_icons_room_filter_grid_and_device_detail"
   ],
   "epochObservations": {
     "afterColdStart": 1,
     "afterForegroundReturn": 2,
     "afterPullToRefresh": 3
   },
+  "recoveryObservations": {
+    "wifiReturnSeconds": 13,
+    "haRestartSecondsAfterContainerStart": 8,
+    "baselineEntities": 44,
+    "entitiesWithSyntheticProbe": 45,
+    "entitiesAfterRestart": 44,
+    "allRegistriesFreshAfterRestart": true,
+    "manualRetry": false,
+    "probe": "Ephemeral REST state sensor.cockpit_recovery_probe; no backing integration or device action; absent after restart."
+  },
+  "uiValidation": {
+    "delivery": "Updated Metro development bundle in the existing installed APK; native artifact metadata above is unchanged.",
+    "checked": [
+      "outline_icon_font",
+      "room_filter",
+      "two_column_device_grid",
+      "device_detail",
+      "restore_ha_connection"
+    ],
+    "reference": "https://github.com/0xProbabillity/house-control"
+  },
   "pendingChecks": [
-    "cold_start_without_wifi_then_recovery",
-    "server_restart_and_entity_removal",
     "real_vendor_compatibility",
     "authenticated_camera_images",
     "three_dimensional_view_feasibility"

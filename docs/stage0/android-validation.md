@@ -48,23 +48,31 @@ The generated APK is `android/app/build/outputs/apk/debug/app-debug.apk`. Instal
 
 ## Acceptance checks
 
-| Check                                                          | Status                                                                                                                 |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| SDK tools installed and expected packages present              | Passed                                                                                                                 |
-| Gradle wrapper runs and configures native Expo modules         | Passed                                                                                                                 |
-| ARM64 debug APK assembled                                      | Passed: 89,463,461 bytes; ARM64 only; `libhermesvm.so` included                                                        |
-| Pixel detected and USB debugging authorized                    | Passed: Pixel 9 Pro, Android 17                                                                                        |
-| APK installed; app launches with Hermes                        | Passed: app renders on the Pixel; `libhermesvm.so` mapped from the installed APK; Hermes enabled in BuildConfig        |
-| Offline demo navigation and entity details                     | Passed: Explore demo home, Side door detail, simulated observation and no physical controls                            |
-| HA setup using the supplied token and the Mac's LAN address    | Passed over Wi-Fi; Home shows Synced with HA                                                                           |
-| Token survives process restart and reconnects automatically    | Passed: force-stop, relaunch and automatic HA sync without token entry                                                 |
-| Native pull-to-refresh requests a fresh epoch                  | Passed: sync epoch 2 → 3, ready with 44 entities and fresh registries                                                  |
-| Initial offline launch recovers after Wi-Fi returns            | Pending                                                                                                                |
-| Background/foreground resynchronizes without a stuck banner    | Passed: same running app resumes via launcher, sync epoch 1 → 2, ready with 44 entities and fresh registries           |
-| Server restart/reconnect removes deleted entities              | Pending                                                                                                                |
-| Invalid token preserves Settings/Retry after foreground return | Passed: auth rejection remains terminal after a real HOME/launcher cycle; Retry and Connection settings remain visible |
-| Forget prevents automatic reconnection after process restart   | Passed: Forget returns to welcome; cold relaunch permits starting the offline demo without an HA connection            |
+| Check                                                          | Status                                                                                                                                                                                  |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SDK tools installed and expected packages present              | Passed                                                                                                                                                                                  |
+| Gradle wrapper runs and configures native Expo modules         | Passed                                                                                                                                                                                  |
+| ARM64 debug APK assembled                                      | Passed: 89,463,461 bytes; ARM64 only; `libhermesvm.so` included                                                                                                                         |
+| Pixel detected and USB debugging authorized                    | Passed: Pixel 9 Pro, Android 17                                                                                                                                                         |
+| APK installed; app launches with Hermes                        | Passed: app renders on the Pixel; `libhermesvm.so` mapped from the installed APK; Hermes enabled in BuildConfig                                                                         |
+| Offline demo navigation and entity details                     | Passed: Explore demo home, Side door detail, simulated observation and no physical controls                                                                                             |
+| HA setup using the supplied token and the Mac's LAN address    | Passed over Wi-Fi; Home shows Synced with HA                                                                                                                                            |
+| Token survives process restart and reconnects automatically    | Passed: force-stop, relaunch and automatic HA sync without token entry                                                                                                                  |
+| Native pull-to-refresh requests a fresh epoch                  | Passed: sync epoch 2 → 3, ready with 44 entities and fresh registries                                                                                                                   |
+| Initial offline launch recovers after Wi-Fi returns            | Passed: Wi-Fi disabled, process cold-started with Metro still over USB; non-ready state observed; automatic recovery 13 seconds after Wi-Fi enabled, no Retry                           |
+| Background/foreground resynchronizes without a stuck banner    | Passed: same running app resumes via launcher, sync epoch 1 → 2, ready with 44 entities and fresh registries                                                                            |
+| Server restart/reconnect removes deleted entities              | Passed: temporary synthetic sensor raises native count 44 → 45; HA stop shows reconnecting; HA start restores ready with 44 entities and all registries fresh after 8 seconds, no Retry |
+| Invalid token preserves Settings/Retry after foreground return | Passed: auth rejection remains terminal after a real HOME/launcher cycle; Retry and Connection settings remain visible                                                                  |
+| Forget prevents automatic reconnection after process restart   | Passed: Forget returns to welcome; cold relaunch permits starting the offline demo without an HA connection                                                                             |
 
-The debug development client needs Metro (`npm start`) to load the app. The checks above establish installed-app behavior for the tested paths; remaining fault and hardware cases stay explicit. The machine-readable results are in [the Android proof report](android-proof-2026-10-15.json). Physical controls and camera image validation remain later gates.
+The server-restart fixture was a temporary state created through `POST /api/states/sensor.cockpit_recovery_probe`, after checking that it did not already exist. It has no backing integration, so it disappears when HA restarts. Diagnostics on the Pixel observed the added entity, the disconnected session, then the authoritative replacement count with fresh registries. A subsequent API check confirmed the fixture absent. No device services were called. This verifies removal of an ephemeral entity during a transport outage; deletion/recreation of real registry identities remains covered by the separate mapper/protocol tests, not by this native fixture.
+
+## Interface follow-up
+
+The same installed development client rendered the updated midnight palette and bundled Feather font, the room-filtered grid, global attention and the observed-state detail. On the Pixel, selecting Kitchen showed its four demo observations; opening Fridge temperature showed 37 °F with explicit simulated provenance. The normal HA connection was restored afterward: 44 total entities, 35 visible, all registries fresh. The current HA demo has no area assignments; its Unassigned group is not counted as a room.
+
+These interface changes were delivered by Metro. The APK size, hash and native build source recorded above still describe the earlier native artifact; no new native module was added. The [design direction](../design/2026-10-15-interface-direction.md) includes shareable browser captures using only Cockpit's simulated data.
+
+The debug development client needs Metro (`npm start`) to load the app. The machine-readable results are in [the Android proof report](android-proof-2026-10-15.json). Actual vendor compatibility, physical controls, camera images, 3D rendering and production signing remain separate gates.
 
 JDK baseline reference: [Android Gradle Plugin 8.12 compatibility](https://developer.android.com/build/releases/agp-8-12-0-release-notes?hl=en).

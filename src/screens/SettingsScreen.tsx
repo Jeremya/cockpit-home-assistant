@@ -103,8 +103,8 @@ export function SettingsScreen() {
           </View>
           <Body>
             Create a token in Home Assistant → Profile → Security. Use a
-            dedicated household user. On Android emulator, your Mac is usually
-            10.0.2.2; on Pixel, use the Mac’s LAN address.
+            dedicated household user. Use the address you open Home Assistant
+            with. For a local connection, keep your phone on the same Wi-Fi.
           </Body>
           {url.trim().startsWith("http:") && (
             <View style={styles.row}>

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ScrollView, Text } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useCockpit } from "../core/store";
 import { getCapability } from "../core/capabilities";
-import { primaryValue } from "../core/presentation";
+import { kindLabel, primaryValue } from "../core/presentation";
+import { entityAppearance, Icon } from "../components/EntityIcon";
 import { roomId } from "../core/selectors";
 import { resolveAlias } from "../preferences/types";
 import { session } from "../services/runtime";
@@ -37,11 +38,35 @@ export function DeviceDetailScreen() {
   const cap = getCapability(entity, snapshot.config);
   const room = roomId(entity, snapshot, preferences);
   const favorite = preferences.favorites.includes(entity.key);
+  const { icon, tint } = entityAppearance(entity, status.kind === "ready");
+  const device = entity.deviceId
+    ? snapshot.devices[entity.deviceId]
+    : undefined;
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Label>{room ? snapshot.areas[room]?.name : "Unassigned"}</Label>
       <Title>{entity.name}</Title>
+      {device && (device.manufacturer || device.model) && (
+        <Body>
+          {[device.manufacturer, device.model].filter(Boolean).join(" · ")}
+        </Body>
+      )}
       <Panel>
+        <View style={[styles.row, { marginBottom: 16 }]}>
+          <View
+            style={{
+              width: 58,
+              height: 58,
+              borderRadius: 19,
+              backgroundColor: `${tint}16`,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name={icon} color={tint} size={28} />
+          </View>
+          <Body>{kindLabel[entity.domain]}</Body>
+        </View>
         <Label>
           {status.kind === "ready"
             ? mode === "demo"
@@ -49,7 +74,15 @@ export function DeviceDetailScreen() {
               : "As reported by Home Assistant"
             : "Cached observation"}
         </Label>
-        <Text style={{ color: colors.text, fontSize: 34 }}>
+        <Text
+          style={{
+            color: tint,
+            fontSize: 48,
+            fontWeight: "400",
+            letterSpacing: -1,
+            marginVertical: 8,
+          }}
+        >
           {primaryValue(entity, snapshot.config)}
         </Text>
         {cap?.kind === "climate" && (
@@ -64,13 +97,13 @@ export function DeviceDetailScreen() {
         )}
         {entity.domain === "camera" && (
           <Body>
-            Camera snapshots will be enabled after this camera’s image path is
-            verified. Capture time is currently unknown.
+            No verified image source is configured for this camera. Capture time
+            is unknown.
           </Body>
         )}
         <Body>
-          Device controls are part of the next implementation stage. This view
-          shows observed state.
+          Read-only observation. Values reflect the last state reported to
+          Cockpit.
         </Body>
       </Panel>
       <Button

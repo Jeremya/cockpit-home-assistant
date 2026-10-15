@@ -28,9 +28,12 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Screen name="index" options={{ title: "Home Cockpit" }} />
+        <Stack.Screen
+          name="index"
+          options={{ title: "Home", headerShown: false }}
+        />
         <Stack.Screen name="settings" options={{ title: "Connection" }} />
-        <Stack.Screen name="device/[key]" options={{ title: "Entity" }} />
+        <Stack.Screen name="device/[key]" options={{ title: "Device" }} />
         <Stack.Screen name="entities" options={{ title: "Your entities" }} />
         <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />
       </Stack>

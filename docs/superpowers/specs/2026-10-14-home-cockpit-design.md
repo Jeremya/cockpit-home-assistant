@@ -132,15 +132,15 @@ Stage 1 combines the long-term *Overview* and *Rooms* into one screen:
 
 1. **Session banner** (§4.6) — hidden when ready.
 2. **Needs attention** — items derived from domain policy (§5.5) for **visible** entities only (hiding an entity also removes it from this section): e.g. a jammed or unknown-state lock, an unlocked lock (default policy "normal = locked"), an unavailable favorite. "Unavailable" and "unknown" never count as all-clear. Each entity appears at most once here, and an entity listed here is not repeated in Favorites. Session-level staleness is **not** listed per entity: while the session is not ready, the banner carries a single home-level notice and this section shows "Status unknown while disconnected" instead of its items.
-3. **Favorites** — user-pinned entities.
-4. **Rooms** — one section per area, then **Unassigned**. Room resolution: app override → entity area → device area → Unassigned.
+3. **Favorites** — user-pinned entities in the whole-home view.
+4. **Rooms** — a horizontal room filter and one section per selected area (all areas initially), then **Unassigned**. Room resolution: app override → entity area → device area → Unassigned. Attention remains household-wide even when a room is selected. A missing selection falls back to all rooms; profile changes reset selection. Unassigned does not count as a room.
 5. Pull-to-refresh renews the HA subscription (§6.3).
 
-Stage 3 adds a list/plan toggle on this screen. A separate *Activity* tab (recent HA events and command outcomes) is a Stage 4 candidate.
+Attention initially previews at most two items with the full count and an explicit expand action; alerts precede lower-severity observations. Stage 3 adds a list/plan toggle on this screen. A separate *Activity* tab (recent HA events and command outcomes) is a Stage 4 candidate. The [interface direction and previews](../../design/2026-10-15-interface-direction.md) record the House Control reference and delivery sequence.
 
 ### 4.3 Entity cards
 
-One card per visible entity (Stage 2 adds targeted grouping, e.g. one fridge card with several readings). Each card shows name, primary state, freshness qualifier when relevant, and — from Stage 2 — a primary control gated by capabilities:
+One card per visible entity in an adaptive grid (one column for narrow screens or large system text; Stage 2 adds targeted grouping, e.g. one fridge card with several readings). Each card shows name, primary state, freshness qualifier when relevant, and — from Stage 2 — a primary control gated by capabilities:
 
 | Kind | Primary state | Primary control (Stage 2) |
 |---|---|---|
@@ -684,4 +684,4 @@ Cockpit-native push requires an HA-side integration and APNs/FCM delivery path �
 - Java (Homebrew OpenJDK) present; **Android SDK / `adb` not installed** — Android Studio (or command-line tools) is required for local Android development builds on the Pixel 9 (USB debugging enabled). EAS cloud builds are the alternative.
 - Node 24.11, npm 11.11.
 
-Foundation implementation results and the updated environment are recorded in [Stage 0 results](../../stage0/results.md). Docker has since been started; Android SDK and Pixel runtime validation remain pending.
+Foundation implementation results and the updated environment are recorded in [Stage 0 results](../../stage0/results.md). Docker is running and the Android SDK/dev build has been validated on the Pixel 9 Pro, including Wi-Fi recovery and HA restart with an ephemeral entity-removal fixture. Actual vendor capabilities, authenticated camera images and the native 3D prototype remain open gates.
