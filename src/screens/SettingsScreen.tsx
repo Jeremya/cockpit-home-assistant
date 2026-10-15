@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -65,8 +66,8 @@ export function SettingsScreen() {
         <Panel>
           <Text style={styles.sectionTitle}>Home Assistant</Text>
           <Body>
-            Your devices stay connected through your own Home Assistant. Cockpit
-            stores the access token securely on this phone.
+            Your devices stay connected through your own Home Assistant. Maurice
+            keeps the access token securely on this phone.
           </Body>
           <Text style={{ color: colors.text }}>Home Assistant URL</Text>
           <TextInput
@@ -196,6 +197,39 @@ export function SettingsScreen() {
             )}
           </>
         )}
+        <Panel style={{ alignItems: "center", gap: 10 }}>
+          <Image
+            source={require("../../assets/maurice.png")}
+            style={{ width: 120, height: 120 }}
+            accessibilityLabel="Maurice: a moustached butler in a waistcoat and bow tie, chin raised with a disapproving look, in front of a house and smart-home icons"
+          />
+          <Text
+            style={{
+              color: colors.text,
+              fontSize: 20,
+              fontWeight: "700",
+              letterSpacing: 4,
+            }}
+          >
+            MAURICE
+          </Text>
+          <Text
+            style={{ color: colors.muted, fontSize: 12, textAlign: "center" }}
+          >
+            Module Autonome Universel de Régulation Intelligente et de Contrôle
+            Électrique.
+          </Text>
+          <Text
+            style={{
+              color: colors.accent,
+              fontSize: 14,
+              fontStyle: "italic",
+              textAlign: "center",
+            }}
+          >
+            « Maurice s’occupe de tout. Vous, de rien. »
+          </Text>
+        </Panel>
       </ScrollView>
     </KeyboardAvoidingView>
   );

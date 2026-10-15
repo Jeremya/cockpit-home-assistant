@@ -9,19 +9,19 @@ export function SessionBanner() {
   const title =
     status.kind === "error"
       ? status.error.code === "auth_invalid"
-        ? "Access token rejected"
+        ? "Maurice was refused entry: access token rejected"
         : status.error.code === "sync_timeout"
-          ? "Synchronization timed out"
+          ? "Maurice lost patience: synchronization timed out"
           : status.error.code === "ha_version_unsupported"
-            ? "Home Assistant needs an update"
-            : "Connection needs attention"
+            ? "Maurice refuses this Home Assistant: it needs an update"
+            : "Maurice is on his lunch break. Please try again."
       : status.kind === "idle"
-        ? "Disconnected"
+        ? "Maurice is off duty"
         : status.kind === "synchronizing"
-          ? "Synchronizing your home…"
+          ? "Maurice is doing his rounds…"
           : status.kind === "reconnecting"
-            ? "Reconnecting…"
-            : "Connecting to Home Assistant…";
+            ? "Maurice is reconnecting…"
+            : "Maurice is calling Home Assistant…";
   return (
     <Panel>
       <Text style={{ color: colors.warning, fontSize: 16, fontWeight: "600" }}>

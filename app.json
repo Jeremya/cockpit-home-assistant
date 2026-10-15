@@ -1,24 +1,45 @@
 {
   "expo": {
-    "name": "Home Cockpit",
+    "name": "Maurice",
     "slug": "home-cockpit",
     "scheme": "homecockpit",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "android": { "package": "com.larrabee.homecockpit" },
+    "android": {
+      "package": "com.larrabee.homecockpit",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0e2a4e"
+      }
+    },
     "ios": {
       "bundleIdentifier": "com.larrabee.homecockpit",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "Connect to your Home Assistant on the home network.",
-        "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true }
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
       }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }]
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
-    "experiments": { "typedRoutes": true }
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

@@ -103,7 +103,7 @@ export function DeviceDetailScreen() {
         )}
         <Body>
           Read-only observation. Values reflect the last state reported to
-          Cockpit.
+          Maurice.
         </Body>
       </Panel>
       <Button

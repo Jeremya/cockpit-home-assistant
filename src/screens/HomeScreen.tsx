@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -140,12 +141,14 @@ function HomeContent() {
       >
         <View style={styles.row}>
           <View style={home.brand}>
-            <View style={home.homeIcon}>
-              <Icon name="home" color={colors.accent} size={21} />
-            </View>
+            <Image
+              source={require("../../assets/icon.png")}
+              style={home.homeIcon}
+              accessibilityIgnoresInvertColors
+            />
             <View style={{ gap: 4, flexShrink: 1 }}>
               <Text style={home.brandName}>
-                {mode === "demo" ? "Demo home" : "Home Cockpit"}
+                {mode === "demo" ? "Maurice · demo home" : "Maurice"}
               </Text>
               <Text style={home.connection}>
                 {ready
@@ -154,7 +157,7 @@ function HomeContent() {
                     : "Synced with HA"
                   : snapshot
                     ? "Cached observations"
-                    : "Your household, together"}
+                    : "At your service. Reluctantly."}
               </Text>
             </View>
           </View>
@@ -286,7 +289,7 @@ function HomeContent() {
                   )}
                 </>
               ) : (
-                <Body>No attention items among your visible entities.</Body>
+                <Body>Nothing to report. Maurice is almost disappointed.</Body>
               )}
             </Panel>
             <View style={{ gap: 16 }}>
@@ -386,14 +389,7 @@ const home = StyleSheet.create({
     alignSelf: "center",
   },
   brand: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  homeIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    backgroundColor: colors.accentSurface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  homeIcon: { width: 44, height: 44, borderRadius: 15 },
   brandName: { color: colors.text, fontSize: 16, fontWeight: "600" },
   connection: { color: colors.muted, fontSize: 12 },
   settings: {

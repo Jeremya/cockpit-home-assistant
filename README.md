@@ -1,134 +1,215 @@
-# Home Cockpit
+<div align="center">
 
-An Android-first app for viewing a household's devices through Home Assistant. Built with Expo SDK 57, React Native, TypeScript, Zustand and the official HA WebSocket client. Home Assistant owns integrations and device state; Cockpit provides the household interface.
+<img src="assets/maurice.png" width="180" height="180" alt="Maurice: a moustached butler in a waistcoat and bow tie, chin raised with a disapproving look, in front of a house and smart-home icons" />
 
-The current app is **read-only**: a room-filtered Home with attention items, favorites and a device grid; an offline 2D floor-plan viewer with multiple floors; entity details; connection settings; entity visibility and room overrides; diagnostics. An offline demo home is included. Device controls, camera images and the 3D view are later milestones.
+# MAURICE
 
-The interface now follows the quiet dark surfaces, outline icons and room navigation of [House Control](https://github.com/0xProbabillity/house-control). See the [previews and design roadmap](docs/design/2026-10-15-interface-direction.md) for the current native foundation and the path toward a spatial cockpit.
+### Your home. His rules.
 
-## Current status
+<i>Module Autonome Universel de Régulation Intelligente et de Contrôle Électrique.</i>
 
-Recorded on 2026-10-15:
+<b>« Maurice s’occupe de tout. Vous, de rien. »</b>
 
-- 57 tests pass across 10 suites, along with TypeScript, ESLint and formatting checks.
-- The configured HA `2026.10.1` instance passes authenticated synchronization, registry loading, ping, fresh refresh, simulated foreground return and forced reconnect: 44 entities and all three registries fresh.
-- Protocol tests cover disconnect during the first synchronization, continued updates after a refresh timeout and automatic recovery. No device service calls are sent by either proof script.
-- The ARM64 development APK builds and runs on a Pixel 9 Pro with Android 17 and Hermes. Native checks pass for HA over Wi-Fi, token persistence after process restart, foreground resync, pull-to-refresh, terminal authentication errors, Forget and demo/entity navigation. Cold startup without Wi-Fi recovers automatically after network return; an HA restart reconnects and removes an ephemeral test entity from the native snapshot.
-- The refreshed interface renders on the Pixel. Browser checks pass for room filtering, global attention, favorite persistence and layouts at 320, 430 and 768 pixels.
+Meet Maurice: a 1970s French butler with a moustache, a three-piece suit, a Gitane at the corner of his mouth and a deeply disapproving look. He keeps an eye on every room of your home through Home Assistant: rooms, floor plans and device state, in one dark, quiet app for the phone in your pocket.
 
-The Node protocol proofs and installed-app checks are recorded separately in the [Stage 0 results](docs/stage0/results.md), [HA proof report](docs/stage0/ha-proof-2026-10-15.json) and [Android validation](docs/stage0/android-validation.md). Actual vendor compatibility, authenticated camera images and the 3D feasibility prototype remain to be verified.
+[![Expo SDK 57](https://img.shields.io/badge/Expo-SDK%2057-0b0f19?style=for-the-badge&logo=expo&logoColor=white)](https://docs.expo.dev/)
+[![React Native 0.86](https://img.shields.io/badge/React%20Native-0.86-1b2d47?style=for-the-badge&logo=react&logoColor=98c2ff)](https://reactnative.dev/)
+[![TypeScript 6](https://img.shields.io/badge/TypeScript-6.0-1b2d47?style=for-the-badge&logo=typescript&logoColor=98c2ff)](https://www.typescriptlang.org/)
+[![Home Assistant 2026.10+](https://img.shields.io/badge/Home%20Assistant-2026.10%2B-1b2d47?style=for-the-badge&logo=homeassistant&logoColor=98c2ff)](https://www.home-assistant.io/)
 
-## Install and run
+![Android: verified on Pixel 9 Pro](https://img.shields.io/badge/Android-verified%20on%20Pixel%209%20Pro-91d9bd?style=flat-square&logo=android&logoColor=white)
+![Tests: 91 passing](https://img.shields.io/badge/tests-91%20passing-91d9bd?style=flat-square)
+![Mode: read-only](https://img.shields.io/badge/mode-read--only-ffc083?style=flat-square)
 
-Use Node 24 and the locked dependency versions:
+[Features](#-features) · [Quick start](#-quick-start) · [Home Assistant](#-connect-home-assistant) · [Architecture](#-architecture) · [Roadmap](#-roadmap)
+
+</div>
+
+<br />
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/design/screenshots/home-demo.png" alt="Home screen with attention items, room filter and device cards" /></td>
+    <td align="center" width="33%"><img src="docs/design/screenshots/kitchen-demo.png" alt="Home filtered to the kitchen" /></td>
+    <td align="center" width="33%"><img src="docs/design/screenshots/device-demo.png" alt="Front door lock detail with observation provenance" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Your home at a glance</b><br />attention first, then rooms</sub></td>
+    <td align="center"><sub><b>Room filters</b><br />one tap per room</sub></td>
+    <td align="center"><sub><b>Honest device detail</b><br />where each value came from</sub></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Screenshots from the built-in offline <b>demo home</b>. No real household data.</sub></p>
+
+## ✨ Features
+
+|     | Feature                     | What it does                                                                                                                                                                      |
+| :-: | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🏠  | **Home overview**           | Attention items first (an unlocked door, an unavailable favorite), then favorites and a device grid you can filter by room. "Unknown" and "unavailable" never count as all-clear. |
+| 🗺️  | **Floor plans**             | Offline 2D plans, several floors, rooms you can tap, the dimensions printed on the source plan, and rough furniture footprints to help you find your way around.                  |
+| 🧭  | **A plan for each profile** | Each Home Assistant origin and the demo keep their own copy of the plan. App updates never overwrite it; resetting it is a deliberate action in Diagnostics.                      |
+| 🔌  | **Live Home Assistant**     | Official WebSocket client, compressed entity stream, registries, foreground resync and automatic recovery after network loss or an HA restart.                                    |
+| 🔐  | **Private by design**       | Tokens stay in native SecureStore. Personal floor plans stay in an ignored `.local/` folder. Preferences never store tokens, observed states or commands.                         |
+| 🧪  | **Offline demo home**       | Simulated locks, sensors, cameras and switches with no account at all.                                                                                                            |
+| 🩺  | **Diagnostics**             | Session and registry health, unresolved identities, floor-plan status and reset, with no secrets on screen.                                                                       |
+
+> [!NOTE]
+> Maurice is **read-only** today: he observes Home Assistant and never sends a device command. Controls come in Stage 2, with command tracking that cannot replay an unlock after a reconnect.
+
+## 🚀 Quick start
+
+> **Requirements:** Node 24 and the locked dependency versions.
 
 ```sh
 npm ci
+npm run web        # interface preview in the browser
 ```
 
-### Preview the interface
+Open **Settings → Explore demo home**. The demo runs entirely on simulated data inside the app. The browser preview is for the interface only; token storage needs native SecureStore.
 
-```sh
-npm run web
-```
+<details>
+<summary><b>📱 Run on Android</b></summary>
 
-Choose **Explore demo home** in Settings. This mode uses simulated data inside Cockpit and requires no HA account. The web preview is for the interface; token persistence uses native SecureStore and is not supported in the browser.
+<br />
 
-Home's floor-plan card opens an interactive 2D layout. A private plan can be supplied in the ignored `.local/home-plan.json`; preparation validates it and bundles an ignored local module. Fresh checkouts and demo mode use the public sample. See [local floor plans](docs/design/floor-plans.md) for the format, private build artifacts and the path to 3D. Device locations are not inferred from a drawing.
-
-### Run on Android
-
-Install an Android SDK and JDK 17, using Android Studio or the command-line tools. Configure `ANDROID_HOME`, `JAVA_HOME` and `adb`, enable USB debugging on the phone, then connect and authorize it. Build and install the development client:
+Install an Android SDK and JDK 17 (Android Studio or the command-line tools). Configure `ANDROID_HOME`, `JAVA_HOME` and `adb`, enable USB debugging, connect and authorize the phone, then build and install the development client:
 
 ```sh
 npm run android
 ```
 
-For later sessions with the client already installed:
+Later sessions with the client already installed:
 
 ```sh
 npm start
 ```
 
-This workspace uses an SDK and JDK 17 under `.local/android/`, with paths in the ignored `.env.local` file that Expo loads automatically. See [Android validation](docs/stage0/android-validation.md) for the tool versions, direct Gradle build and APK location. JDK 25 failed in the native Prefab/CMake step; the recorded build uses JDK 17.
+This workspace keeps an SDK and JDK 17 under `.local/android/`, with their paths in the ignored `.env.local` that Expo loads automatically. JDK 25 fails in the native Prefab/CMake step, so use JDK 17. Tool versions, the direct Gradle build and the APK location are in [Android validation](docs/stage0/android-validation.md).
 
-The development APK loads its JavaScript from Metro. The recorded Pixel session uses USB forwarding to a localhost Metro server; cold starts require that connection. Use this client for networking and credential validation. Expo Go is not a supported target. iOS runtime validation is deferred.
+The development APK loads its JavaScript from Metro; the recorded Pixel sessions use USB forwarding (`adb reverse tcp:8081 tcp:8081`) to a localhost Metro server. Expo Go is not a supported target; iOS runtime validation is deferred.
 
-## Connect Home Assistant
+</details>
 
-The backend requires **HA 2026.10 or newer**; the tested version is `2026.10.1`. An existing HA instance can be used directly. To run the included local container, start Docker Desktop, then:
+<details>
+<summary><b>🗺️ Use your own floor plan</b></summary>
+
+<br />
+
+Put a private plan in the ignored `.local/home-plan.json`. `npm run house:prepare`, which runs before `start`, `web`, `android`, `test` and `typecheck`, validates it and bundles an ignored local module. Fresh checkouts and demo mode use the [public sample](src/spatial/sample-plan.json).
+
+Coordinates are meters on the X/Z plane. Rooms may be concave, and each floor can also list rough furniture footprints. A connected profile keeps the copy it was first given: after editing the local plan, use **Diagnostics → Reset plan to default** to pick up the new version.
+
+Format, privacy of build artifacts and the path to 3D: [local floor plans](docs/design/floor-plans.md).
+
+</details>
+
+## 🏡 Connect Home Assistant
+
+Maurice needs **HA 2026.10 or newer** (tested with `2026.10.1`). Use an existing instance, or start the pinned local container (Docker Desktop required):
 
 ```sh
-npm run ha:up
-```
-
-This seeds `.local/home-assistant/` without overwriting an existing configuration and starts the pinned container on port 8123. Open <http://localhost:8123>, complete onboarding if needed, and create a dedicated Cockpit user. Sign in as that user and create a long-lived access token under **Profile → Security**.
-
-In Cockpit's Settings, enter the HA origin and token. Use the Mac's LAN address on the Pixel, such as `http://192.168.1.20:8123`, with both devices on the same Wi-Fi. `localhost` on the phone refers to the phone. The URL must have no path, query or fragment. For HTTP, enable the trusted local network option; the token is sent unencrypted over that connection.
-
-The included HA configuration enables HA's `demo` integration. These simulated devices exercise the real HA API; they do not prove vendor compatibility. This is separate from Cockpit's offline demo mode.
-
-Container logs:
-
-```sh
+npm run ha:up      # seeds .local/home-assistant/ and serves http://localhost:8123
 npm run ha:logs
 ```
 
-### Check the configured HA instance
+1. Complete onboarding and create a dedicated **Maurice** user.
+2. Signed in as that user, create a long-lived token under **Profile → Security**.
+3. In Maurice's **Settings**, enter the HA origin and the token.
 
-Prepare a local file with owner-only permissions:
+> [!IMPORTANT]
+> On the phone, use the Mac's **LAN address** (for example `http://192.168.1.20:8123`), not `localhost`. The URL must have no path, query or fragment. Plain HTTP requires the _trusted local network_ option, and the token then travels unencrypted.
+
+The bundled HA configuration enables HA's `demo` integration. Its simulated devices exercise the real HA API but do not prove vendor compatibility. They are separate from Maurice's own offline demo.
+
+<details>
+<summary><b>🔎 Check an HA instance from the command line</b></summary>
+
+<br />
 
 ```sh
-mkdir -p .local
-touch .local/ha-token
-chmod 600 .local/ha-token
-```
-
-Open `.local/ha-token` in an editor, save only the raw token, then run:
-
-```sh
+mkdir -p .local && touch .local/ha-token && chmod 600 .local/ha-token
+# paste only the raw token into .local/ha-token, then:
 HA_ALLOW_INSECURE_HTTP=1 npm run proof:ha
 ```
 
-The entire `.local/` directory is ignored by Git; it also contains HA's runtime and authentication data.
+| Variable                 | Default                 | Purpose                         |
+| ------------------------ | ----------------------- | ------------------------------- |
+| `HA_URL`                 | `http://127.0.0.1:8123` | HA origin to test               |
+| `HA_TOKEN_FILE`          | `.local/ha-token`       | Local file containing the token |
+| `HA_ALLOW_INSECURE_HTTP` | unset                   | `1` explicitly allows HTTP      |
 
-| Variable                 | Default                 | Purpose                             |
-| ------------------------ | ----------------------- | ----------------------------------- |
-| `HA_URL`                 | `http://127.0.0.1:8123` | HA origin to test                   |
-| `HA_TOKEN_FILE`          | `.local/ha-token`       | Local file containing the token     |
-| `HA_ALLOW_INSECURE_HTTP` | Unset                   | Set to `1` to explicitly allow HTTP |
+The proof authenticates, loads a snapshot and the registries, pings, refreshes, simulates a return to the foreground and reconnects. It prints the version, timings, aggregate counts and metadata freshness. It never prints tokens, URLs or entity details, and it sends no device service calls. The token file is never bundled into the app.
 
-The proof authenticates, loads a snapshot and registries, pings, refreshes, simulates foreground return and reconnects its own client. It prints version, timing, aggregate entity counts and metadata freshness, excluding tokens, URLs and entity details. Stale registry metadata is reported separately from a successful entity connection. Enter the token separately in the native app's Settings; the proof's local token file is not bundled into the app.
+</details>
 
-## Development checks
+## 🧱 Architecture
 
-```sh
-npm run typecheck
-npm run lint
-npm test
-npm run proof:protocol
-npm run export:android
-npm run format:check
+```mermaid
+flowchart LR
+  HA[("Home Assistant<br/>WebSocket API")] -->|entities + registries| HAB[HomeAssistantBackend]
+  DEMO[DemoBackend] -.->|simulated| SM
+  HAB --> SM[SessionManager]
+  SM --> STORE[(Zustand store)]
+  CRED[Credentials<br/>SecureStore] --- SM
+  PREFS[Preferences v2<br/>AsyncStorage] --- SM
+  PLAN[Bundled plan<br/>sample or .local] -->|seeds once| PREFS
+  STORE --> HOME[Home & devices]
+  STORE --> USEPLAN[useHousePlan]
+  USEPLAN --> SVG[2D floor plan<br/>react-native-svg]
+  USEPLAN -.-> SCENE[3D scene<br/>Three.js DOM, prototype]
 ```
 
-`proof:protocol` runs without HA credentials against a temporary loopback WebSocket server using the real compressed entity protocol and official client. `proof:ha` tests a configured HA instance with the local token. These Node checks complement the installed-app checks in [Android validation](docs/stage0/android-validation.md).
+- **The backend owns recovery.** Transport reconnections use the official client's retry loop; failures during the initial connection and synchronization get backend retries. Authentication and version errors are terminal.
+- **No stale truth.** A refresh keeps the committed entity stream until its replacement succeeds. Values stay marked as cached until the session is ready, and optional registry failures show up in Diagnostics.
+- **Credentials are journaled.** Operations are serialized, and an interrupted save or cleanup is recovered. _Forget_ removes the token from the phone; revoke it in HA separately.
+- **Preferences are per origin.** Demo and each HA origin never share favorites, overrides, plans or placements. Schema migrations are ordered and validated, and data written by a newer app version is backed up rather than lost. Moving HA to a dedicated host creates a new profile unless preferences are explicitly migrated.
 
-`export:android` produces a Hermes JavaScript bundle, not an installable APK. Use `npm run android` for the native development build.
+## 🛣️ Roadmap
 
-## Design boundaries
+| Track                | Status         | Next step                                                                                   |
+| -------------------- | -------------- | ------------------------------------------------------------------------------------------- |
+| Read-only HA cockpit | ✅ Done        | Verified on the Pixel: Wi-Fi, restarts, offline cold start, Forget                          |
+| 2D floor plans       | ✅ Done        | Native acceptance (F01), furniture footprints, a plan for each profile with reset (P01–P02) |
+| Devices on the plan  | 🚧 Next        | **P03** link plan rooms to HA areas → **P04** place devices on the plan                     |
+| 3D spatial view      | 🧪 Prototyping | **S01** Three.js feasibility on the Pixel, then **S02** 2D/3D switch                        |
+| Household inventory  | ⏳ Hardware    | **H01** verify the real household capabilities ([inventory](docs/stage0/inventory.md))      |
+| Controls             | ⏳ Planned     | C01–C04 semantic commands, outcomes and no replay, then locks, climate, fans and switches   |
+| Camera images        | ⏳ Planned     | I01 native image transport, I02 latest-image UI                                             |
+| Release              | ⏳ Planned     | Dependency audit (R01), CI (R02), standalone build (R03)                                    |
 
-- The HA backend owns recovery policy, synchronization and foreground heartbeat. Existing transport reconnections use the official client's retry loop; initial connection and synchronization failures have backend retries. Authentication and version errors are terminal.
-- A candidate refresh keeps the committed entity stream active until replacement succeeds. Optional registry failures preserve known identities and appear in Diagnostics. Values remain qualified as cached until the session is ready.
-- Native tokens live in SecureStore with safe keys. Credential operations are serialized, and a journal recovers interrupted saves and token cleanup. Forget removes saved credentials from the phone; revocation is a separate action in HA.
-- Preferences are separate for demo and each HA origin. Moving HA from the Mac to a dedicated box creates a new profile unless preferences are explicitly migrated. Observed entity states and pending commands are not persisted.
+Every ticket, with its contracts, file paths and acceptance checks, is in the [implementation backlog](docs/BACKLOG.md). The full [specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md) and the [interface direction](docs/design/2026-10-15-interface-direction.md) record the design, inspired by [House Control](https://github.com/0xProbabillity/house-control).
 
-## Next milestones
+## 🧰 Development
 
-The [implementation backlog and agent handoff](docs/BACKLOG.md) breaks the remaining work into bounded tickets with architecture rules, file paths, data contracts, dependencies and acceptance checks. Start with F01 for native plan validation and P01 for the next independent implementation task.
+```sh
+npm run typecheck        # TypeScript
+npm run lint             # ESLint
+npm test                 # 91 tests across 13 suites
+npm run format:check     # Prettier
+npm run proof:protocol   # real compressed HA protocol against a loopback server, no credentials
+npm run export:android   # Hermes JS bundle (not an APK; use npm run android)
+```
 
-1. Prototype the spatial view on the Pixel: bundled demo geometry, room/device picking, native callbacks, rendering budget and a usable list if the scene fails.
-2. Complete the [household capability inventory](docs/stage0/inventory.md), including real room assignments, camera images and a Bluetooth path for AIRTAP.
-3. Stage 2: command tracking and capability-aware controls, then camera images and related events. Outcomes must reflect observed HA state, and reconnect must never replay a command.
-4. Stage 3: the spatial cockpit, with bundled geometry, live markers and the list view remaining usable if the scene fails. Later candidates include configuration export/import, household logins and tablet layouts.
+Maurice's portrait lives in [`assets/source/maurice.png`](assets/source/maurice.png). [`scripts/generate-icons.py`](scripts/generate-icons.py) (Pillow + NumPy) derives the app icon, the Android adaptive foreground, the web favicon and a transparent-corner portrait from it, extending the navy background where the artwork has white corners.
 
-The dependency audit remains an open release gate; its findings and the remaining hardware checks are tracked in [Stage 0 results](docs/stage0/results.md). Detailed contracts and acceptance criteria are in the [specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md).
+<details>
+<summary><b>📋 Validation record</b></summary>
+
+<br />
+
+- The configured HA `2026.10.1` passes authenticated synchronization, registry loading, ping, a fresh refresh, a simulated return to the foreground and a forced reconnect.
+- Protocol tests cover a disconnect during the first synchronization, continued updates after a refresh timeout, and automatic recovery.
+- The ARM64 development APK runs on a Pixel 9 Pro (Android 17, Hermes). Native checks pass for HA over Wi-Fi, token persistence across process restarts, foreground resync, pull-to-refresh, terminal authentication errors, Forget, demo navigation, recovery after a cold start without Wi-Fi, and HA restarts.
+- Native floor-plan interaction, including offline floor switching, passes on the Pixel. The preferences migration to v2 and plan seeding were verified on the installed app.
+
+Details: [Stage 0 results](docs/stage0/results.md) · [HA proof report](docs/stage0/ha-proof-2026-10-15.json) · [Android validation](docs/stage0/android-validation.md) · [Floor-plan validation](docs/stage0/floor-plan-validation.md). The dependency audit remains an open release gate.
+
+</details>
+
+<div align="center">
+<br />
+<img src="assets/maurice.png" width="40" alt="" />
+<br />
+<sub>Maurice is currently on his lunch break. Please try again.</sub>
+</div>
