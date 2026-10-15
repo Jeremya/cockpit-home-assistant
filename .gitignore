@@ -3,3 +3,11 @@ node_modules/
 .DS_Store
 *.log
 .env*
+.local/
+dist/
+dist-web/
+coverage/
+android/
+ios/
+expo-env.d.ts
+*.tsbuildinfo

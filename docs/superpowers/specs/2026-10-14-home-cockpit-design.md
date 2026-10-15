@@ -353,7 +353,7 @@ export interface ConnectionSettings {
 
 ### 5.4 Capability models (`src/core/capabilities.ts`)
 
-Derived purely from `EntityRecord` (`supported_features` flags mirrored from HA core constants, plus attributes). Controls render only what a capability declares.
+Derived purely from `EntityRecord` (`supported_features` flags mirrored from HA core constants, plus attributes) and `HomeConfig` (configured temperature unit). Controls render only what a capability declares.
 
 ```ts
 export type LockCapability = { kind: 'lock'; canOpen: boolean; codeFormat: string | null };
@@ -541,7 +541,7 @@ Rules:
 
 ### 6.6 Credentials and network
 
-- **Storage:** each profile has a random **storage id** (UUID without dashes → alphanumeric). Token in SecureStore under `profile.<storageId>.token` — SecureStore keys only allow alphanumerics, `.`, `-`, `_`, so the human-readable profile id (`ha:<origin>`) is never used as a key. Profile metadata (`storageId`, normalized origin, `allowInsecureHttp`) lives in AsyncStorage under `profiles`, keyed by profile id. Write order: token, then metadata; on load, a token without metadata or metadata without token is treated as "not configured" and both are cleaned up. Acceptance: HTTPS origin with a non-default port and an IPv6 origin both save, load and forget correctly without collisions.
+- **Storage:** each profile has a random **storage id** (UUID without dashes → alphanumeric). Token in SecureStore under `profile.<storageId>.token` — SecureStore keys only allow alphanumerics, `.`, `-`, `_`, so the human-readable profile id (`ha:<origin>`) is never used as a key. Profile metadata (`storageId`, normalized origin, `allowInsecureHttp`) lives in AsyncStorage under `profiles.v1`, keyed by profile id. Because SecureStore cannot enumerate keys, first journal a pending storage id in metadata, then write the token, then commit the profile metadata and remove the journal. Recover incomplete writes from that journal; metadata without a token is cleaned up. Credential writes and forget operations are serialized. Acceptance: HTTPS origin with a non-default port and an IPv6 origin both save, load and forget correctly without collisions.
 - **Profile binding:** profile id = `ha:<normalized origin>`. Editing the URL creates a different profile; a token is never reused for another origin. Caches and preferences are per profile.
 - **No cross-origin authorization:** the bearer header is only attached to requests whose origin equals the profile origin (camera images included; redirects to another origin are not followed with credentials).
 - **Logging:** never log tokens, headers or full HA payloads in production builds.
@@ -676,3 +676,5 @@ Cockpit-native push requires an HA-side integration and APNs/FCM delivery path �
 - macOS with Docker CLI installed; the Docker daemon is not running (Docker Desktop or Colima must be started).
 - Java (Homebrew OpenJDK) present; **Android SDK / `adb` not installed** — Android Studio (or command-line tools) is required for local Android development builds on the Pixel 9 (USB debugging enabled). EAS cloud builds are the alternative.
 - Node 24.11, npm 11.11.
+
+Foundation implementation results and the updated environment are recorded in [Stage 0 results](../../stage0/results.md). Docker has since been started; Android SDK and Pixel runtime validation remain pending.

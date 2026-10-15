@@ -1,0 +1,5 @@
+# Copied into .local/home-assistant on first setup. Runtime configuration stays outside Git.
+default_config:
+demo:
+logger:
+  default: warning
