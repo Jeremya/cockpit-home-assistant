@@ -2,7 +2,7 @@
 
 Date: 2026-10-14. Starting point: `5071157`, specification v3. That commit contained specifications only, so this implementation created the application scaffold and the read-only foundation.
 
-Updated: 2026-10-15 after lifecycle and credential recovery corrections, starting from `422aafd`. The specification is now v4.
+Updated: 2026-10-15 after lifecycle/credential recovery corrections and installed Pixel validation, starting from `422aafd`. The specification is now v4.
 
 ## Implemented
 
@@ -24,14 +24,15 @@ Updated: 2026-10-15 after lifecycle and credential recovery corrections, startin
 | Behavioral/unit/component tests | 47 tests passed across 8 suites (26 tests at the original foundation checkpoint) |
 | Official-client protocol proof | Passed over real loopback WebSockets: authentication, compressed snapshot, immediate fresh resync, removed entity, coalescing, ping, forced reconnect, disconnect during first sync, active stream after resync timeout, and automatic sync retry; no device service calls |
 | Android native prebuild | Passed; manifest includes Internet permission, cleartext LAN support and SecureStore backup rules |
-| Android export | Passed; Hermes bundle generated (approximately 2.8 MB), not an APK |
+| Android export | Passed; Hermes bundle generated (approximately 2.8 MB) |
+| Native Android build and installed-app checks (2026-10-15) | ARM64 debug APK assembled and installed on Pixel 9 Pro / Android 17; Hermes, HA over Wi-Fi, native token persistence, foreground/refresh, auth-error recovery actions, Forget and demo/entity navigation passed. [Validation details](android-validation.md) |
 | SDK dependency alignment | `expo install --check` passed |
 | Web demo export | Passed; web is a preview, not a native credential-persistence target |
 | Browser workflow (Chrome, mobile viewport) | Passed: demo startup, rooms, stable-key detail navigation, favorites, URL validation, entity settings; no page errors |
 | HA onboarding (2026-10-15) | HTTP 200 on port 8123; user, core configuration, analytics and integration onboarding steps all report complete |
 | Authenticated HA instance (2026-10-15) | Passed with the locally supplied token against HA `2026.10.1`: 44 entities, entity/device/area registries fresh, ping, fresh/coalesced resync, simulated foreground and forced reconnect; no service calls. [Recorded result](ha-proof-2026-10-15.json) |
 
-The protocol proof runs under Node, not Hermes. The Android bundle compiles the actual official client for Hermes, but running it on the Pixel is still required to prove runtime behavior.
+The protocol proof runs under Node. The installed Pixel app separately exercised the official client under Hermes, including a real Wi-Fi connection to HA and the native lifecycle/storage checks documented in [Android validation](android-validation.md). This is a debug development client using Metro over USB; a standalone release APK has not been validated.
 
 The configured-instance proof is repeatable with `HA_ALLOW_INSECURE_HTTP=1 npm run proof:ha`. The token is read from the ignored, owner-only `.local/ha-token` file (or `HA_TOKEN_FILE`) and never printed. The recorded first snapshot took 34 ms in one Node/loopback run; this is not a native-device performance measurement. Simulated foreground exercises the backend lifecycle API, not the Android OS. Entity presence alone does not establish vendor compatibility.
 
@@ -58,7 +59,7 @@ Regression tests reproduced the original foreground-status, initial-sync interru
 
 ## Pending native and household gates
 
-- Install Android SDK / Android Studio, build and install the development client, then validate URL/token setup, SecureStore, HTTP WebSocket plus authenticated images, background recovery and reconnect on the Pixel 9.
+- Complete the remaining Pixel fault checks: cold start without Wi-Fi, automatic recovery after network return, HA restart and entity removal while disconnected. Native authenticated camera images remain a later Stage 2 check.
 - Validate every real vendor integration against the inventory. Neither the app's demo mode nor HA's demo integration proves Ring, Nest, Schlage, SmartThings or AIRTAP compatibility.
 - Run the 3D feasibility prototype on the Pixel before Stage 3 implementation.
 - Implement the Stage 2 command tracker and controls, including confirmation/ordering/no-replay tests, then camera images with verified freshness and redirect handling. The current UI exposes no physical controls.

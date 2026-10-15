@@ -11,9 +11,9 @@ Recorded on 2026-10-15:
 - 47 tests pass across 8 suites, along with TypeScript, ESLint and formatting checks.
 - The configured HA `2026.10.1` instance passes authenticated synchronization, registry loading, ping, fresh refresh, simulated foreground return and forced reconnect: 44 entities and all three registries fresh.
 - Protocol tests cover disconnect during the first synchronization, continued updates after a refresh timeout and automatic recovery. No device service calls are sent by either proof script.
-- Android native prebuild and Hermes bundle export pass. Installing and running the app on the Pixel 9 remains the next validation step.
+- The ARM64 development APK builds and runs on a Pixel 9 Pro with Android 17 and Hermes. Native checks pass for HA over Wi-Fi, token persistence after process restart, foreground resync, pull-to-refresh, terminal authentication errors, Forget and demo/entity navigation.
 
-The HA checks run under Node on the development Mac. Device integration compatibility, authenticated camera images and Android lifecycle behavior still need validation on the actual hardware. See the [recorded results](docs/stage0/results.md) and [HA proof report](docs/stage0/ha-proof-2026-10-15.json).
+The Node protocol proofs and installed-app checks are recorded separately in the [Stage 0 results](docs/stage0/results.md), [HA proof report](docs/stage0/ha-proof-2026-10-15.json) and [Android validation](docs/stage0/android-validation.md). Native Wi-Fi-loss/server-restart scenarios, actual vendor compatibility and authenticated camera images remain to be verified.
 
 ## Install and run
 
@@ -31,9 +31,9 @@ npm run web
 
 Choose **Explore demo home** in Settings. This mode uses simulated data inside Cockpit and requires no HA account. The web preview is for the interface; token persistence uses native SecureStore and is not supported in the browser.
 
-### Run on the Pixel 9
+### Run on Android
 
-Install Android Studio with its Android SDK and JDK, configure `ANDROID_HOME` and `adb`, enable USB debugging on the phone, then connect and authorize it. Build and install the development client:
+Install an Android SDK and JDK 17, using Android Studio or the command-line tools. Configure `ANDROID_HOME`, `JAVA_HOME` and `adb`, enable USB debugging on the phone, then connect and authorize it. Build and install the development client:
 
 ```sh
 npm run android
@@ -45,7 +45,9 @@ For later sessions with the client already installed:
 npm start
 ```
 
-Use the development client for networking and credential validation. Expo Go is not a supported target. iOS runtime validation is deferred.
+This workspace uses an SDK and JDK 17 under `.local/android/`, with paths in the ignored `.env.local` file that Expo loads automatically. See [Android validation](docs/stage0/android-validation.md) for the tool versions, direct Gradle build and APK location. JDK 25 failed in the native Prefab/CMake step; the recorded build uses JDK 17.
+
+The development APK loads its JavaScript from Metro. The recorded Pixel session uses USB forwarding to a localhost Metro server; cold starts require that connection. Use this client for networking and credential validation. Expo Go is not a supported target. iOS runtime validation is deferred.
 
 ## Connect Home Assistant
 
@@ -104,7 +106,7 @@ npm run export:android
 npm run format:check
 ```
 
-`proof:protocol` runs without HA credentials against a temporary loopback WebSocket server using the real compressed entity protocol and official client. `proof:ha` tests a configured HA instance with the local token. Neither proof replaces Pixel/Hermes runtime validation.
+`proof:protocol` runs without HA credentials against a temporary loopback WebSocket server using the real compressed entity protocol and official client. `proof:ha` tests a configured HA instance with the local token. These Node checks complement the installed-app checks in [Android validation](docs/stage0/android-validation.md).
 
 `export:android` produces a Hermes JavaScript bundle, not an installable APK. Use `npm run android` for the native development build.
 
@@ -117,7 +119,7 @@ npm run format:check
 
 ## Next milestones
 
-1. Build and install on the Pixel; validate setup, SecureStore, network loss, background/foreground, server restart and Forget.
+1. Complete the remaining native fault checks: cold start without Wi-Fi, recovery when it returns, HA server restart and removal of entities while disconnected.
 2. Complete the [household capability inventory](docs/stage0/inventory.md), including real camera images and a Bluetooth path for AIRTAP. Prototype 3D feasibility on the Pixel.
 3. Stage 2: command tracking and capability-aware controls, then camera images and related events. Outcomes must reflect observed HA state, and reconnect must never replay a command.
 4. Stage 3: the spatial cockpit, with bundled geometry, live markers and the list view remaining usable if the scene fails. Later candidates include configuration export/import, household logins and tablet layouts.

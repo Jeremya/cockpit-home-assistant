@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-15",
+  "device": {
+    "model": "Pixel 9 Pro",
+    "android": "17",
+    "api": 37,
+    "abi": "arm64-v8a"
+  },
+  "build": {
+    "variant": "debug development client",
+    "expo": "57.0.29",
+    "reactNative": "0.86.3",
+    "java": "Temurin 17.0.20.1+1",
+    "gradle": "9.3.1",
+    "compileSdk": 36,
+    "targetSdk": 36,
+    "minSdk": 24,
+    "ndk": "27.1.12297006",
+    "apkBytes": 89463461,
+    "apkSha256": "26db62de64e6ec793010a74ba37968a4f8af208c8ab6ddec7c14914991c4243e",
+    "sourceCommit": "715a8d36eda5b65e9b620a15aa58f0d0cabd1386"
+  },
+  "hermes": {
+    "enabledInBuildConfig": true,
+    "vmLibraryMappedFromInstalledApk": true,
+    "nativeUiRendered": true
+  },
+  "ha": {
+    "version": "2026.10.1",
+    "transport": "HTTP/WebSocket over Wi-Fi to the Mac LAN address",
+    "entities": 44,
+    "visibleEntities": 35,
+    "metadata": {
+      "entities": "fresh",
+      "devices": "fresh",
+      "areas": "fresh"
+    }
+  },
+  "passedChecks": [
+    "native_arm64_build",
+    "usb_install_and_launch",
+    "ha_connection_over_wifi",
+    "securestore_persistence_after_force_stop",
+    "foreground_resync_same_running_app",
+    "native_pull_to_refresh",
+    "terminal_auth_error_preserves_retry_and_settings_after_foreground",
+    "forget_prevents_automatic_reconnection_after_restart",
+    "offline_demo_and_entity_detail_navigation"
+  ],
+  "epochObservations": {
+    "afterColdStart": 1,
+    "afterForegroundReturn": 2,
+    "afterPullToRefresh": 3
+  },
+  "pendingChecks": [
+    "cold_start_without_wifi_then_recovery",
+    "server_restart_and_entity_removal",
+    "real_vendor_compatibility",
+    "authenticated_camera_images",
+    "three_dimensional_view_feasibility"
+  ],
+  "serviceCalls": 0,
+  "limitations": [
+    "Development bundle delivered by Metro through USB reverse forwarding on port 8081.",
+    "No release APK or production signing validation.",
+    "UI state and metadata access do not prove physical device compatibility."
+  ],
+  "finalState": "Restored to the normal HA connection; ready with 44 entities and all registries fresh."
+}
