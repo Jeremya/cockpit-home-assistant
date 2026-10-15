@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 1,
+  "id": "sample-home",
+  "revision": 1,
+  "name": "Sample home",
+  "source": "sample",
+  "scale": "approximate",
+  "floors": [
+    {
+      "id": "sample-floor-1",
+      "name": "Floor 1",
+      "outline": [
+        {
+          "x": 0,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 6
+        },
+        {
+          "x": 0,
+          "z": 6
+        }
+      ],
+      "rooms": [
+        {
+          "id": "sample-1-0",
+          "name": "Living room",
+          "shortName": "Living room",
+          "kind": "living",
+          "polygon": [
+            {
+              "x": 0,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 6
+            },
+            {
+              "x": 0,
+              "z": 6
+            }
+          ],
+          "label": {
+            "x": 2,
+            "z": 3
+          }
+        },
+        {
+          "id": "sample-1-1",
+          "name": "Kitchen",
+          "shortName": "Kitchen",
+          "kind": "kitchen",
+          "polygon": [
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 6
+            },
+            {
+              "x": 4,
+              "z": 6
+            }
+          ],
+          "label": {
+            "x": 6,
+            "z": 3
+          }
+        }
+      ],
+      "lines": [
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 0
+          },
+          "to": {
+            "x": 4,
+            "z": 2
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 3
+          },
+          "to": {
+            "x": 4,
+            "z": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "sample-floor-2",
+      "name": "Floor 2",
+      "outline": [
+        {
+          "x": 0,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 6
+        },
+        {
+          "x": 0,
+          "z": 6
+        }
+      ],
+      "rooms": [
+        {
+          "id": "sample-2-0",
+          "name": "Bedroom",
+          "shortName": "Bedroom",
+          "kind": "bedroom",
+          "polygon": [
+            {
+              "x": 0,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 6
+            },
+            {
+              "x": 0,
+              "z": 6
+            }
+          ],
+          "label": {
+            "x": 2,
+            "z": 3
+          }
+        },
+        {
+          "id": "sample-2-1",
+          "name": "Study",
+          "shortName": "Study",
+          "kind": "living",
+          "polygon": [
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 6
+            },
+            {
+              "x": 4,
+              "z": 6
+            }
+          ],
+          "label": {
+            "x": 6,
+            "z": 3
+          }
+        }
+      ],
+      "lines": [
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 0
+          },
+          "to": {
+            "x": 4,
+            "z": 2
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 3
+          },
+          "to": {
+            "x": 4,
+            "z": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "sample-floor-3",
+      "name": "Floor 3",
+      "outline": [
+        {
+          "x": 0,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 6
+        },
+        {
+          "x": 0,
+          "z": 6
+        }
+      ],
+      "rooms": [
+        {
+          "id": "sample-3-0",
+          "name": "Bedroom 2",
+          "shortName": "Bedroom 2",
+          "kind": "bedroom",
+          "polygon": [
+            {
+              "x": 0,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 6
+            },
+            {
+              "x": 0,
+              "z": 6
+            }
+          ],
+          "label": {
+            "x": 2,
+            "z": 3
+          }
+        },
+        {
+          "id": "sample-3-1",
+          "name": "Bathroom",
+          "shortName": "Bathroom",
+          "kind": "bathroom",
+          "polygon": [
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 6
+            },
+            {
+              "x": 4,
+              "z": 6
+            }
+          ],
+          "label": {
+            "x": 6,
+            "z": 3
+          }
+        }
+      ],
+      "lines": [
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 0
+          },
+          "to": {
+            "x": 4,
+            "z": 2
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 3
+          },
+          "to": {
+            "x": 4,
+            "z": 6
+          }
+        }
+      ]
+    }
+  ]
+}

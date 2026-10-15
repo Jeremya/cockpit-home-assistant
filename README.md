@@ -2,7 +2,7 @@
 
 An Android-first app for viewing a household's devices through Home Assistant. Built with Expo SDK 57, React Native, TypeScript, Zustand and the official HA WebSocket client. Home Assistant owns integrations and device state; Cockpit provides the household interface.
 
-The current app is **read-only**: a room-filtered Home with attention items, favorites and a device grid; entity details; connection settings; entity visibility and room overrides; diagnostics. An offline demo home is included. Device controls, camera images and the 3D floor plan are later milestones.
+The current app is **read-only**: a room-filtered Home with attention items, favorites and a device grid; an offline 2D floor-plan viewer with multiple floors; entity details; connection settings; entity visibility and room overrides; diagnostics. An offline demo home is included. Device controls, camera images and the 3D view are later milestones.
 
 The interface now follows the quiet dark surfaces, outline icons and room navigation of [House Control](https://github.com/0xProbabillity/house-control). See the [previews and design roadmap](docs/design/2026-10-15-interface-direction.md) for the current native foundation and the path toward a spatial cockpit.
 
@@ -10,7 +10,7 @@ The interface now follows the quiet dark surfaces, outline icons and room naviga
 
 Recorded on 2026-10-15:
 
-- 51 tests pass across 8 suites, along with TypeScript, ESLint and formatting checks.
+- 57 tests pass across 10 suites, along with TypeScript, ESLint and formatting checks.
 - The configured HA `2026.10.1` instance passes authenticated synchronization, registry loading, ping, fresh refresh, simulated foreground return and forced reconnect: 44 entities and all three registries fresh.
 - Protocol tests cover disconnect during the first synchronization, continued updates after a refresh timeout and automatic recovery. No device service calls are sent by either proof script.
 - The ARM64 development APK builds and runs on a Pixel 9 Pro with Android 17 and Hermes. Native checks pass for HA over Wi-Fi, token persistence after process restart, foreground resync, pull-to-refresh, terminal authentication errors, Forget and demo/entity navigation. Cold startup without Wi-Fi recovers automatically after network return; an HA restart reconnects and removes an ephemeral test entity from the native snapshot.
@@ -33,6 +33,8 @@ npm run web
 ```
 
 Choose **Explore demo home** in Settings. This mode uses simulated data inside Cockpit and requires no HA account. The web preview is for the interface; token persistence uses native SecureStore and is not supported in the browser.
+
+Home's floor-plan card opens an interactive 2D layout. A private plan can be supplied in the ignored `.local/home-plan.json`; preparation validates it and bundles an ignored local module. Fresh checkouts and demo mode use the public sample. See [local floor plans](docs/design/floor-plans.md) for the format, private build artifacts and the path to 3D. Device locations are not inferred from a drawing.
 
 ### Run on Android
 
@@ -121,6 +123,8 @@ npm run format:check
 - Preferences are separate for demo and each HA origin. Moving HA from the Mac to a dedicated box creates a new profile unless preferences are explicitly migrated. Observed entity states and pending commands are not persisted.
 
 ## Next milestones
+
+The [implementation backlog and agent handoff](docs/BACKLOG.md) breaks the remaining work into bounded tickets with architecture rules, file paths, data contracts, dependencies and acceptance checks. Start with F01 for native plan validation and P01 for the next independent implementation task.
 
 1. Prototype the spatial view on the Pixel: bundled demo geometry, room/device picking, native callbacks, rendering budget and a usable list if the scene fails.
 2. Complete the [household capability inventory](docs/stage0/inventory.md), including real room assignments, camera images and a Bluetooth path for AIRTAP.

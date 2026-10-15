@@ -35,6 +35,8 @@ The installed Pixel renders the new icons, cards, room filter and device detail 
 
 The feasibility prototype comes before a large investment in 3D or an editor. Its measurements decide whether Three.js in Expo DOM is suitable; the fallback is a simpler spatial view with the same list and data model. No guessed house layout appears as the user's real home.
 
+Follow-up: the [native 2D floor-plan foundation](floor-plans.md) now supports a private, image-traced household plan, multiple floors and room selection. Personal geometry stays in local configuration; the repository includes a separate public sample. The Three.js prototype and measured rendering budget remain the next 3D gate.
+
 ## Long-term structure
 
 Keep geometry, placements and appearance separate from HA entities and session state. A versioned plan uses meters and stable area/placement IDs; placements reference entity keys through the existing identity/alias layer. Persist geometry and preferences, not observed device states or pending commands. A missing entity becomes an unresolved placement until reconciliation.

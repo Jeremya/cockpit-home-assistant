@@ -33,6 +33,7 @@ export default function RootLayout() {
           options={{ title: "Home", headerShown: false }}
         />
         <Stack.Screen name="settings" options={{ title: "Connection" }} />
+        <Stack.Screen name="house" options={{ title: "Floor plan" }} />
         <Stack.Screen name="device/[key]" options={{ title: "Device" }} />
         <Stack.Screen name="entities" options={{ title: "Your entities" }} />
         <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />

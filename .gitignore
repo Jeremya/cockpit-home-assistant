@@ -4,6 +4,7 @@ node_modules/
 *.log
 .env*
 .local/
+src/spatial/current-plan.json
 dist/
 dist-web/
 coverage/

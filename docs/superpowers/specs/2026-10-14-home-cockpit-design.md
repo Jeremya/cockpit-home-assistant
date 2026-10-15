@@ -203,11 +203,13 @@ Error causes are presented as **likely causes**, not definitive diagnoses — a 
 
 ### 4.8 3D cockpit (Stage 3)
 
-- Single visible floor in v1 (the schema carries a floor id; multi-floor rendering is out of scope).
-- Rooms as floor rectangles with low walls and labels; placed entities as markers with an **icon + text label**, colored by semantic condition (§5.5) through a theme mapping.
+- One visible floor at a time, with a selector for plans that contain several floors; simultaneous stacked-floor rendering stays out of scope.
+- Rooms as floor polygons with low walls and labels; placed entities as markers with an **icon + text label**, colored by semantic condition (§5.5) through a theme mapping.
 - Touch: orbit, pan, zoom; tap on a marker opens detail. Gestures must not conflict with the screen's scroll.
 - Lazy-loaded; rendering paused when hidden or backgrounded; GPU resources disposed on unmount; WebGL context loss recovered. Scene failure is caught by an error boundary and the list remains usable.
 - Performance budget agreed on named target phones in Stage 0 (initial target: 30 fps sustained while interacting, no rendering when idle/hidden).
+
+The native [2D floor-plan foundation](../../design/floor-plans.md) is implemented independently of this 3D gate. A local image-traced plan can contain multiple floors and concave rooms. Personal geometry and reference images remain in ignored build configuration; the repository includes a distinct sample plan. Printed dimensions are kept separately from approximate traced scale. HA room/device associations and story elevations are not inferred from an image.
 
 ---
 

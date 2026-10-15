@@ -21,6 +21,7 @@ export function Icon({
       color={color}
       size={size}
       accessible={false}
+      aria-hidden
       importantForAccessibility="no"
     />
   );

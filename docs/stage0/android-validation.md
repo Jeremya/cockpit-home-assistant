@@ -76,3 +76,5 @@ These interface changes were delivered by Metro. The APK size, hash and native b
 The debug development client needs Metro (`npm start`) to load the app. The machine-readable results are in [the Android proof report](android-proof-2026-10-15.json). Actual vendor compatibility, physical controls, camera images, 3D rendering and production signing remain separate gates.
 
 JDK baseline reference: [Android Gradle Plugin 8.12 compatibility](https://developer.android.com/build/releases/agp-8-12-0-release-notes?hl=en).
+
+The subsequent SVG-enabled development APK and its separate acceptance checks are recorded in [2D floor-plan validation](floor-plan-validation.md). The APK hash and original native session results above remain historical artifacts.

@@ -26,6 +26,7 @@ import {
 import { Icon } from "../components/EntityIcon";
 import { EntityCard } from "../components/EntityCard";
 import { SessionBanner } from "../components/SessionBanner";
+import { HousePlanCard } from "../components/HousePlanCard";
 
 function EntityGrid({
   ids,
@@ -206,11 +207,15 @@ function HomeContent() {
         ) : (
           <SessionBanner />
         )}
+        {initialized && <HousePlanCard />}
         {snapshot && (
           <>
             <View style={home.summary}>
               {[
-                { value: String(roomCount), label: "Rooms" },
+                {
+                  value: String(roomCount),
+                  label: mode === "demo" ? "Rooms" : "HA rooms",
+                },
                 { value: String(count), label: "Entities" },
                 {
                   value: ready ? String(attention.length) : "—",
