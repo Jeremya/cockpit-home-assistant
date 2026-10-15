@@ -6,7 +6,7 @@ Updated 2026-10-15. This is the execution guide for the next agent, including a 
 
 Implemented: Expo/RN Android development build; HA authentication and authoritative entity synchronization; recovery/lifecycle and credential-journal fixes; native persistence; read-only Home/detail/settings/entities/diagnostics; offline simulated devices; a native SVG floor-plan viewer with multiple floors, concave spaces, room selection and dimensions. Personal geometry is prepared locally; the public sample is separate.
 
-Current checks: **57 tests / 10 suites**, TypeScript, lint, formatting, web and Android exports pass. The SVG-enabled ARM64 APK compiled and installed on the Pixel. Personal-plan browser picking, floor switching, dimensions and offline interactions passed at 320/430/768 px. **Native plan interaction remains unverified because the Pixel relocked**; see F01. Earlier native HA/network/storage checks passed and remain recorded separately.
+Current checks: **57 tests / 10 suites**, TypeScript, lint, formatting, web and Android exports pass. The SVG-enabled ARM64 APK compiled and installed on the Pixel. Personal-plan browser picking, floor switching, dimensions and offline interactions passed at 320/430/768 px. Native plan interaction passed on the Pixel (F01, see the floor-plan validation report). Earlier native HA/network/storage checks passed and remain recorded separately.
 
 Not implemented: editable/persisted plans, HA-to-plan associations, device placements, Three.js, command tracking, physical controls, authenticated camera images, production distribution, iOS validation and per-occupant OAuth. The HA instance currently exercises built-in demo entities; entity presence does not prove vendor integration compatibility.
 
@@ -96,7 +96,7 @@ The final preparation restores local development configuration. Browser storage 
 
 | ID  | Priority / size | Delivery                                                 | Depends on                                 |
 | --- | --------------- | -------------------------------------------------------- | ------------------------------------------ |
-| F01 | P0 / S          | Finish native floor-plan acceptance                      | Unlocked Pixel                             |
+| F01 | Done            | Finish native floor-plan acceptance                      | Unlocked Pixel                             |
 | F02 | P1 / S          | Reproducible sample UI smoke script                      | None                                       |
 | H01 | P0 / hardware   | Verify actual household HA capabilities                  | User's hardware/integration setup          |
 | P01 | P1 / M          | Schema-2 spatial preferences and migrations              | None                                       |
@@ -136,6 +136,8 @@ Files: `docs/stage0/floor-plan-validation.md`; code changes only if a defect is 
 4. If checking native offline use, keep Metro over USB, temporarily disable Wi-Fi, change floors/select rooms, then restore Wi-Fi in a `finally`/cleanup path. Record exactly what ran; browser offline interactions are not this native test.
 
 Done: update the native acceptance row with observed results or a reproducible failure; restore device settings. No physical device service calls.
+
+**Status (2026-10-15): done.** All steps passed on the Pixel 9 Pro, including offline floor switching and HA recovery after Wi-Fi restore. Evidence in [floor-plan validation](stage0/floor-plan-validation.md).
 
 ### F02 — Reproducible public UI smoke
 
