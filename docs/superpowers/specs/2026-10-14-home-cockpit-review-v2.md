@@ -1,10 +1,12 @@
 # Home Cockpit — review of specification v2
 
-Reviewed on 2026-10-14 against [specification v2](./2026-10-14-home-cockpit-design.md). This pass focuses on the revised contracts and their edge cases. The workspace still contains no application implementation or dependency lockfile; source checks therefore establish upstream behavior to verify against the exact packages selected in Stage 0. The checked HA client branch currently declares version 9.7.1.
+> **Historical pre-implementation review (2026-10-14).** Findings below concern specification v2, not the current code. See [spec §11](2026-10-14-home-cockpit-design.md#11-review-disposition) for disposition, [the backlog](../../BACKLOG.md) for pending work and [project status](../../README.md) for current delivery. Original line numbers refer to the reviewed version.
+
+Reviewed on 2026-10-14 against [specification v2](./2026-10-14-home-cockpit-design.md). This pass focuses on the revised contracts and their edge cases. At the reviewed checkpoint, the workspace contained no application implementation or dependency lockfile; source checks established upstream behavior to verify against the packages subsequently selected in Stage 0. The checked HA client branch declared version 9.7.1.
 
 The revised product boundary, entity/device/area model, persistence sequencing, honest camera wording, and staged roadmap address the main concerns from the first review. Keep that direction. The remaining work is mostly tightening contracts so implementation cannot satisfy the words while producing the wrong behavior.
 
-1. **[P1] The specified SecureStore key is invalid.** [Spec §6.6, line 490](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:490).
+1. **[P1] The specified SecureStore key is invalid.** [Spec §6.6, line 490](2026-10-14-home-cockpit-design.md).
 
    `profile:<profileId>:token`, with a profile ID such as `ha:https://home.example.com`, contains colons and slashes. Expo SecureStore accepts only alphanumeric characters, periods, hyphens, and underscores, and validates the key before accessing native storage. Following this contract literally would make credential persistence fail. [Expo SecureStore documentation](https://docs.expo.dev/versions/latest/sdk/securestore/)
 
@@ -12,7 +14,7 @@ The revised product boundary, entity/device/area model, persistence sequencing, 
 
    **Acceptance:** save, load, and forget credentials for an HTTPS origin with a non-default port and for an IPv6 origin. Keys are valid and profiles do not collide.
 
-2. **[P1] Unsubscribe/resubscribe does not guarantee a fresh HA snapshot.** [Spec §6.3, line 444](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:444).
+2. **[P1] Unsubscribe/resubscribe does not guarantee a fresh HA snapshot.** [Spec §6.3, line 444](2026-10-14-home-cockpit-design.md).
 
    The checked client caches the entity collection on the connection. Its default unsubscribe grace period is five seconds. An immediate re-subscription cancels teardown and delivers existing collection state; it need not send a new `subscribe_entities` command. This undermines the stated pull-to-refresh and foreground synchronization guarantees. [Client collection implementation](https://github.com/home-assistant/home-assistant-js-websocket/blob/master/lib/collection.ts)
 
@@ -22,7 +24,7 @@ The revised product boundary, entity/device/area model, persistence sequencing, 
 
    **Acceptance:** unsubscribe and re-subscribe immediately while the server delays its next initial snapshot. The app remains synchronizing and `resync()` remains pending until that server snapshot arrives.
 
-3. **[P1] Per-entity serialization ends before the first command is resolved.** [Spec §6.5, line 483](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:483).
+3. **[P1] Per-entity serialization ends before the first command is resolved.** [Spec §6.5, line 483](2026-10-14-home-cockpit-design.md).
 
    The text promises one in-flight command per entity but permits the next command when the previous leaves `sending`. At that point it may merely be `accepted`, still waiting for device state. An accepted unlock followed by a lock can therefore overlap, with ambiguous state updates and late outcomes.
 
@@ -32,7 +34,7 @@ The revised product boundary, entity/device/area model, persistence sequencing, 
 
    **Acceptance:** HA accepts an unlock but delays its state report. A second lock/unlock is refused under the lock policy. Disconnecting clears any unsent intents, and reconnect sends none automatically.
 
-4. **[P2] Confirmation needs ordering rules and a bounded reconciliation window.** [Spec §6.5, line 480](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:480).
+4. **[P2] Confirmation needs ordering rules and a bounded reconciliation window.** [Spec §6.5, line 480](2026-10-14-home-cockpit-design.md).
 
    Three cases are unspecified: the matching entity update arrives before the service-call response; an old snapshot already matches the requested target; and an unrelated manual action hours later matches an unconfirmed command. The literal lifecycle risks missing the first case and treating the latter cases as proof of an old command's outcome.
 
@@ -44,7 +46,7 @@ The revised product boundary, entity/device/area model, persistence sequencing, 
 
    **Acceptance:** test state-before-acknowledgement, already-satisfied targets, superseding commands, a bounded late match after reconnect, and an unrelated match after that window expires.
 
-5. **[P2] Registry fallback changes entity identity during an outage.** [Spec `HomeSnapshot`, line 248](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:248), and [identity rules, line 218](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:218).
+5. **[P2] Registry fallback changes entity identity during an outage.** [Spec `HomeSnapshot`, line 248](2026-10-14-home-cockpit-design.md), and [identity rules, line 218](2026-10-14-home-cockpit-design.md).
 
    A registered entity normally has a registry UUID as its key. If registry loading fails, the spec switches it to `entity:<entityId>`. Favorites, hidden overrides, room assignments, detail routes, and placements all reference the old key, so they stop matching even though the entity still exists. Recovery changes the key again. Creating preferences during fallback introduces the opposite migration problem.
 
@@ -54,7 +56,7 @@ The revised product boundary, entity/device/area model, persistence sequencing, 
 
    **Acceptance:** save favorites/visibility with registries working, reconnect with only entity-registry access failing, then recover. Existing preferences and detail routes remain attached throughout.
 
-6. **[P2] The climate capability's unit has no source in the backend contract.** [Spec §5.4, line 328](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:328), and [unit field, line 338](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:338).
+6. **[P2] The climate capability's unit has no source in the backend contract.** [Spec §5.4, line 328](2026-10-14-home-cockpit-design.md), and [unit field, line 338](2026-10-14-home-cockpit-design.md).
 
    `getCapability(entity)` is declared purely entity-derived, but `ClimateCapability.unit` requires HA's configured temperature unit. That configuration is absent from `HomeSnapshot`. HA's climate implementation converts displayed temperatures using HA configuration, and the client's `HassConfig` carries `unit_system.temperature` separately from entity attributes. [HA climate implementation](https://github.com/home-assistant/core/blob/2026.10.1/homeassistant/components/climate/__init__.py), [client configuration type](https://github.com/home-assistant/home-assistant-js-websocket/blob/master/lib/types.ts)
 
@@ -62,7 +64,7 @@ The revised product boundary, entity/device/area model, persistence sequencing, 
 
    **Acceptance:** run the same climate entity through Celsius and Fahrenheit HA configurations, including when the phone locale differs. Displayed values, command payloads, limits, and confirmation tolerances remain in the correct units.
 
-7. **[P2] Add bounded synchronization and explicit recovery mechanics.** [Spec session sequence, line 434](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:434), and [heartbeat, line 440](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:440).
+7. **[P2] Add bounded synchronization and explicit recovery mechanics.** [Spec session sequence, line 434](2026-10-14-home-cockpit-design.md), and [heartbeat, line 440](2026-10-14-home-cockpit-design.md).
 
    Readiness waits for the first entity snapshot and registry results, but no synchronization deadline is specified. A server can authenticate and respond to pings while never answering a registry request or providing the initial entity set. The app would remain on “Synchronizing…” indefinitely. A transport connection timeout does not cover that phase.
 
@@ -74,7 +76,7 @@ The revised product boundary, entity/device/area model, persistence sequencing, 
 
    **Acceptance:** authenticate and answer pings, but suppress a registry response or initial entity snapshot. The app exits synchronization according to the specified deadline and retains a working retry path.
 
-8. **[P2] Apply the unlock interaction policy to lock opening.** [Spec device detail, line 161](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:161).
+8. **[P2] Apply the unlock interaction policy to lock opening.** [Spec device detail, line 161](2026-10-14-home-cockpit-design.md).
 
    The revision adds `Open` and `setLockState(..., 'open')`, while only unlock explicitly requires confirmation. Apply the same deliberate confirmation and no-replay rules to opening/unlatching, in detail and any future card/plan controls, or defer open to a later stage. Keep authorization confirmation distinct from entering a device-required code.
 
@@ -82,7 +84,7 @@ The revised product boundary, entity/device/area model, persistence sequencing, 
 
    **Acceptance:** an open action follows the same confirmation policy as unlock; entity removal or capability loss while the dialog is open prevents dispatch to a stale address.
 
-9. **[P2] Clarify that iOS host exceptions are build-time configuration.** [Spec §6.6, line 495](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:495).
+9. **[P2] Clarify that iOS host exceptions are build-time configuration.** [Spec §6.6, line 495](2026-10-14-home-cockpit-design.md).
 
    “An explicit exception for the configured host is added” leaves open whether that happens when a user edits Settings. ATS exceptions belong in the installed app's Info.plist; a settings form cannot add one to an already shipped binary. For the personal MVP, choose a tested general local-network policy, require HTTPS for unsupported addresses, or document that the house-specific build must be rebuilt when its exception changes.
 

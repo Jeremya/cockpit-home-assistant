@@ -1,5 +1,7 @@
 # 2D floor-plan validation
 
+> Evidence ledger for F01 and the later profile-plan follow-up. The original build/test counts and artifact hash retain their checkpoint scope. See [project status](../README.md) for current checks and [the backlog](../BACKLOG.md) for outstanding links, placements and 3D acceptance.
+
 Date: 2026-10-15. Base commit: `db239bf` plus the floor-plan changes recorded with this report.
 
 | Check                                           | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -24,3 +26,9 @@ The installed client still loads JavaScript through Metro over USB. The personal
   - Tapping outside the building keeps the current selection (no deselect); the "Tap a room to explore" hint stays visible while a room is selected.
   - On the real HA instance, Needs attention lists HA backup sensors in `unknown` state (7 items). This follows the "unknown is never all-clear" policy but is noisy; candidate for U01 / attention policy tuning.
 - Screenshots are kept in ignored `.local/android/validation/f01/`; a capture that showed a personal notification was deleted. No device service calls were sent.
+
+## Profile-plan follow-up — P01/P02 (`81ac459`)
+
+The P02 handoff records native seeding of the active HA profile, display of the reset confirmation, and cancellation leaving the profile unchanged. This was a development-client observation, not a new standalone APK or a native destructive-reset test. Automated regressions cover actual reset preservation, unloaded-profile protection, transient seed-write retry, displayed-plan identity changes and recursive allowlisting. They pass at the [latest verification checkpoint](../README.md#latest-verification-checkpoint).
+
+P01/P02 are complete in code. P03 room/area links and P04 entity placements remain unimplemented. S01 prototype code exists but its native performance/lifecycle report remains open. None of these observations proves physical device control or camera behavior.

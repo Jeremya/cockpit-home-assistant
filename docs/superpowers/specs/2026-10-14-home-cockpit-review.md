@@ -1,12 +1,14 @@
 # Home Cockpit specification review and proposed roadmap
 
-Review date: 2026-10-14. Reviewed [the draft specification](./2026-10-14-home-cockpit-design.md). The workspace contains the specification only; there is no application implementation or dependency manifest to audit. External behavior below was checked against primary documentation and, where necessary, source code. The actual household devices and Home Assistant instance were not available for validation.
+> **Historical pre-implementation review (2026-10-14).** The original findings and source checks below describe that draft. Accepted design changes are recorded in [spec §11](2026-10-14-home-cockpit-design.md#11-review-disposition); remaining implementation work is in [the backlog](../../BACKLOG.md). Read [project status](../../README.md) for what exists now. Original line numbers refer to the reviewed version.
+
+Review date: 2026-10-14. Reviewed [the draft specification](./2026-10-14-home-cockpit-design.md). At the reviewed checkpoint, the workspace contained the specification only; there was no application implementation or dependency manifest to audit. External behavior below was checked against primary documentation and, where necessary, source code. The actual household devices and Home Assistant instance were not available for validation.
 
 The architecture is a good starting point: keep Home Assistant as the integration hub, Expo/React Native for the app, Zustand for client state, SecureStore for credentials, and a mock implementation for development. I would revise the synchronization, command, and identity contracts before building controls. The largest risks are promising fresher information than HA provides and presenting an uncertain physical action as a known outcome.
 
 The priorities below mean: **P1** should be resolved before shipping the affected behavior; **P2** should be addressed while designing the foundation to avoid unnecessary rework. They do not imply that every enhancement must enter the first release.
 
-1. **P1 — Replace action rollback with an explicit unconfirmed outcome.** Spec §4.3, [line 140](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:140), and §5.4.
+1. **P1 — Replace action rollback with an explicit unconfirmed outcome.** Spec §4.3, [line 140](2026-10-14-home-cockpit-design.md), and §5.4.
 
    A request can reach HA and unlock a door even if the connection drops before the response. After ten seconds, reverting the card to “Locked” would then make an unsupported claim. HA acknowledging a service call also does not establish that the physical device completed it.
 
@@ -16,7 +18,7 @@ The priorities below mean: **P1** should be resolved before shipping the affecte
 
    **Acceptance:** HA accepts an unlock, the socket drops, and the physical door unlocks. The app shows an unconfirmed outcome, reconnects, reconciles to HA, and sends no second unlock.
 
-2. **P1 — Define “live” as current HA knowledge, with separate transport health.** Spec §1.4, [line 28](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:28), §4.6, and §5.1.
+2. **P1 — Define “live” as current HA knowledge, with separate transport health.** Spec §1.4, [line 28](2026-10-14-home-cockpit-design.md), §4.6, and §5.1.
 
    Schlage Encode Plus is supported by the official integration, but that integration uses the vendor cloud and fetches lock state every 30 seconds. A manually operated lock can therefore be delayed even while Cockpit's WebSocket is healthy. This does not prove every command takes 30 seconds; it does invalidate an unconditional immediate-state promise. [Schlage integration documentation](https://www.home-assistant.io/integrations/schlage/)
 
@@ -24,7 +26,7 @@ The priorities below mean: **P1** should be resolved before shipping the affecte
 
    Add a `synchronizing` state and enable controls only after synchronization. Mark cached values clearly during reconnect. Revise acceptance criteria to measure HA-to-app update latency separately from device-to-HA latency, and tune command deadlines from observed integration behavior rather than one universal ten-second value.
 
-3. **P1 — Validate Ring's still-image path before promising usable snapshots.** Spec §1.4, §4.4, and §6.3, [line 396](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:396).
+3. **P1 — Validate Ring's still-image path before promising usable snapshots.** Spec §1.4, §4.4, and §6.3, [line 396](2026-10-14-home-cockpit-design.md).
 
    Current Ring documentation distinguishes `live_view` and `last_recording` camera entities and subscription requirements for recordings. Ring motion and ding events are not equivalent to a continuously asserted motion sensor. [Ring integration documentation](https://www.home-assistant.io/integrations/ring/)
 
@@ -34,7 +36,7 @@ The priorities below mean: **P1** should be resolved before shipping the affecte
 
    An `event.*` state is a last-event timestamp. Display “Motion 2 minutes ago,” or a clearly defined recent-event badge that expires. A historical event is not evidence of motion still occurring. [HA event entity semantics](https://developers.home-assistant.io/docs/core/entity/event/)
 
-4. **P1 — Make snapshots, subscriptions, reconnect, and refresh one consistent contract.** Spec §5.2 and §6.3, [line 391](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:391).
+4. **P1 — Make snapshots, subscriptions, reconnect, and refresh one consistent contract.** Spec §5.2 and §6.3, [line 391](2026-10-14-home-cockpit-design.md).
 
    The fallback flow fetches states before subscribing. A state change between those operations can be missed indefinitely. The official client already supplies an entity collection with initial state and subsequent updates; use that as the authoritative feed rather than independently bootstrapping a second state cache. [Official WebSocket client](https://github.com/home-assistant/home-assistant-js-websocket)
 
@@ -46,13 +48,13 @@ The priorities below mean: **P1** should be resolved before shipping the affecte
 
    **Acceptance:** mutate an entity during initial load; delete an entity while disconnected; finish a delayed refresh after switching to demo. None may leave missed, ghost, or cross-session state.
 
-5. **P1 — Treat app lifecycle and connection liveness as part of the foundation.** Spec §6.3, [line 394](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:394).
+5. **P1 — Treat app lifecycle and connection liveness as part of the foundation.** Spec §6.3, [line 394](2026-10-14-home-cockpit-design.md).
 
    Refreshing only after more than 30 seconds in the background leaves shorter interruptions and network changes unspecified. On every foreground transition, verify liveness and resynchronize when continuity is uncertain. Define what happens to sockets, reconnect timers, pending commands, image polling, and rendering while backgrounded. React Native exposes lifecycle transitions through `AppState`; it does not make an app session continuously active in the background. [React Native AppState](https://reactnative.dev/docs/appstate)
 
    Use a bounded heartbeat deadline to detect a silent broken connection even when no entities are changing; HA supports application-level ping/pong. Distinguish an authenticated socket from a synchronized usable session. Authentication rejection should stop retries until credentials change; transient network failures may retry. [HA WebSocket API](https://developers.home-assistant.io/docs/api/websocket/)
 
-6. **P2 — Model entities, physical devices, and rooms separately now.** Spec §5.1, [line 251](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:251), and §5.3.
+6. **P2 — Model entities, physical devices, and rooms separately now.** Spec §5.1, [line 251](2026-10-14-home-cockpit-design.md), and §5.3.
 
    Keeping an entity-keyed store is sensible. Calling each entity a physical `Device`, however, pushes complexity into every feature: battery association, camera motion, appliance cards, placement, and room summaries. Read the entity/device/area registries early and preserve their relationships. HA's device registry already supplies physical-device IDs and area assignments. [Device registry](https://developers.home-assistant.io/docs/device_registry_index/)
 
@@ -62,7 +64,7 @@ The priorities below mean: **P1** should be resolved before shipping the affecte
 
    An `entity_id` is a current address, not an immutable application identity: HA permits renaming it. Use an installation-scoped registry entry ID when present and retain the current entity ID for service calls; fall back explicitly for unregistered entities. Handle renamed, missing, and re-created entries as distinct reconciliation cases. [HA entity registry update API](https://github.com/home-assistant/core/blob/2026.10.1/homeassistant/components/config/entity_registry.py)
 
-7. **P2 — Separate discovery and selection from floor-plan geometry.** Spec §4.7 and §5.3, [line 298](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:298).
+7. **P2 — Separate discovery and selection from floor-plan geometry.** Spec §4.7 and §5.3, [line 298](2026-10-14-home-cockpit-design.md).
 
    Today a fridge's sensors and switches are hidden by default unless placed on the map. “Show all sensors” also reveals switches, and HA rooms are ignored until a developer supplies placements. That undermines the basic unified-home experience before 3D exists.
 
@@ -70,7 +72,7 @@ The priorities below mean: **P1** should be resolved before shipping the affecte
 
    Keep missing placement references as repairable configuration, with a visible diagnostics count, rather than silently discarding user configuration. Import/export of non-secret JSON would provide practical customization well before a visual editor.
 
-8. **P2 — Domain mapping needs capability and unit checks.** Spec §3.2, §4.4, and §5.3, [line 82](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:82).
+8. **P2 — Domain mapping needs capability and unit checks.** Spec §3.2, §4.4, and §5.3, [line 82](2026-10-14-home-cockpit-design.md).
 
    Mapping by domain is the right default, but two entities in one domain do not necessarily support identical operations. Derive a small typed capability model from feature flags, attributes, and available HA services. Gate controls accordingly and preserve raw attributes for diagnostics.
 
@@ -78,7 +80,7 @@ The priorities below mean: **P1** should be resolved before shipping the affecte
 
    For fans, distinguish on/off, percentage, and preset-only operation. For locks, distinguish locked/unlocked/transition/jammed/unknown and code requirements; do not collapse unknown into a boolean. For binary sensors, use device-class-specific labels. New devices should “appear with supported capabilities,” rather than being promised full compatibility merely because their domain matches.
 
-9. **P2 — Make network and credential behavior precise.** Spec §4.6, §6.5, and §6.8, [line 406](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:406).
+9. **P2 — Make network and credential behavior precise.** Spec §4.6, §6.5, and §6.8, [line 406](2026-10-14-home-cockpit-design.md).
 
    Keep HTTPS as the default and make HTTP a deliberate trusted-LAN configuration. Encryption at rest does not protect a token sent over HTTP. Validate URL scheme/host/port; reject embedded credentials, fragments, and unexpected query parameters; explicitly define supported base paths. Bind credentials and caches to an installation profile so editing the host cannot accidentally reuse another server's token. Avoid forwarding authorization across origins.
 
@@ -88,7 +90,7 @@ The priorities below mean: **P1** should be resolved before shipping the affecte
 
    Handle storage errors and partially saved URL/token pairs. A forgotten configuration must clear cached images and in-memory state as well as credentials. SecureStore behavior differs across reinstall and backup on the two platforms; include a reinstall/reset case in validation. [Expo SecureStore](https://docs.expo.dev/versions/latest/sdk/securestore/)
 
-10. **P2 — Keep the stack; correct version-dependent assumptions and the fallback estimate.** Spec §3.3 and §6.4, [line 400](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:400).
+10. **P2 — Keep the stack; correct version-dependent assumptions and the fallback estimate.** Spec §3.3 and §6.4, [line 400](2026-10-14-home-cockpit-design.md).
 
     Expo/React Native/TypeScript, Router, Zustand, AsyncStorage, and SecureStore are proportionate choices. Start real networking validation with development builds on both platforms. Choose and record one supported Expo SDK and HA minimum version at kickoff, commit a dependency lockfile, and install native packages at SDK-compatible versions. “Latest stable at init” is a starting procedure, not a reproducible compatibility policy.
 
@@ -101,7 +103,7 @@ The priorities below mean: **P1** should be resolved before shipping the affecte
 
     Correct the adapter's type mismatch: `getDevices(): Promise<Device[]>` cannot return objects without the required `roomId`. Prefer an adapter-owned `EntityRecord` with no presentation fields, then derive room/card models outside the adapter. Define the currently omitted `PendingAction` and `ConnectionSettings` contracts before implementation.
 
-11. **P2 — Bring persistence forward and define upgrade behavior.** Spec §4.7, §6.2, and §7, [line 454](/Users/jeremy/dev/cockpit-larrabee/docs/superpowers/specs/2026-10-14-home-cockpit-design.md:454).
+11. **P2 — Bring persistence forward and define upgrade behavior.** Spec §4.7, §6.2, and §7, [line 454](2026-10-14-home-cockpit-design.md).
 
     Room assignment and default visibility already depend on plan data, yet plan persistence arrives after 3D. Load versioned preferences and validate plan JSON in the foundation. Persist configuration, not pending actions or authoritative device state. If a state cache is added, it must be explicitly historical until refreshed.
 
@@ -140,14 +142,14 @@ Keep presentation metadata cheap to change: a fan's normal operating state and a
 
 **Proposed roadmap.** Sequence by risk and household usefulness. These are acceptance gates, not calendar estimates; HA readiness and device validation determine the schedule.
 
-| Stage | Deliverable | Exit criterion |
-|---|---|---|
-| 0 — Prove the dependencies | Exact hardware/firmware inventory; HA integration and entity/capability matrix; one real read/action per required category; Hermes connection/reconnect proof in installed iOS and Android builds; small 3D feasibility prototype | Required hardware works through HA or an explicit limitation/scope change is recorded; Ring still images are proven rather than inferred |
-| 1 — Trustworthy read-only home | Session lifecycle and consistent synchronization; entity/device/area metadata; connection status; onboarding and selection; favorites/rooms; versioned preferences; demo mode | Cold start, foreground recovery, server restart, entity removal, and demo/HA switching produce correct qualified state |
-| 2 — Safe household controls | Capability-aware lock/climate/fan/switch controls; command tracking; camera/event behavior; targeted device grouping; readable errors and diagnostics | All retained MVP controls work on real hardware, including delayed or uncertain outcomes, without stale command replay |
-| 3 — Spatial cockpit | House-specific geometry and placements; 3D navigation and markers; list/plan choice; persistence/migrations already provided by stage 1 | The requested 3D MVP works offline as an asset bundle, updates correctly, and meets the agreed performance/accessibility budget |
-| 4 — Everyday household use | HA login per occupant; useful history/activity from HA; configuration export/import; existing HA scenes/scripts; tablet layout; optional 2D view | Occupants can complete the common tasks independently and restore their configuration after reinstall |
-| 5 — Add only demonstrated needs | Plan editor, supported live camera viewing, richer diagnostics/alerts, local/remote endpoint switching, widgets, or shared preferences | Each addition has a real household use case and an explicit ownership/maintenance plan |
+| Stage                           | Deliverable                                                                                                                                                                                                                       | Exit criterion                                                                                                                           |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 — Prove the dependencies      | Exact hardware/firmware inventory; HA integration and entity/capability matrix; one real read/action per required category; Hermes connection/reconnect proof in installed iOS and Android builds; small 3D feasibility prototype | Required hardware works through HA or an explicit limitation/scope change is recorded; Ring still images are proven rather than inferred |
+| 1 — Trustworthy read-only home  | Session lifecycle and consistent synchronization; entity/device/area metadata; connection status; onboarding and selection; favorites/rooms; versioned preferences; demo mode                                                     | Cold start, foreground recovery, server restart, entity removal, and demo/HA switching produce correct qualified state                   |
+| 2 — Safe household controls     | Capability-aware lock/climate/fan/switch controls; command tracking; camera/event behavior; targeted device grouping; readable errors and diagnostics                                                                             | All retained MVP controls work on real hardware, including delayed or uncertain outcomes, without stale command replay                   |
+| 3 — Spatial cockpit             | House-specific geometry and placements; 3D navigation and markers; list/plan choice; persistence/migrations already provided by stage 1                                                                                           | The requested 3D MVP works offline as an asset bundle, updates correctly, and meets the agreed performance/accessibility budget          |
+| 4 — Everyday household use      | HA login per occupant; useful history/activity from HA; configuration export/import; existing HA scenes/scripts; tablet layout; optional 2D view                                                                                  | Occupants can complete the common tasks independently and restore their configuration after reinstall                                    |
+| 5 — Add only demonstrated needs | Plan editor, supported live camera viewing, richer diagnostics/alerts, local/remote endpoint switching, widgets, or shared preferences                                                                                            | Each addition has a real household use case and an explicit ownership/maintenance plan                                                   |
 
 Keep automations and thresholds that must run unattended in HA. Initially route background notifications through existing HA facilities, such as the official Companion app if already installed. Cockpit-native push is a separate project requiring a defined HA integration and delivery path to APNs/FCM or a push service; a foreground WebSocket cannot provide it. Preserve the no-owned-backend approach until a concrete requirement such as cross-phone synchronization or custom push justifies additional infrastructure.
 

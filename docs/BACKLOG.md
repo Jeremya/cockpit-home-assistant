@@ -1,18 +1,20 @@
 # Implementation backlog and agent handoff
 
-Updated 2026-10-15. This is the execution guide for the next agent, including a smaller model. Work on **one ticket per change**. Do not start the whole roadmap in one turn. Read the relevant source and tests before editing; the specification contains future sketches that do not always match the current APIs.
+Updated 2026-10-15 after `da62474`. This is the execution guide for the next agent, including a smaller model. Work on **one ticket per change**. The [project status](README.md) distinguishes implemented code, native acceptance and future delivery. Read actual source and tests before editing; future requirements are not current APIs.
 
 ## 1. Starting point
 
-Implemented: Expo/RN Android development build; HA authentication and authoritative entity synchronization; recovery/lifecycle and credential-journal fixes; native persistence; read-only Home/detail/settings/entities/diagnostics; offline simulated devices; a native SVG floor-plan viewer with multiple floors, concave spaces, room selection and dimensions. Personal geometry is prepared locally; the public sample is separate.
+Implemented: Expo/RN Android development build; HA authentication and authoritative entity synchronization; recovery/lifecycle and credential journals; native persistence; read-only Home/detail/settings/entities/diagnostics; offline simulated home; native SVG plans with multiple floors, concave rooms, dimensions and approximate furniture; schema-2 spatial preferences, profile-owned plans and explicit reset (P01/P02, `81ac459`). Maurice branding is in `da62474`. Personal geometry and the public sample remain separate.
 
-Current checks: **57 tests / 10 suites**, TypeScript, lint, formatting, web and Android exports pass. The SVG-enabled ARM64 APK compiled and installed on the Pixel. Personal-plan browser picking, floor switching, dimensions and offline interactions passed at 320/430/768 px. Native plan interaction passed on the Pixel (F01, see the floor-plan validation report). Earlier native HA/network/storage checks passed and remain recorded separately.
+Latest code-review checkpoint: **96 tests / 13 suites**, five additional local P01/P02 regressions, TypeScript, lint and formatting pass. Earlier browser/export/native-build results retain their original scope in the validation reports; they are not fresh exports of the current tree. F01 native 2D acceptance passed. P01/P02 native seeding and reset cancellation were observed; full reset and storage failure cases are covered by automated tests.
 
-Not implemented: editable/persisted plans, HA-to-plan associations, device placements, Three.js, command tracking, physical controls, authenticated camera images, production distribution, iOS validation and per-occupant OAuth. HA also has built-in demo entities. The first actual Kasa plug passed read-only integration and Cockpit backend validation; other vendor compatibility remains unproven (H01).
+In progress: S01's isolated Three.js/Expo DOM scene and instrumentation exist (`a505fec`); native measurements and a kept feasibility report are missing. Read-only real-device proofs pass for Kasa HS103 and Petlibro PLAF103; H01 remains partial. The feeder yields 23 visible entities, motivating U03/U04. HA also has built-in demo entities: do not count them as proven household hardware.
+
+Not implemented: HA-to-plan links (P03), entity placements (P04), device summaries (U03), broader sensor attention rules (U04), production 3D (S02), command tracking/controls, authenticated camera display, standalone distribution, CI, iOS and per-occupant OAuth. A plan editor is later work; persisted plans already exist.
 
 Read in this order:
 
-1. [README](../README.md): setup, commands and current boundaries.
+1. [Project status](README.md), then the [root README](../README.md): current scope, setup and commands.
 2. [Floor-plan implementation](design/floor-plans.md) and [validation](stage0/floor-plan-validation.md).
 3. [Main spec](superpowers/specs/2026-10-14-home-cockpit-design.md): relevant sections are referenced by ticket below.
 4. [Native validation](stage0/android-validation.md), [results](stage0/results.md), [household inventory](stage0/inventory.md).
@@ -25,32 +27,35 @@ flowchart LR
   HA[Home Assistant] <--> Backend[HomeAssistantBackend]
   Backend --> Manager[SessionManager]
   Credentials[SecureStore + credential journal] --> Manager
-  Prefs[Profile preferences] <--> Manager
+  Prefs[Schema-2 profile preferences] <--> Manager
   Manager --> Store[Zustand observations and status]
   Store --> Native[Native screens and selectors]
   Local[Ignored local plan] --> Prepare[house:prepare validator]
   Sample[Public sample fallback] --> Prepare
   Prepare --> Bundle[Ignored bundled JSON]
-  Bundle --> Plan[Plan selector]
+  Bundle -->|seed once or explicit reset| Prefs
+  Store --> Plan[useHousePlan]
   Plan --> Native
   Native -. future semantic intent .-> Tracker[Command tracker]
   Tracker -. dispatch through manager .-> Backend
-  Native -. sanitized props .-> Scene[Future DOM / Three.js scene]
+  Native -. sanitized props .-> Scene[DOM / Three.js prototype]
   Scene -. selection callback only .-> Native
 ```
 
-| Area                | Current implementation                                                           | Extension rule                                                                                                                            |
-| ------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Session owner       | `src/session/homeAssistant/HomeAssistantBackend.ts`                              | Owns connection/heartbeat/foreground/retry policy. Do not add reconnect timers in screens, scene or manager                               |
-| Session facade      | `src/session/SessionManager.ts`, singleton in `src/services/runtime.ts`          | Owns backend replacement, generation guards, active profile, persistence and lifecycle forwarding                                         |
-| Observations        | `src/core/types.ts`, `store.ts`, `selectors.ts`                                  | HA remains authoritative; full snapshots replace removed entities. Reuse selectors and structural sharing                                 |
-| Identity            | `mapSnapshot.ts`, `preferences/types.ts`                                         | Stable `entity.key` is distinct from mutable `entityId`; extend alias reconciliation when adding key-indexed preferences                  |
-| Policy/capabilities | `core/policy.ts`, `capabilities.ts`, `presentation.ts`                           | Actual policy API is `getCondition(entity, ready)`. Theme colors are presentation, never proof of physical state                          |
-| Credentials         | `services/credentials.ts`                                                        | SecureStore secrets, serialized operations, pending-write/deletion journals. Do not replace this with raw URL keys or AsyncStorage tokens |
-| Preferences         | `preferences/types.ts`, `storage.ts`                                             | Currently schema 1, one `prefs` key, profiles separated by `demo` or `ha:<normalized origin>`                                             |
-| Geometry            | `spatial/model.ts`, `plans.ts`, `sample-plan.json`                               | Actual `HousePlan` has rooms nested within floors; use this model, not a second copy of the older spec sketch                             |
-| Plan rendering      | `FloorPlanView.tsx`, `HousePlanCard.tsx`, `HousePlanScreen.tsx`, `app/house.tsx` | SVG is decorative for screen readers; the native room list supplies named, larger touch targets                                           |
-| Visual language     | `components/ui.tsx`, `EntityIcon.tsx`                                            | Reuse colors, radii, outline icons and freshness qualifiers; keep functional errors/actions visible                                       |
+| Area                | Current implementation                                                                    | Extension rule                                                                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Session owner       | `src/session/homeAssistant/HomeAssistantBackend.ts`                                       | Owns connection/heartbeat/foreground/retry policy. Do not add reconnect timers in screens, scene or manager                               |
+| Session facade      | `src/session/SessionManager.ts`, singleton in `src/services/runtime.ts`                   | Owns backend replacement, generation guards, active profile, persistence and lifecycle forwarding                                         |
+| Observations        | `src/core/types.ts`, `store.ts`, `selectors.ts`                                           | HA remains authoritative; full snapshots replace removed entities. Reuse selectors and structural sharing                                 |
+| Identity            | `mapSnapshot.ts`, `preferences/types.ts`                                                  | Stable `entity.key` is distinct from mutable `entityId`; extend alias reconciliation when adding key-indexed preferences                  |
+| Policy/capabilities | `core/policy.ts`, `capabilities.ts`, `presentation.ts`                                    | Actual policy API is `getCondition(entity, ready)`. Theme colors are presentation, never proof of physical state                          |
+| Credentials         | `services/credentials.ts`                                                                 | SecureStore secrets, serialized operations, pending-write/deletion journals. Do not replace this with raw URL keys or AsyncStorage tokens |
+| Preferences         | `preferences/types.ts`, `storage.ts`                                                      | Schema 2 under `prefs`; v1 migration, loaded-profile edit guard and allowlisted persistence including nested plan fields                  |
+| Geometry            | `spatial/model.ts`, `plans.ts`, `sample-plan.json`                                        | Actual `HousePlan` has rooms nested within floors; use this model, not a second copy of the older spec sketch                             |
+| Profile plan        | `spatial/profilePlan.ts`, `useHousePlan()` in `spatial/plans.ts`                          | Profile owns a seeded copy; bundle changes raise a notice; reset is explicit; selection uses the displayed plan ID/revision               |
+| Scene prototype     | `CockpitSceneView.tsx`, `SceneLabScreen.tsx`, `web/CockpitScene.tsx`, `web/sceneModel.ts` | Reuse the existing fixture lab and metrics for S01; no production placements or command dispatch in the renderer                          |
+| Plan rendering      | `FloorPlanView.tsx`, `HousePlanCard.tsx`, `HousePlanScreen.tsx`, `app/house.tsx`          | SVG is decorative for screen readers; the native room list supplies named, larger touch targets                                           |
+| Visual language     | `components/ui.tsx`, `EntityIcon.tsx`                                                     | Reuse colors, radii, outline icons and freshness qualifiers; keep functional errors/actions visible                                       |
 
 Invariants:
 
@@ -94,35 +99,38 @@ The final preparation restores local development configuration. Browser storage 
 
 `S` means a bounded component/data task; `M` means a module plus integration. Split an M ticket at its numbered boundaries if needed. Hardware tickets can be blocked while independent code work proceeds.
 
-| ID  | Priority / size | Delivery                                                 | Depends on                                 |
-| --- | --------------- | -------------------------------------------------------- | ------------------------------------------ |
-| F01 | Done            | Finish native floor-plan acceptance                      | Unlocked Pixel                             |
-| F02 | P1 / S          | Reproducible sample UI smoke script                      | None                                       |
-| H01 | P0 / hardware   | Verify actual household HA capabilities                  | User's hardware/integration setup          |
-| P01 | Done            | Schema-2 spatial preferences and migrations              | None                                       |
-| P02 | Done            | Profile-aware plan provider and explicit reset           | P01                                        |
-| P03 | P1 / M          | Link plan rooms to HA areas                              | P02                                        |
-| P04 | P1 / M          | Place entities on the 2D plan                            | P03                                        |
-| S01 | P1 / M          | Isolated, measured native Three.js feasibility           | None; use sample geometry                  |
-| S02 | P2 / M          | Production scene and 2D/3D switching                     | S01 pass, P04                              |
-| C01 | P1 / M          | Typed semantic intents, validation and service mapping   | None for fixtures; H01 before real control |
-| C02 | P1 / M          | Observation revisions and command outcomes               | C01                                        |
-| C03 | P1 / M          | Queues, debounce, lifecycle cancellation and no replay   | C02                                        |
-| C04 | P1 / S          | Simulated command-capable demo                           | C01–C03                                    |
-| C05 | P2 / S          | Deliberate lock controls and secure code input           | C03, C04, verified lock capabilities       |
-| C06 | P2 / S          | Climate controls                                         | C03, C04, verified climate capabilities    |
-| C07 | P2 / S          | Fan and switch controls                                  | C03, C04, verified fan/switch capabilities |
-| I01 | P1 / M          | Native image transport with proven redirect isolation    | HA image-path proof from H01               |
-| I02 | P2 / M          | Latest-image UI, polling lifecycle and event association | I01                                        |
-| U01 | P2 / S          | Error explanations, diagnostics, screen-reader pass      | P03/P04/C03 as applicable                  |
-| U02 | P2 / S          | Measured large-home rendering improvements               | Realistic inventory fixture                |
-| U03 | P3 / S          | Related readings / fridge grouping                       | H01                                        |
-| R01 | P1 / M          | Compatible dependency maintenance and audit closure      | None                                       |
-| R02 | P2 / S          | CI with public fixtures and checked artifacts            | F02                                        |
-| R03 | P2 / M          | Standalone release build and acceptance                  | MVP feature tickets, R01                   |
-| H02 | P3 / hardware   | Dedicated HA host and explicit profile move              | Host purchase/network setup                |
+| ID   | Status      | Priority / size        | Delivery                                             | Depends on                                               |
+| ---- | ----------- | ---------------------- | ---------------------------------------------------- | -------------------------------------------------------- |
+| F01  | Done        | —                      | Native floor-plan acceptance                         | Recorded Pixel proof                                     |
+| F02  | Not started | P1 / S                 | Reproducible sample UI smoke                         | None                                                     |
+| H01  | Partial     | P0 / hardware          | Actual household capabilities                        | Kasa/Petlibro read-only proven; remaining hardware/setup |
+| P01  | Done        | —                      | Schema-2 spatial preferences and migrations          | `81ac459`, regressions pass                              |
+| P02  | Done        | —                      | Profile-aware plan and explicit reset                | P01, `81ac459`                                           |
+| P03  | Not started | P1 / M, next           | Link plan rooms to HA areas                          | P02                                                      |
+| U03  | Not started | P1 / M                 | Physical-device summaries, first Kasa/Petlibro slice | H01 evidence for those devices                           |
+| U04  | Not started | P1 / M                 | Sensor attention, availability and honest coverage   | Pure fixtures + verified H01 semantics                   |
+| P04  | Not started | P2 / M                 | Place entities on the 2D plan                        | P03                                                      |
+| S01  | In progress | P1 / M                 | Finish measured native Three.js feasibility          | Existing `a505fec` lab; Pixel                            |
+| S02  | Not started | P2 / M                 | Production scene and 2D/3D switching                 | S01 pass, P04                                            |
+| C01  | Not started | P1 / M                 | Typed intents, validation and service mapping        | None for fixtures; H01 before real control               |
+| C02  | Not started | P1 / M                 | Observation revisions and outcomes                   | C01                                                      |
+| C03  | Not started | P1 / M                 | Serialization, cancellation and no replay            | C02                                                      |
+| C04  | Not started | P1 / S                 | Simulated command-capable demo                       | C01–C03                                                  |
+| C07a | Not started | P1 / S                 | First safe switch control, Kasa lamp                 | C03, C04, U04, verified switch                           |
+| C05  | Not started | P2 / S                 | Deliberate lock controls and code input              | C03, C04, U04, verified locks                            |
+| C06  | Not started | P2 / S                 | Climate controls                                     | C03, C04, U04, verified climate                          |
+| C07b | Not started | P2 / S                 | Fan controls                                         | C03, C04, U04, verified fan                              |
+| I01  | Not started | P2 / M                 | Native image transport and redirect isolation        | HA image-path proof from H01                             |
+| I02  | Not started | P2 / M                 | Latest image, polling lifecycle and events           | I01                                                      |
+| U01  | Not started | P2 / S                 | Diagnostics and screen-reader pass                   | P03/P04/C03 as applicable                                |
+| U02  | Not started | P2 / S                 | Measured large-home rendering                        | Realistic public fixture                                 |
+| R01  | Open        | P1 / M                 | Compatible maintenance and audit review              | Historical audit is not a current assessment             |
+| R02  | Not started | P1 / S                 | CI with public fixtures                              | F02 for browser checks                                   |
+| R03a | Not started | P1 / M                 | Standalone APK for internal trial                    | R01 assessment; current enabled features only            |
+| R03b | Not started | P2 / M                 | Public distribution and release hardening            | R03a, R01 closure, R02, enabled-feature acceptance       |
+| H02  | Deferred    | Hardware / conditional | Always-on HA and explicit profile move               | Advance if Mac availability blocks trial                 |
 
-Suggested next code task for a smaller model: **P01 only**, then P02. F01 is the first manual acceptance task. S01 can be tackled separately without waiting for household hardware. The command path is C01 → C02 → C03 → C04 → individual controls. Do not enable live controls after only C01.
+Suggested next code task: **P03 only**. Then prioritize U03/U04 and the Kasa command path. Finish the existing S01 experiment independently; do not restart it or treat it as accepted. R03a can advance with the read-only feature set. C07 and R03 remain umbrella IDs, now split into `a`/`b` deliveries. See [delivery order](README.md#delivery-order) and the [CEO review](superpowers/specs/2026-10-15-maurice-ceo-review.md) for rationale. Do not enable real controls after only C01.
 
 ## 5. Ticket implementation details
 
@@ -130,7 +138,7 @@ Suggested next code task for a smaller model: **P01 only**, then P02. F01 is the
 
 Files: `docs/stage0/floor-plan-validation.md`; code changes only if a defect is reproduced.
 
-1. The new installed SVG client is recorded in that report; the local APK is `.local/android/artifacts/home-cockpit-house-debug-arm64.apk`. Start/reuse Metro and USB reverse, then have the user unlock and open Cockpit. The previous attempt reached the Android screensaver/keyguard, not a demonstrated scene crash.
+1. The new installed SVG client is recorded in that report; the local APK is `.local/android/artifacts/home-cockpit-house-debug-arm64.apk`. Start/reuse Metro and USB reverse, then have the user unlock and open Maurice. These steps reproduce the completed F01 acceptance; do not interpret them as an unfinished ticket.
 2. Open the Home plan card, visit every floor, tap an actual room polygon, verify the same room in the text list, check printed/unknown dimensions and verify that switching floors clears selection. Check the Home miniature opens the plan and Back returns correctly.
 3. Verify HA credentials survived `install -r`. Do not re-enter or print the token unnecessarily. Check no fictitious device placements appear. Keep personal captures in `.local/`.
 4. If checking native offline use, keep Metro over USB, temporarily disable Wi-Fi, change floors/select rooms, then restore Wi-Fi in a `finally`/cleanup path. Record exactly what ran; browser offline interactions are not this native test.
@@ -149,7 +157,7 @@ Done: one documented command works after `npm ci` without HA, Android or persona
 
 ### H01 — Actual device inventory and capability proof
 
-Update `docs/stage0/inventory.md` with dated evidence and limitations. Already known: Nest Learning Thermostat (generation unknown), Schlage Encode Plus (count/code behavior unknown), Samsung supplied identifier requiring SmartThings matching, Ring subscription, AIRTAP F1.0.26 with no Bluetooth path yet. On 2026-10-15 an actual Kasa HS103(US) was added through the official TP-Link integration and assigned to Salon. Cockpit backend/selector validation passes with fresh registries; a regression fixes HA `area_id` normalization and stale-refresh retention. Phone display and physical switching remain unverified. The Mac HA container still also has simulated devices; distinguish these from real integration evidence.
+H01 is partial: Kasa HS103 and Petlibro PLAF103 pass actual read-only HA/backend proofs, including resolved areas and fresh registries. The feeder has 23 visible readings; native presentation and physical controls remain unverified. Other inputs: Nest generation, Schlage code/count, Samsung capabilities and Ring image path need verification; AIRTAP F1.0.26 has no Bluetooth path. The Mac HA container also has simulated entities. Update [the inventory](stage0/inventory.md) with dated, sanitized capability evidence and limitations; do not count demo entities as real-device proof.
 
 Use read-only inspection first: exact integration/model, real entity IDs and stable registry identity, areas/devices, feature flags, attributes/units, visibility/category, assumed-state behavior and update latency. Keep detailed household dumps local; commit a sanitized capability summary. Ask the user only for missing hardware/setup facts that cannot be inspected.
 
@@ -184,7 +192,7 @@ interface SpatialPreferences {
 
 Done/tests: valid v1 migration including two origins and demo; v2 round-trip; malformed backup; unknown version handling; queued writes; alias collision; missing entity retains placement. No plan editor or scene in this ticket.
 
-**Status (2026-10-15): done.** `PreferencesFile` is schema 2; each profile carries `spatial`. Loading validates each version as itself and then runs the ordered migrations. A file from a newer app version is backed up to `prefs.corrupt.<timestamp>` with a distinct notice. Saved profiles are rebuilt from documented fields only. Placements follow identity aliases, and unresolved room/area/entity references are kept. Nothing reads `spatial` yet; P02 selects and seeds the plan.
+**Status (2026-10-15): done in `81ac459`.** `PreferencesFile` is schema 2; each profile carries `spatial`. Loading validates each version before ordered migration. A newer schema is backed up with a distinct notice. Saved profiles and nested plans are rebuilt from documented fields only. Placements follow aliases; unresolved references remain. P02 now reads this data. Review regressions for nested extra fields pass.
 
 ### P02 — Profile-aware plan provider and reset
 
@@ -197,6 +205,8 @@ Never overwrite an existing plan when the bundled revision changes. Offer an exp
 Done/tests: profile switch isolation, new bundled revision preserves saved geometry, demo uses sample, explicit reset scope, missing floor selection. Prefer one provider over several screens independently choosing different plans.
 
 **Status (2026-10-15): done.** `useHousePlan()` in `spatial/plans.ts` is the single provider for the plan screen, the Home card and the scene lab. `SessionManager.connect` seeds an unseeded profile with a copy of the bundled default (sample for demo) and persists it with the first snapshot, so a failed attempt creates no profile. A changed bundled default is reported on the plan screen and in Diagnostics, never applied silently. Diagnostics → **Reset plan to default** (with confirmation) replaces only plan, links and placements. Verified on the Pixel: the HA profile was seeded at the current personal revision; the confirmation dialog appeared and Cancel left everything unchanged.
+
+P02 review corrections are included in `81ac459`: edits/reset are refused until that profile's preferences load, a failed initial seed write retries on a later snapshot, and selection identity uses the actual displayed plan ID/revision. All five earlier review reproductions pass. Native destructive reset was not exercised by the recorded cancellation check; its preservation contract is covered by automated tests.
 
 ### P03 — Plan room ↔ HA area associations
 
@@ -220,7 +230,9 @@ Done/tests: concave cutout rejects placement, coordinate conversion after viewpo
 
 ### S01 — Native Three.js feasibility, isolated
 
-Add `src/web/CockpitScene.tsx` with `'use dom'` and a native wrapper/error boundary. Check the installed SDK's DOM support first: SDK 56+ uses `@expo/dom-webview` by default, so an extra WebView installation may be unnecessary. Resolve/pin a compatible Three.js version from official metadata. Rebuild Android if native dependencies/configuration change; otherwise prove the existing client supports the DOM wrapper. Do not replace the native app with the reference project's Swift/web architecture.
+**Status: in progress (`a505fec`).** The lab, native wrapper, DOM scene, sanitized scene model, metrics and component tests exist. Complete measurements and record acceptance; do not scaffold a second prototype. No kept native measurement report was found at the documentation checkpoint.
+
+Use the existing `src/web/CockpitScene.tsx` (`'use dom'`), native wrapper/error boundary and lab. Three.js `0.186.1` is already pinned in the current lockfile. Check installed SDK DOM APIs when resolving an observed problem; do not scaffold another renderer, install a second WebView or upgrade dependencies merely to begin measurement. Rebuild Android if native dependencies/configuration change; otherwise prove the installed client supports the DOM wrapper. Preserve the native Expo architecture.
 
 Scope: one active floor from the **existing** `HousePlan`; extruded concave floor polygons, simple low wall previews, orbit and room/device picking with fixture markers. No editor, remote textures/furniture, production controls, extra integrations or guessed household furnishing. Preview wall height is a renderer setting, not a measured house elevation.
 
@@ -289,7 +301,8 @@ Shared files: `DeviceDetailScreen`, `EntityCard`, new focused `components/contro
 
 - **C05 locks:** Lock/Unlock, Open only when capability allows. Unlock/Open require deliberate confirmation separate from optional secure code input. Revalidate after confirmation. Clear code on dismissal/background/submit; no record/log persistence. Unconfirmed unlock/open asks the user to check the door and offers no auto-retry. Test changed profile/entity/capability while the dialog is open.
 - **C06 climate:** Current reading, distinct single target versus low/high target range, declared HVAC modes, HA-configured unit, min/max/step and tolerance. For `both`, choose supported target fields for the actual mode/verified integration; do not collapse `auto` and `heat_cool`. Null current temperature is unknown, not zero. Test bounds, low≤high, attribute-only confirmation and rapid coalescing.
-- **C07 fan/switch:** Gate on declared on/off, percentage and presets, including preset-only fans. Quantize to `percentage_step`; unsupported controls are absent. Debounce continuous percentage intent, not binary toggles. Test repeated taps and disconnect mid-change.
+- **C07a switches (first real-control slice):** Add on/off for a declared switch capability, after C01–C04 and U04. Preserve observed state while a command is pending; ignore repeated taps during sending. First hardware target is the verified Kasa lamp. Accept with demo success/refusal/unconfirmed cases, disconnect mid-action, no replay after reconnect/restart and an authorized physical lamp check. No feeder actuation in this slice.
+- **C07b fans:** Gate on declared on/off, percentage and presets, including preset-only fans. Quantize to `percentage_step`; unsupported controls are absent. Debounce continuous percentage intent, not binary toggles. Test repeated taps, changed capabilities and disconnect mid-change; actual AIRTAP control stays disabled until H01 proves its BLE path.
 
 Done for each: fixture/demo component + command tests, installed-device interaction and the corresponding authorized real-hardware evidence or an explicit disabled limitation. Do not mark all categories verified after one switch works.
 
@@ -321,29 +334,49 @@ Use a sanitized fixture with a few hundred entities across rooms. `HomeContent` 
 
 If needed, use a virtualized native list with stable keys, keep global attention and favorites behavior, preserve room filtering/pull-refresh/large-font columns, and avoid passing changing entire snapshots into every card. Report first useful Home ≤5 s on healthy LAN and HA-update-to-UI ≤1 s after receipt. A single changed sensor should not rerender every card. Keep scene/perf artifacts aggregate and sample-only.
 
-### U03 — Related readings and grouping
+### U03 — Physical-device summaries and related readings
 
-After H01, group related battery/temperature/door readings through actual `deviceId` membership. Distinguish measured fridge temperatures from setpoints; unsupported `number.*` values are not quietly controllable. Keep stable entity detail navigation and accessibility for each reading. No name-based merging of devices or camera motion. Add capability/selector tests for missing and partially available members.
+First slice: the verified Kasa lamp and Petlibro feeder. Do not wait for every H01 vendor. Add a pure summary selector/presenter in `core/` consumed by Home and native details. Derive groups from actual `deviceId` membership; keep standalone entities without a device and preserve stable-key entity navigation. Never create a second observation store or merge names heuristically.
+
+The feeder should produce one primary card: last distribution reported, next distribution announced, quantities, connectivity and applicable issues. Format timestamps in the local timezone; a manufacturer-reported distribution is not proof the cat ate. Keep all eligible secondary readings accessible and explain partial availability. Provide a generic fallback for unknown device models and isolate verified model-specific presentation from screens. Honor hidden/disabled entities, room overrides and cross-room ambiguity; count devices separately from entity readings. Coordinate attention with U04 without changing its meaning in the presenter.
+
+Done/tests: public synthetic fixtures for multi-entity devices, absent registry metadata, members in different rooms, missing/hidden/unavailable members, alias/rename and profile isolation. One feeder gives one main card with accessible details. Native reading acceptance remains explicit. Later extend to lock/battery, camera/events and measured fridge values versus setpoints; unsupported `number.*` values stay read-only.
+
+### U04 — Attention semantics and trustworthy status
+
+Files: `core/policy.ts`, capability/presentation selectors, Home and summary consumers, focused tests. Current API is `getCondition(entity, ready)`; preserve existing callers or migrate them in the same bounded change. Current generic fallback treats battery `low` as normal, binary `problem=on` as active and `connectivity=off` as normal. The CEO review reproduced these with synthetic inputs; Petlibro also reports a battery `low` whose physical meaning still needs H01 verification.
+
+Define tested, pure rules based on domain/capabilities and verified `device_class` semantics, not translated names. Cover problem, connectivity and battery indicators with their correct polarity; document any numerical battery threshold. Use a narrow explicit adapter for verified proprietary states. Unrecognized semantics must not certify a healthy device. Keep problem severity, availability and observation quality distinguishable; `ready`/fresh registries do not prove a recent hardware poll. An unchanged old value is not automatically stale.
+
+Keep unknown/unavailable visible and preserve the existing global-attention, hidden-entity and offline rules. Avoid technical diagnostic noise through explicit visibility/coverage choices rather than silently dropping unknowns. Empty attention means no issues detected within the configured coverage, not a claim that the whole house is secure. Household-specific freezer thresholds and unattended alerts remain later/HA work.
+
+Done/tests: positive and negative polarity, unknown/unavailable, non-ready session, missing attributes, ambiguous vendor values, partial-device summaries, hide behavior and global attention under a room filter. Existing lock semantics stay intact. Use synthetic public fixtures; do not label the real feeder broken or send a command to diagnose it. Complete before stronger all-clear wording and live control UI.
 
 ### R01 — Dependency/security maintenance
 
-The recorded graph reports 64 audit findings (49 high, 15 moderate), including SDK/tooling transitives and a router path. The last alignment check recommended Expo `~57.0.30` and Router `~57.0.28`; current tested pins are Expo 57.0.29 / Router 57.0.27. Recheck official current metadata/advisories before choosing versions.
+The [foundation checkpoint](stage0/results.md#dependency-audit) records historical audit findings and SDK-alignment recommendations. Those counts and proposed patches are not a current audit. Current pins remain in `package.json`/lockfile. Re-run the audit and check official metadata/advisories before selecting changes.
 
-Start with compatible SDK patches, inspect lockfile changes, then typecheck/tests/lint/export and native rebuild/smoke. Separate any major SDK migration into its own plan. Do not `npm audit fix --force`, downgrade Expo to an incompatible older release, add broad suppressions, or label the release secure because Node tests pass. Record production-reachable versus tooling-only advisories and resolve/justify them specifically before R03. The SVG addition did not increase the recorded audit count.
+Start with compatible SDK patches, inspect lockfile changes, then typecheck/tests/lint/export and native rebuild/smoke. Separate any major SDK migration into its own plan. Do not `npm audit fix --force`, downgrade Expo to an incompatible older release, add broad suppressions, or label the release secure because Node tests pass. Record production-reachable versus tooling-only advisories, assess exposure before R03a and resolve or specifically justify it before R03b. Preserve the old audit as dated evidence rather than calling it the current graph.
 
 ### R02 — CI and artifacts
 
 Add GitHub Actions using Node 24/`npm ci`, sample-only preparation, functional checks, protocol proof and Android JS export. No HA token or personal plan is required. Add F02's headless UI workflow with bounded artifacts. Keep dependency findings as an explicit tracked gate; do not make a failing audit look passed by suppressing its output. Production binary building/signing is separate. Assert private generated/source files are ignored and never uploaded as artifacts. CI should work from a fresh clone, not a developer's generated module.
 
-### R03 — Standalone Android release
+### R03 — Standalone Android trial and release
 
-Build a standalone binary that runs without Metro, using a documented signing/distribution path. Do not commit/upload signing keys or personal floor plans. Build public test artifacts with sample configuration unless the user explicitly chooses a private household distribution.
+**R03a — Internal household trial:** build a standalone binary that runs without Metro, with the currently accepted feature set; a read-only build need not wait for all MVP controls/cameras/3D. Document signing/install/update, enabled features, version/hash and the R01 dependency assessment, including remaining exposure and limitations. Keep unresolved features disabled. A private trial is not public release acceptance. HA still needs an available host; advance H02 if the Mac blocks use.
+
+Do not commit/upload signing keys or personal floor plans. Build shared test artifacts with sample configuration unless the user explicitly chooses private household distribution.
 
 On Pixel: cold start offline, token persistence, background/foreground, network return, server restart/removal, terminal auth/version errors, Forget, plan assets and fresh-snapshot behavior. Add controls/camera/3D checks for whichever features are enabled. Confirm production logs exclude secrets, backup/reinstall produces a consistent profile or none, and HA's HTTP opt-in matches actual native network config. Keep JDK/SDK/artifact hash/version evidence. A development-client APK or successful JS export does not satisfy this ticket.
 
+Done for R03a: accepted installed binary without Metro, documented limits and a proposed seven-day household trial recording useful actions, confusing states and returns to vendor apps. No analytics service is required.
+
+**R03b — Public distribution:** after R03a, close or specifically justify production-reachable R01 advisories, run R02 checks, document signing/release/update and accept every enabled feature on the actual binary. Verify public artifacts contain only sample configuration. Neither a private trial nor tests alone close this release gate.
+
 ### H02 — Dedicated HA host and profile move
 
-Prepare a host/network/backup plan with the user, including the proven BLE/proxy path. Do not change household integrations or DNS silently. An origin change currently produces a new Cockpit profile; implement an explicit non-secret preference migration/association if retaining customization is desired. Never reuse a token automatically across origins. Test stable identities, rollback to the old endpoint and stale/cached UI during the move.
+Prepare a host/network/backup plan with the user, including any BLE/proxy path established by H01. Do not change household integrations or DNS silently. An origin change currently produces a new Maurice profile; implement an explicit non-secret preference migration/association if retaining customization is desired. Never reuse a token automatically across origins. Test stable identities, rollback to the old endpoint and stale/cached UI during the move.
 
 ## 6. Later candidates — do not start during MVP tickets
 
@@ -360,6 +393,6 @@ Prepare a host/network/backup plan with the user, including the proven BLE/proxy
 
 Use this prompt, replacing the ID:
 
-> Implement ticket P01 from docs/BACKLOG.md only. Read its actual files and the relevant specification sections first. Preserve the architecture/privacy invariants and existing lifecycle regressions. Use the public sample in committed fixtures. Implement the smallest complete change, run the appropriate behavioral and build checks, update the ticket's status/evidence, and report any hardware-only acceptance still pending. Do not start a later ticket or actuate real devices as part of an automated test.
+> Implement ticket P03 from docs/BACKLOG.md only. Read docs/README.md, its actual files and the relevant specification sections first. P01/P02 are complete in 81ac459; preserve their review regressions. S01 has a separate in-progress prototype: do not restart or expand it. Preserve architecture/privacy invariants and existing lifecycle behavior. Use public sample fixtures. Implement the smallest complete change, run appropriate checks, update ticket status/evidence and report remaining hardware acceptance. Do not start another ticket or actuate real devices in an automated test.
 
 For every finished ticket, record the commit, checks actually run, limitations and any changed contract here or in a linked validation artifact. Keep unfinished acceptance gates explicit. Update the affected docs when behavior changes. Do not carry a worktree requiring an untracked personal plan into the handoff: `npm ci` plus the public fallback must continue to build it.

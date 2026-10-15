@@ -1,8 +1,10 @@
 # Local floor plans
 
+Updated: 2026-10-15, after P01/P02 (`81ac459`). This documents the implemented format and profile behavior. See [project status](../README.md) for remaining delivery, [the backlog](../BACKLOG.md) for P03/P04 and S01/S02, and [native acceptance](../stage0/floor-plan-validation.md) for evidence.
+
 Home opens a separate **Floor plan** screen with a floor selector, tappable room polygons, printed dimensions where supplied, and a text list of the same spaces. The list also provides larger touch targets and accessible room names. The viewer works independently of HA connectivity and does not imply any device placement or state.
 
-This is the native **2D** foundation. The Three.js feasibility gate remains open. A shared geometry model supports nonrectangular rooms and multiple floors, with one floor shown at a time. No story height or compass direction is assumed.
+This is the native **2D** foundation. S01's Three.js lab exists, but its native feasibility measurements remain open. A shared geometry model supports nonrectangular rooms and multiple floors, with one floor shown at a time. No story height or compass direction is assumed.
 
 ## Personal data and build preparation
 
@@ -40,4 +42,4 @@ The automated tests use only the public sample and generated temporary configura
 
 The configured personal plan was checked locally in Chrome at 320, 430 and 768 CSS pixels, including polygon selection, source-dimension display and floor changes with networking disabled after loading. Its screenshots and detailed report remain private. Android was rebuilt with `react-native-svg` 15.15.4; native interaction validation is recorded separately in [Android validation](../stage0/android-validation.md).
 
-Next: refine the traced model with the household, associate actual HA rooms/devices, then use this geometry in the measured Three.js prototype. 2D remains available as the spatial fallback.
+Next: P03 explicitly associates plan rooms with existing HA areas; P04 adds entity placements in X/Z meters. The S01 lab already consumes the shared geometry and must complete its native measurement report before S02. Refinements to approximate geometry are explicit household edits; a bundled update does not overwrite the saved profile plan. 2D remains the spatial fallback.

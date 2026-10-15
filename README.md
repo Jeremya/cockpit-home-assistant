@@ -18,14 +18,16 @@ Meet Maurice: a 1970s French butler with a moustache, a three-piece suit, a Gita
 [![Home Assistant 2026.10+](https://img.shields.io/badge/Home%20Assistant-2026.10%2B-1b2d47?style=for-the-badge&logo=homeassistant&logoColor=98c2ff)](https://www.home-assistant.io/)
 
 ![Android: verified on Pixel 9 Pro](https://img.shields.io/badge/Android-verified%20on%20Pixel%209%20Pro-91d9bd?style=flat-square&logo=android&logoColor=white)
-![Tests: 91 passing](https://img.shields.io/badge/tests-91%20passing-91d9bd?style=flat-square)
+[![Verification documented](https://img.shields.io/badge/verification-documented-91d9bd?style=flat-square)](docs/README.md#latest-verification-checkpoint)
 ![Mode: read-only](https://img.shields.io/badge/mode-read--only-ffc083?style=flat-square)
 
-[Features](#-features) · [Quick start](#-quick-start) · [Home Assistant](#-connect-home-assistant) · [Architecture](#-architecture) · [Roadmap](#-roadmap)
+[Features](#-features) · [Quick start](#-quick-start) · [Home Assistant](#-connect-home-assistant) · [Architecture](#-architecture) · [Project status](docs/README.md) · [Roadmap](#-roadmap)
 
 </div>
 
 <br />
+
+**Current scope:** Android-first and read-only. Kasa HS103 and Petlibro PLAF103 pass real HA/backend checks. Profile plans are implemented; the 3D scene is an experiment awaiting native measurements. See [current status, evidence and next steps](docs/README.md).
 
 <table>
   <tr>
@@ -44,15 +46,15 @@ Meet Maurice: a 1970s French butler with a moustache, a three-piece suit, a Gita
 
 ## ✨ Features
 
-|     | Feature                     | What it does                                                                                                                                                                      |
-| :-: | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🏠  | **Home overview**           | Attention items first (an unlocked door, an unavailable favorite), then favorites and a device grid you can filter by room. "Unknown" and "unavailable" never count as all-clear. |
-| 🗺️  | **Floor plans**             | Offline 2D plans, several floors, rooms you can tap, the dimensions printed on the source plan, and rough furniture footprints to help you find your way around.                  |
-| 🧭  | **A plan for each profile** | Each Home Assistant origin and the demo keep their own copy of the plan. App updates never overwrite it; resetting it is a deliberate action in Diagnostics.                      |
-| 🔌  | **Live Home Assistant**     | Official WebSocket client, compressed entity stream, registries, foreground resync and automatic recovery after network loss or an HA restart.                                    |
-| 🔐  | **Private by design**       | Tokens stay in native SecureStore. Personal floor plans stay in an ignored `.local/` folder. Preferences never store tokens, observed states or commands.                         |
-| 🧪  | **Offline demo home**       | Simulated locks, sensors, cameras and switches with no account at all.                                                                                                            |
-| 🩺  | **Diagnostics**             | Session and registry health, unresolved identities, floor-plan status and reset, with no secrets on screen.                                                                       |
+|     | Feature                     | What it does                                                                                                                                                                                                                  |
+| :-: | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🏠  | **Home overview**           | Attention items first (an unlocked door, an unavailable favorite), then favorites and a device grid you can filter by room. "Unknown" and "unavailable" never count as all-clear.                                             |
+| 🗺️  | **Floor plans**             | Offline 2D plans, several floors, rooms you can tap, the dimensions printed on the source plan, and rough furniture footprints to help you find your way around.                                                              |
+| 🧭  | **A plan for each profile** | Each Home Assistant origin and the demo keep their own copy of the plan. App updates never overwrite it; resetting it is a deliberate action in Diagnostics.                                                                  |
+| 🔌  | **Live Home Assistant**     | Official WebSocket client, compressed entity stream, registries, foreground resync and automatic recovery after network loss or an HA restart.                                                                                |
+| 🔐  | **Private configuration**   | Tokens stay in native SecureStore; personal source files stay outside Git. Bundles contain the prepared plan, so shared artifacts must use the public sample. Preferences store neither tokens, observed states nor commands. |
+| 🧪  | **Offline demo home**       | Simulated locks, sensors, cameras and switches with no account at all.                                                                                                                                                        |
+| 🩺  | **Diagnostics**             | Session and registry health, unresolved identities, floor-plan status and reset, with no secrets on screen.                                                                                                                   |
 
 > [!NOTE]
 > Maurice is **read-only** today: he observes Home Assistant and never sends a device command. Controls come in Stage 2, with command tracking that cannot replay an unlock after a reconnect.
@@ -167,25 +169,28 @@ flowchart LR
 
 ## 🛣️ Roadmap
 
-| Track                | Status         | Next step                                                                                   |
-| -------------------- | -------------- | ------------------------------------------------------------------------------------------- |
-| Read-only HA cockpit | ✅ Done        | Verified on the Pixel: Wi-Fi, restarts, offline cold start, Forget                          |
-| 2D floor plans       | ✅ Done        | Native acceptance (F01), furniture footprints, a plan for each profile with reset (P01–P02) |
-| Devices on the plan  | 🚧 Next        | **P03** link plan rooms to HA areas → **P04** place devices on the plan                     |
-| 3D spatial view      | 🧪 Prototyping | **S01** Three.js feasibility on the Pixel, then **S02** 2D/3D switch                        |
-| Household inventory  | ⏳ Hardware    | **H01** verify the real household capabilities ([inventory](docs/stage0/inventory.md))      |
-| Controls             | ⏳ Planned     | C01–C04 semantic commands, outcomes and no replay, then locks, climate, fans and switches   |
-| Camera images        | ⏳ Planned     | I01 native image transport, I02 latest-image UI                                             |
-| Release              | ⏳ Planned     | Dependency audit (R01), CI (R02), standalone build (R03)                                    |
+[Project status](docs/README.md) is the delivery reference; the [backlog](docs/BACKLOG.md) contains the implementation contracts. Stages in the specification describe the broader scope, not a claim every feature is available.
 
-Every ticket, with its contracts, file paths and acceptance checks, is in the [implementation backlog](docs/BACKLOG.md). The full [specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md) and the [interface direction](docs/design/2026-10-15-interface-direction.md) record the design, inspired by [House Control](https://github.com/0xProbabillity/house-control).
+| Track                       | Status                              | Next step                                                                                                          |
+| --------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Read-only HA foundation     | Implemented, native checks recorded | Broader sensor attention semantics remain U04                                                                      |
+| Native 2D and profile plans | F01 / P01 / P02 done                | **P03** link plan rooms to HA areas; **P04** placements later                                                      |
+| Household integrations      | H01 partial                         | Kasa HS103 and Petlibro PLAF103 read-only proven; native presentation and remaining hardware still need acceptance |
+| Useful device overview      | Planned, priority                   | **U03** physical-device summaries, starting with the feeder/lamp; **U04** battery/problem/connectivity rules       |
+| 3D scene                    | S01 in progress                     | Existing fixture lab needs a Pixel measurement report; **S02** requires S01 pass and P04                           |
+| Controls                    | Planned                             | **C01 → C02 → C03 → C04 → C07a**, first Kasa lamp; locks/climate/fans follow verified capabilities                 |
+| Camera images               | Planned                             | **I01** image-path/transport isolation proof, then **I02** display and polling                                     |
+| Internal daily trial        | Planned                             | **R03a** standalone Android APK without Metro, dependency assessment and enabled-feature acceptance                |
+| Public release              | Planned                             | **R01** maintenance, **R02** CI and **R03b** hardening; HA always-on hosting is separate **H02** work              |
+
+Finish S01 alongside independent work. P03 is the next bounded code task. A read-only internal APK can advance before all controls or production 3D. The [CEO review](docs/superpowers/specs/2026-10-15-maurice-ceo-review.md) explains the priorities; the [specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md) and [interface direction](docs/design/2026-10-15-interface-direction.md) preserve the contracts and visual intent inspired by [House Control](https://github.com/0xProbabillity/house-control).
 
 ## 🧰 Development
 
 ```sh
 npm run typecheck        # TypeScript
 npm run lint             # ESLint
-npm test                 # 91 tests across 13 suites
+npm test                 # latest recorded results: docs/README.md
 npm run format:check     # Prettier
 npm run proof:protocol   # real compressed HA protocol against a loopback server, no credentials
 npm run export:android   # Hermes JS bundle (not an APK; use npm run android)
@@ -201,7 +206,7 @@ Maurice's portrait lives in [`assets/source/maurice.png`](assets/source/maurice.
 - The configured HA `2026.10.1` passes authenticated synchronization, registry loading, ping, a fresh refresh, a simulated return to the foreground and a forced reconnect.
 - Protocol tests cover a disconnect during the first synchronization, continued updates after a refresh timeout, and automatic recovery.
 - The ARM64 development APK runs on a Pixel 9 Pro (Android 17, Hermes). Native checks pass for HA over Wi-Fi, token persistence across process restarts, foreground resync, pull-to-refresh, terminal authentication errors, Forget, demo navigation, recovery after a cold start without Wi-Fi, and HA restarts.
-- Native floor-plan interaction, including offline floor switching, passes on the Pixel. The preferences migration to v2 and plan seeding were verified on the installed app.
+- Native floor-plan interaction, including offline floor switching, passes on the Pixel. P01/P02 have migration/regression coverage; native profile seeding and reset cancellation were observed. Full reset preservation is covered by automated tests.
 
 Details: [Stage 0 results](docs/stage0/results.md) · [HA proof report](docs/stage0/ha-proof-2026-10-15.json) · [Android validation](docs/stage0/android-validation.md) · [Floor-plan validation](docs/stage0/floor-plan-validation.md). The dependency audit remains an open release gate.
 

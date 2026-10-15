@@ -1,5 +1,7 @@
 # Android native validation
 
+> Dated native evidence, not an acceptance report for the current standalone app. Original APK hashes and entity counts are preserved. Later SVG/F01 and P01/P02 observations are in [floor-plan validation](floor-plan-validation.md); current capabilities and remaining gates are in [project status](../README.md).
+
 Date: 2026-10-15. Target: Pixel 9 Pro (Android 17), ARM64, package `com.larrabee.homecockpit`.
 
 ## Build environment
@@ -69,11 +71,11 @@ The server-restart fixture was a temporary state created through `POST /api/stat
 
 ## Interface follow-up
 
-The same installed development client rendered the updated midnight palette and bundled Feather font, the room-filtered grid, global attention and the observed-state detail. On the Pixel, selecting Kitchen showed its four demo observations; opening Fridge temperature showed 37 °F with explicit simulated provenance. The normal HA connection was restored afterward: 44 total entities, 35 visible, all registries fresh. The current HA demo has no area assignments; its Unassigned group is not counted as a room.
+The same installed development client rendered the updated midnight palette and bundled Feather font, the room-filtered grid, global attention and the observed-state detail. On the Pixel, selecting Kitchen showed its four demo observations; opening Fridge temperature showed 37 °F with explicit simulated provenance. The normal HA connection was restored afterward: 44 total entities, 35 visible, all registries fresh. At this capture checkpoint the HA demo had no area assignments; its Unassigned group was not counted as a room. Actual Kasa/Petlibro area assignments were added later; see [the inventory](inventory.md).
 
 These interface changes were delivered by Metro. The APK size, hash and native build source recorded above still describe the earlier native artifact; no new native module was added. The [design direction](../design/2026-10-15-interface-direction.md) includes shareable browser captures using only Cockpit's simulated data.
 
-The debug development client needs Metro (`npm start`) to load the app. The machine-readable results are in [the Android proof report](android-proof-2026-10-15.json). Actual vendor compatibility, physical controls, camera images, 3D rendering and production signing remain separate gates.
+The debug development client needs Metro (`npm start`) to load the app. The machine-readable results are in [the Android proof report](android-proof-2026-10-15.json). Kasa/Petlibro read-only proofs were added later. Physical controls, camera images, measured S01 rendering and standalone signing/acceptance remain separate gates.
 
 JDK baseline reference: [Android Gradle Plugin 8.12 compatibility](https://developer.android.com/build/releases/agp-8-12-0-release-notes?hl=en).
 

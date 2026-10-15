@@ -1,5 +1,7 @@
 # Home Cockpit foundations
 
+> **Historical implementation plan — foundation delivered.** This records the starting scope from `5071157`, not an unfinished work queue. Results are in [foundation validation](../../stage0/results.md). Current work, including completed P01/P02 and in-progress S01, is tracked in [project status](../../README.md) and [the backlog](../../BACKLOG.md).
+
 Starting commit: `5071157` (specification v3; no application source).
 
 This implementation builds the read-only Stage 1 foundation while keeping the Stage 0 hardware gates explicit. Physical controls remain Stage 2.

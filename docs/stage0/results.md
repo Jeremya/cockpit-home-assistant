@@ -1,8 +1,10 @@
 # Stage 0 and read-only foundation results
 
+> Historical foundation evidence, updated through the 2026-10-15 native checks. Counts, exports, audit results and package recommendations below belong to that checkpoint. For the current implementation and remaining work, use [project status](../README.md), [the backlog](../BACKLOG.md) and [the device inventory](inventory.md).
+
 Date: 2026-10-14. Starting point: `5071157`, specification v3. That commit contained specifications only, so this implementation created the application scaffold and the read-only foundation.
 
-Updated: 2026-10-15 after lifecycle/credential recovery corrections and installed Pixel validation, starting from `422aafd`. The specification is now v4.
+Updated: 2026-10-15 after lifecycle/credential recovery corrections and installed Pixel validation, starting from `422aafd`. The specification at that checkpoint was v4; the living specification has since been reconciled as v5.
 
 ## Implemented
 
@@ -66,16 +68,16 @@ Regression tests reproduced the original foreground-status, initial-sync interru
 
 See [Android validation](android-validation.md) for the fixture's scope, timing and reproduction. These are development-client checks; vendor hardware and production-binary behavior remain separate.
 
-## Pending native and household gates
+## Follow-up gates (current work tracked in the backlog)
 
 - Native authenticated camera images remain a later Stage 2 check; a standalone production binary still needs its own network and persistence smoke tests.
-- Validate every real vendor integration against the inventory. Neither the app's demo mode nor HA's demo integration proves Ring, Nest, Schlage, SmartThings or AIRTAP compatibility.
-- Run the 3D feasibility prototype on the Pixel before Stage 3 implementation.
+- H01 is now partial: Kasa and Petlibro have read-only proofs in [the inventory](inventory.md). Remaining vendor paths and physical actions still need acceptance; neither demo certifies them.
+- S01 prototype code is now present (`a505fec`). Finish its Pixel measurement report before S02; the native 2D/P01/P02 work does not close the 3D gate.
 - Implement the Stage 2 command tracker and controls, including confirmation/ordering/no-replay tests, then camera images with verified freshness and redirect handling. The current UI exposes no physical controls.
 - Validate iOS only when a target device and signing path are available.
 
 ## Dependency audit
 
-The pinned SDK 57 dependency graph still reports npm audit findings, including transitive Expo/Metro/Jest tooling and a router URI-decoding path. The compatible `npm audit fix` was run; findings requiring incompatible SDK/Jest changes remain. At this checkpoint npm reported 64 findings (49 high, 15 moderate), with no critical finding. Do not treat the read-only development foundation as a production release. Resolve these through a deliberate compatible upstream update/patch or a reviewed SDK upgrade; a forced downgrade to the audit tool's suggested older Expo release was not applied.
+At this historical checkpoint, the pinned SDK 57 dependency graph reported npm audit findings, including transitive Expo/Metro/Jest tooling and a router URI-decoding path. The compatible `npm audit fix` was run; findings requiring incompatible SDK/Jest changes remain. At this checkpoint npm reported 64 findings (49 high, 15 moderate), with no critical finding. Do not treat the read-only development foundation as a production release. Resolve these through a deliberate compatible upstream update/patch or a reviewed SDK upgrade; a forced downgrade to the audit tool's suggested older Expo release was not applied.
 
-Reproduce with `npm audit`. Keep this gate open before shipping a production binary or exposing a development server beyond the intended local development network.
+Re-run `npm audit` for a current assessment; these numbers were not refreshed during the documentation cleanup. R01 records the assessment for R03a internal trials and resolves or specifically justifies exposure before R03b public distribution.
