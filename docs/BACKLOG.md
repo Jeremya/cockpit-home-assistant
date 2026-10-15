@@ -8,7 +8,7 @@ Implemented: Expo/RN Android development build; HA authentication and authoritat
 
 Current checks: **57 tests / 10 suites**, TypeScript, lint, formatting, web and Android exports pass. The SVG-enabled ARM64 APK compiled and installed on the Pixel. Personal-plan browser picking, floor switching, dimensions and offline interactions passed at 320/430/768 px. Native plan interaction passed on the Pixel (F01, see the floor-plan validation report). Earlier native HA/network/storage checks passed and remain recorded separately.
 
-Not implemented: editable/persisted plans, HA-to-plan associations, device placements, Three.js, command tracking, physical controls, authenticated camera images, production distribution, iOS validation and per-occupant OAuth. The HA instance currently exercises built-in demo entities; entity presence does not prove vendor integration compatibility.
+Not implemented: editable/persisted plans, HA-to-plan associations, device placements, Three.js, command tracking, physical controls, authenticated camera images, production distribution, iOS validation and per-occupant OAuth. HA also has built-in demo entities. The first actual Kasa plug passed read-only integration and Cockpit backend validation; other vendor compatibility remains unproven (H01).
 
 Read in this order:
 
@@ -149,7 +149,7 @@ Done: one documented command works after `npm ci` without HA, Android or persona
 
 ### H01 — Actual device inventory and capability proof
 
-Update `docs/stage0/inventory.md` with dated evidence and limitations. Already known: Nest Learning Thermostat (generation unknown), Schlage Encode Plus (count/code behavior unknown), Samsung supplied identifier requiring SmartThings matching, Ring subscription, AIRTAP F1.0.26 with no Bluetooth path yet. The current Mac HA container has simulated devices and no useful household area assignments.
+Update `docs/stage0/inventory.md` with dated evidence and limitations. Already known: Nest Learning Thermostat (generation unknown), Schlage Encode Plus (count/code behavior unknown), Samsung supplied identifier requiring SmartThings matching, Ring subscription, AIRTAP F1.0.26 with no Bluetooth path yet. On 2026-10-15 an actual Kasa HS103(US) was added through the official TP-Link integration and assigned to Salon. Cockpit backend/selector validation passes with fresh registries; a regression fixes HA `area_id` normalization and stale-refresh retention. Phone display and physical switching remain unverified. The Mac HA container still also has simulated devices; distinguish these from real integration evidence.
 
 Use read-only inspection first: exact integration/model, real entity IDs and stable registry identity, areas/devices, feature flags, attributes/units, visibility/category, assumed-state behavior and update latency. Keep detailed household dumps local; commit a sanitized capability summary. Ask the user only for missing hardware/setup facts that cannot be inspected.
 

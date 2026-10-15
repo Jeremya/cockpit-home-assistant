@@ -6,6 +6,8 @@ import {
 import { HomeAssistantBackend } from "../HomeAssistantBackend";
 import type { EntityStreamMessage } from "../entityStream";
 import type { HomeSnapshot } from "../../../core/types";
+import { groupByRoom } from "../../../core/selectors";
+import { emptyPreferences } from "../../../preferences/types";
 const event = (id = "lock.front_door"): EntityStreamMessage => ({
   a: { [id]: { s: "locked", a: {}, lc: 100 } },
 });
@@ -60,6 +62,62 @@ class FakeConnection {
     return [];
   }
 }
+
+test("HA area IDs group devices into rooms, survive a failed refresh, and honor removal", async () => {
+  const fake = new FakeConnection();
+  const original = fake.sendMessagePromise.bind(fake);
+  let failAreas = false;
+  let areas = [{ area_id: "entry", name: "Entry" }];
+  jest.spyOn(fake, "sendMessagePromise").mockImplementation(async (message) => {
+    if (message.type === "config/entity_registry/list")
+      return [
+        {
+          id: "front-door-key",
+          entity_id: "lock.front_door",
+          device_id: "front-door-device",
+          area_id: null,
+        },
+      ];
+    if (message.type === "config/device_registry/list")
+      return [
+        { id: "front-door-device", name: "Front door", area_id: "entry" },
+      ];
+    if (message.type === "config/area_registry/list") {
+      if (failAreas) throw new Error("Registry unavailable");
+      return areas;
+    }
+    return original(message);
+  });
+  const backend = make(fake);
+  let snapshot: HomeSnapshot | undefined;
+  backend.onSnapshot((value) => {
+    snapshot = value;
+  });
+  const expectEntry = () => {
+    expect(snapshot?.areas).toEqual({ entry: { id: "entry", name: "Entry" } });
+    expect(groupByRoom(snapshot!, emptyPreferences())).toEqual([
+      { id: "entry", name: "Entry", entityIds: ["lock.front_door"] },
+    ]);
+  };
+  try {
+    await backend.start();
+    expectEntry();
+    expect(snapshot?.metadata.areas.kind).toBe("fresh");
+    failAreas = true;
+    await backend.resync();
+    expectEntry();
+    expect(snapshot?.metadata.areas.kind).toBe("stale");
+    failAreas = false;
+    areas = [];
+    await backend.resync();
+    expect(snapshot?.areas).toEqual({});
+    expect(groupByRoom(snapshot!, emptyPreferences())[0]?.id).toBe(
+      "unassigned",
+    );
+  } finally {
+    backend.stop();
+  }
+});
 
 test("disconnecting during the first snapshot keeps library reconnection alive", async () => {
   const fake = new FakeConnection();

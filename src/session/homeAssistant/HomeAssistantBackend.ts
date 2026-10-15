@@ -57,6 +57,10 @@ interface BackendOptions {
   syncTimeout?: number;
   metadataTimeout?: number;
 }
+interface AreaRegistryEntry {
+  area_id: string;
+  name: string;
+}
 class SyncCancelled extends Error {
   constructor(readonly reason: "disconnected" | "stopped") {
     super("Synchronization cancelled");
@@ -457,10 +461,13 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
                 area_id: device.areaId,
               })),
             ),
-            load<Area[]>(
+            load<AreaRegistryEntry[]>(
               "areas",
               "config/area_registry/list",
-              Object.values(this.areas),
+              Object.values(this.areas).map((area) => ({
+                area_id: area.id,
+                name: area.name,
+              })),
             ),
             subscription,
             initialEvent,
@@ -481,7 +488,10 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
       this.config = { temperatureUnit: unit, haVersion: connection.haVersion };
       this.registry = entities.value;
       this.areas = Object.fromEntries(
-        areas.value.map((area) => [area.id, area]),
+        areas.value.map((area) => [
+          area.area_id,
+          { id: area.area_id, name: area.name },
+        ]),
       );
       this.devices = Object.fromEntries(
         devices.value.map((device) => {
