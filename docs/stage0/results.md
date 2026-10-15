@@ -2,6 +2,8 @@
 
 Date: 2026-10-14. Starting point: `5071157`, specification v3. That commit contained specifications only, so this implementation created the application scaffold and the read-only foundation.
 
+Updated: 2026-10-15 after lifecycle and credential recovery corrections, starting from `422aafd`. The specification is now v4.
+
 ## Implemented
 
 - Expo SDK 57, Android development-client configuration, Router, TypeScript strict, Zustand and native persistence; exact package resolution in `package-lock.json`.
@@ -19,8 +21,8 @@ Date: 2026-10-14. Starting point: `5071157`, specification v3. That commit conta
 |---|---|
 | TypeScript strict checking | Passed |
 | ESLint | Passed |
-| Behavioral/unit/component tests | 26 tests passed across 7 suites |
-| Official-client protocol proof | Passed over a real loopback WebSocket: authentication, compressed snapshot, immediate fresh resync, removed entity, coalescing, ping and forced reconnect; no device service calls |
+| Behavioral/unit/component tests | 47 tests passed across 8 suites (26 tests at the original foundation checkpoint) |
+| Official-client protocol proof | Passed over real loopback WebSockets: authentication, compressed snapshot, immediate fresh resync, removed entity, coalescing, ping, forced reconnect, disconnect during first sync, active stream after resync timeout, and automatic sync retry; no device service calls |
 | Android native prebuild | Passed; manifest includes Internet permission, cleartext LAN support and SecureStore backup rules |
 | Android export | Passed; Hermes bundle generated (approximately 2.8 MB), not an APK |
 | SDK dependency alignment | `expo install --check` passed |
@@ -38,6 +40,18 @@ The protocol proof runs under Node, not Hermes. The Android bundle compiles the 
 - Failed registry access preserves known entity identity, while a successful registry response that removes an entry is authoritative. Re-created entities do not acquire an old UUID's preferences.
 - SecureStore has no key enumeration API. A metadata journal records a pending safe storage ID before writing its token, so a partial save can be repaired. Save/forget mutations are serialized.
 - The installed test renderer and worklets versions were aligned with the selected React/Expo versions instead of accepting incompatible latest transitive peers.
+
+## Lifecycle review corrections (2026-10-15)
+
+- The HA backend owns foreground liveness and recovery status. Terminal authentication/version errors survive background/foreground transitions, with Retry and Settings still accessible.
+- Disconnecting during the first sync cancels that candidate without closing the client's connection or disabling its reconnect loop. Initial connection creation failures now have real retries; bootstrap no longer labels ordinary network failures as saved-credential failures.
+- Candidate subscriptions coexist with the committed stream. A failed candidate cannot freeze updates or advance the displayed `syncEpoch`. The backend retries initial connection and synchronization failures at 1, 2, 4, 8, 16, then 30 seconds, while the official client continues to own existing transport reconnections.
+- Foreground restarts heartbeat in `finally`, including when its first ping fails. Stop invalidates pending work and cancels retry/heartbeat timers. Tests also cover late connection completion and a foreground ping finishing after backgrounding.
+- Requested settings are recorded before preferences load. Retry targets that request; Forget reads the committed active profile after queued saves settle. Credentials are also saved if an initially failed connection recovers later.
+- Registry events during a refresh trigger a follow-up refresh. Unreachable errors include the specification's `likelyCauses`, as possibilities rather than a falsely precise network diagnosis.
+- Durable cleanup ids cover superseded tokens after metadata commit and deletion after Forget. Credential reads and mutations share one queue. Restart repairs pending writes, pending deletion and metadata whose secret is missing.
+
+Regression tests reproduced the original foreground-status, initial-sync interruption, frozen-stream, wrong-profile Forget, preferences-Retry, lost-registry-event and superseded-token defects before those fixes. Additional tests cover initial offline recovery and backoff, terminal retry suppression, resumed heartbeat and cancellation. The real-client protocol proof independently exercises the initial-disconnect ordering and timeout recovery.
 
 ## Pending native and household gates
 

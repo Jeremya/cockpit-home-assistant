@@ -16,6 +16,7 @@ export interface HomeBackend {
   resync(): Promise<void>;
   ping(timeoutMs: number): Promise<boolean>;
   recover(): void;
+  setForeground(active: boolean): Promise<void>;
   onSnapshot(listener: (snapshot: HomeSnapshot) => void): Unsubscribe;
   onStatus(listener: (status: SessionStatus) => void): Unsubscribe;
   callService(call: ServiceCall): Promise<ServiceCallResult>;

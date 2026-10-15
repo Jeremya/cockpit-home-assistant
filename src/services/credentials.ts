@@ -11,6 +11,7 @@ interface Profiles {
   active: string | null;
   entries: Record<string, Profile>;
   pending?: { id: string; storageId: string };
+  cleanupStorageIds?: string[];
 }
 const KEY = "profiles.v1";
 export const credentialKey = (storageId: string) => {
@@ -25,9 +26,12 @@ export class Credentials {
     private secrets: KeyValueStorage,
     private randomId: () => string,
   ) {}
-  private enqueue(operation: () => Promise<void>): Promise<void> {
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const next = this.mutations.catch(() => undefined).then(operation);
-    this.mutations = next;
+    this.mutations = next.then(
+      () => undefined,
+      () => undefined,
+    );
     return next;
   }
   private async profiles(): Promise<Profiles> {
@@ -41,7 +45,20 @@ export class Credentials {
       delete data.pending;
       await this.local.setItem(KEY, JSON.stringify(data));
     }
+    await this.cleanup(data);
     return data;
+  }
+  private async cleanup(data: Profiles): Promise<void> {
+    if (!data.cleanupStorageIds?.length) return;
+    const referenced = new Set(
+      Object.values(data.entries).map((entry) => entry.storageId),
+    );
+    for (const storageId of data.cleanupStorageIds) {
+      if (!referenced.has(storageId))
+        await this.secrets.removeItem(credentialKey(storageId));
+    }
+    delete data.cleanupStorageIds;
+    await this.local.setItem(KEY, JSON.stringify(data));
   }
   save(input: ConnectionSettings): Promise<void> {
     return this.enqueue(() => this.saveNow(input));
@@ -55,11 +72,13 @@ export class Credentials {
     // Journal the id before writing the secret: SecureStore does not support enumeration.
     data.pending = { id, storageId };
     await this.local.setItem(KEY, JSON.stringify(data));
+    let committed: Profiles;
     try {
       await this.secrets.setItem(credentialKey(storageId), settings.token);
-      const committed: Profiles = {
+      committed = {
         version: 1,
         active: id,
+        cleanupStorageIds: previous ? [previous.storageId] : [],
         entries: {
           ...data.entries,
           [id]: {
@@ -74,17 +93,19 @@ export class Credentials {
       await this.secrets.removeItem(credentialKey(storageId));
       throw error;
     }
-    if (previous)
-      await this.secrets.removeItem(credentialKey(previous.storageId));
+    // Keep superseded ids durable until deletion succeeds, including after a crash.
+    await this.cleanup(committed);
   }
-  async load(): Promise<ConnectionSettings | null> {
-    await this.mutations.catch(() => undefined);
+  load(): Promise<ConnectionSettings | null> {
+    return this.enqueue(() => this.loadNow());
+  }
+  private async loadNow(): Promise<ConnectionSettings | null> {
     const data = await this.profiles();
     const entry = data.active ? data.entries[data.active] : undefined;
     if (!entry) return null;
     const token = await this.secrets.getItem(credentialKey(entry.storageId));
     if (!token) {
-      await this.forget(entry.url);
+      await this.forgetNow(entry.url);
       return null;
     }
     return validateSettings({
@@ -100,9 +121,10 @@ export class Credentials {
     const data = await this.profiles();
     const id = profileIdFor(origin);
     const entry = data.entries[id];
-    if (entry) await this.secrets.removeItem(credentialKey(entry.storageId));
+    if (entry) data.cleanupStorageIds = [entry.storageId];
     delete data.entries[id];
     if (data.active === id) data.active = null;
     await this.local.setItem(KEY, JSON.stringify(data));
+    await this.cleanup(data);
   }
 }

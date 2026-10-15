@@ -14,6 +14,7 @@ import type {
   MetadataStatus,
   PhysicalDevice,
   SessionError,
+  UnreachableCause,
 } from "../../core/types";
 import { emptyIdentity } from "../../preferences/types";
 import {
@@ -56,6 +57,11 @@ interface BackendOptions {
   syncTimeout?: number;
   metadataTimeout?: number;
 }
+class SyncCancelled extends Error {
+  constructor(readonly reason: "disconnected" | "stopped") {
+    super("Synchronization cancelled");
+  }
+}
 const stale = (): MetadataStatus => ({
   kind: "stale",
   lastLoadedAt: null,
@@ -64,9 +70,19 @@ const stale = (): MetadataStatus => ({
 export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
   private connection?: Connection;
   private stopped = false;
+  private terminal = false;
+  private connecting = false;
+  private foreground = true;
+  private lifecycle = 0;
+  private transportGeneration = 0;
+  private activeEpoch = 0;
+  private registryRevision = 0;
+  private retryAttempt = 0;
+  private retryTimer?: ReturnType<typeof setTimeout>;
+  private heartbeat?: ReturnType<typeof setInterval>;
   private epoch = 0;
   private sync?: Promise<void>;
-  private cancelSync?: () => void;
+  private cancelSync?: (reason: "disconnected" | "stopped") => void;
   private startPromise?: Promise<void>;
   private unsubscribe?: Unsubscribe;
   private registrySubscriptions: Unsubscribe[] = [];
@@ -94,10 +110,25 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
   }
   start(): Promise<void> {
     if (this.startPromise) return this.startPromise;
+    this.startHeartbeat();
     this.startPromise = this.open();
     return this.startPromise;
   }
+  private assertVersion(connection: Connection) {
+    const version = connection.haVersion.match(/^(\d+)\.(\d+)/);
+    if (
+      !version ||
+      Number(version[1]) < 2026 ||
+      (Number(version[1]) === 2026 && Number(version[2]) < 10)
+    )
+      throw {
+        code: "ha_version_unsupported",
+        haVersion: connection.haVersion,
+      } satisfies SessionError;
+  }
   private async open(): Promise<void> {
+    if (this.stopped || this.terminal || this.connecting) return;
+    this.connecting = true;
     this.emitStatus({ kind: "connecting" });
     try {
       this.emitStatus({ kind: "authenticating" });
@@ -109,90 +140,163 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
           ),
           connectTimeout: 10_000,
         }));
+      this.connecting = false;
       if (this.stopped) {
         connection.close();
         return;
       }
       this.connection = connection;
-      const version = connection.haVersion.match(/^(\d+)\.(\d+)/);
-      if (
-        !version ||
-        Number(version[1]) < 2026 ||
-        (Number(version[1]) === 2026 && Number(version[2]) < 10)
-      ) {
-        throw {
-          code: "ha_version_unsupported",
-          haVersion: connection.haVersion,
-        } satisfies SessionError;
-      }
+      this.assertVersion(connection);
       connection.addEventListener("disconnected", this.onDisconnected);
       connection.addEventListener("ready", this.onReady);
       connection.addEventListener("reconnect-error", this.onReconnectError);
-      await this.resync();
+      // Watch before taking the first snapshot; events during a refresh mark it dirty.
       for (const event of [
         "entity_registry_updated",
         "device_registry_updated",
         "area_registry_updated",
         "core_config_updated",
       ]) {
-        // Registry event subscriptions are optional; start() is complete once the
-        // required snapshot is usable. Always consume unsubscribe rejections on close.
         void connection
           .subscribeEvents(() => {
-            if (!this.stopped) void this.resync().catch(() => undefined);
+            if (this.stopped || this.terminal) return;
+            this.registryRevision++;
+            void this.resync().catch(() => undefined);
           }, event)
           .then((unsub) => {
             const cleanup = () => {
               void unsub().catch(() => undefined);
             };
-            if (this.stopped) cleanup();
+            if (this.stopped || this.terminal) cleanup();
             else this.registrySubscriptions.push(cleanup);
           })
           .catch(() => undefined);
       }
+      await this.resync();
     } catch (error) {
+      this.connecting = false;
       if (this.stopped) return;
-      this.fail(error);
-      this.connection?.close();
+      if (error instanceof SyncCancelled) {
+        // The existing client's reconnect loop owns transport recovery.
+        return this.waitForReady();
+      }
+      if (this.status.kind !== "error") this.fail(error);
       throw error;
     }
   }
-  private onDisconnected = () => {
-    this.epoch++;
-    this.cancelSync?.();
-    this.sync = undefined;
-    if (!this.stopped)
-      this.emitStatus({
-        kind: "reconnecting",
-        lastReadyAt: this.snapshot?.receivedAt ?? null,
+  private waitForReady(): Promise<void> {
+    if (this.status.kind === "ready") return Promise.resolve();
+    if (this.status.kind === "error") return Promise.reject(this.status.error);
+    return new Promise((resolve, reject) => {
+      const remove = this.onStatus((status) => {
+        if (status.kind === "ready") {
+          remove();
+          resolve();
+        } else if (status.kind === "error") {
+          remove();
+          reject(status.error);
+        } else if (status.kind === "idle") {
+          remove();
+          reject(new SyncCancelled("stopped"));
+        }
       });
+    });
+  }
+  private clearRetry() {
+    clearTimeout(this.retryTimer);
+    this.retryTimer = undefined;
+  }
+  private scheduleRetry() {
+    if (this.stopped || this.terminal || !this.foreground || this.retryTimer)
+      return;
+    const delay = Math.min(
+      1000 * 2 ** Math.min(this.retryAttempt++, 5),
+      30_000,
+    );
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = undefined;
+      if (this.stopped || this.terminal || !this.foreground) return;
+      if (!this.connection) void this.open().catch(() => undefined);
+      else if (this.connection.connected)
+        void this.resync().catch(() => undefined);
+      // A disconnected Connection already has the official client's retry loop.
+    }, delay);
+  }
+  private onDisconnected = () => {
+    if (this.stopped || this.terminal) return;
+    this.transportGeneration++;
+    this.clearRetry();
+    this.cancelSync?.("disconnected");
+    this.sync = undefined;
+    this.unsubscribe?.();
+    this.unsubscribe = undefined;
+    this.emitStatus({
+      kind: "reconnecting",
+      lastReadyAt: this.snapshot?.receivedAt ?? null,
+    });
   };
   private onReady = () => {
-    if (!this.stopped) void this.resync().catch(() => undefined);
+    if (!this.stopped && !this.terminal)
+      void this.resync().catch(() => undefined);
   };
   private onReconnectError = (_connection: Connection, error?: unknown) => {
-    if (error === ERR_INVALID_AUTH) {
-      this.fail({ code: "auth_invalid" });
-      this.connection?.close();
-    }
+    if (error === ERR_INVALID_AUTH) this.fail({ code: "auth_invalid" });
   };
+  private unreachable(): SessionError {
+    // Native WebSocket errors cannot reliably distinguish these causes.
+    const likelyCauses: UnreachableCause[] = [
+      "not_on_network",
+      "local_network_permission",
+      "server_stopped",
+      "dns",
+    ];
+    likelyCauses.push(
+      this.settings.url.startsWith("https:")
+        ? "tls_certificate"
+        : "cleartext_blocked",
+    );
+    return { code: "unreachable", likelyCauses };
+  }
   private fail(error: unknown) {
+    if (this.stopped || this.terminal) return;
     const typed =
       error === ERR_INVALID_AUTH
         ? { code: "auth_invalid" as const }
-        : error && typeof error === "object" && "code" in error
+        : error &&
+            typeof error === "object" &&
+            "code" in error &&
+            [
+              "invalid_url",
+              "auth_invalid",
+              "ha_version_unsupported",
+              "sync_timeout",
+              "unreachable",
+              "storage",
+              "unknown",
+            ].includes(String(error.code))
           ? (error as SessionError)
-          : { code: "unreachable" as const };
-    this.emitStatus({
-      kind: "error",
-      error: typed,
-      retrying: typed.code === "sync_timeout" || typed.code === "unreachable",
-    });
+          : this.unreachable();
+    const retrying =
+      typed.code === "sync_timeout" || typed.code === "unreachable";
+    this.terminal = !retrying;
+    if (retrying) this.scheduleRetry();
+    else {
+      this.clearRetry();
+      clearInterval(this.heartbeat);
+      this.transportGeneration++;
+      this.cancelSync?.("stopped");
+      this.unsubscribe?.();
+      this.connection?.close();
+    }
+    this.emitStatus({ kind: "error", error: typed, retrying });
   }
   stop(): void {
     this.stopped = true;
-    this.epoch++;
-    this.cancelSync?.();
+    this.lifecycle++;
+    this.transportGeneration++;
+    this.clearRetry();
+    clearInterval(this.heartbeat);
+    this.cancelSync?.("stopped");
     this.unsubscribe?.();
     this.registrySubscriptions.forEach((unsubscribe) => unsubscribe());
     this.connection?.removeEventListener("disconnected", this.onDisconnected);
@@ -205,8 +309,14 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     this.emitStatus({ kind: "idle" });
   }
   resync(): Promise<void> {
+    if (this.stopped || this.terminal)
+      return Promise.reject(new SyncCancelled("stopped"));
     if (this.sync) return this.sync;
-    const operation = this.synchronize();
+    this.clearRetry();
+    const operation = this.refreshUntilCurrent().catch((error: unknown) => {
+      if (!(error instanceof SyncCancelled)) this.fail(error);
+      throw error;
+    });
     this.sync = operation;
     void operation
       .finally(() => {
@@ -215,17 +325,40 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
       .catch(() => undefined);
     return operation;
   }
+  private async refreshUntilCurrent(): Promise<void> {
+    let revision: number;
+    do {
+      revision = this.registryRevision;
+      await this.synchronize();
+    } while (revision !== this.registryRevision);
+    if (this.stopped || this.terminal || !this.connection?.connected)
+      throw new SyncCancelled("disconnected");
+    this.retryAttempt = 0;
+    this.clearRetry();
+    this.emitStatus({
+      kind: "ready",
+      haVersion: this.connection.haVersion,
+      readySince: new Date().toISOString(),
+    });
+  }
   private async synchronize(): Promise<void> {
     const connection = this.connection;
-    if (!connection?.connected || this.stopped)
-      throw { code: "unreachable" } satisfies SessionError;
+    if (!connection?.connected || this.stopped) throw this.unreachable();
+    this.assertVersion(connection);
     const epoch = ++this.epoch;
     const initial = !this.snapshot;
     const error: SessionError = {
       code: "sync_timeout",
       phase: initial ? "initial" : "resync",
     };
-    const current = () => !this.stopped && epoch === this.epoch;
+    const transportGeneration = this.transportGeneration;
+    let live = true;
+    // Candidate epochs coexist with the last committed stream until successful swap.
+    const current = () =>
+      live &&
+      !this.stopped &&
+      !this.terminal &&
+      transportGeneration === this.transportGeneration;
     this.emitStatus({ kind: "synchronizing" });
     let raw: Record<string, RawEntity> = {};
     let first = true;
@@ -235,8 +368,10 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     const initialEvent = new Promise<void>((resolve) => {
       received = resolve;
     });
+    let cancel!: (reason: "disconnected" | "stopped") => void;
     const cancelled = new Promise<never>((_, reject) => {
-      this.cancelSync = () => reject(new Error("Synchronization cancelled"));
+      cancel = (reason) => reject(new SyncCancelled(reason));
+      this.cancelSync = cancel;
     });
     const subscription = connection
       .subscribeMessage<EntityStreamMessage>(
@@ -264,6 +399,7 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
       )
       .then((unsub) => {
         unsubscribe = () => {
+          live = false;
           void unsub().catch(() => undefined);
         };
         if (!current()) unsubscribe();
@@ -276,7 +412,7 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     ): Promise<{ value: T; status: MetadataStatus }> => {
       try {
         const value = await withDeadline(
-          connection.sendMessagePromise<T>({ type }),
+          Promise.race([connection.sendMessagePromise<T>({ type }), cancelled]),
           metadataTimeout,
           new Error("metadata_timeout"),
         );
@@ -334,7 +470,7 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
         this.options.syncTimeout ?? 15_000,
         error,
       );
-      if (!current()) return;
+      if (!current()) throw new SyncCancelled("disconnected");
       const [config, entities, devices, areas] = results;
       const unit = config.unit_system.temperature;
       if (unit !== "°C" && unit !== "°F")
@@ -378,21 +514,19 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
       committed = true;
       this.unsubscribe?.();
       this.unsubscribe = unsubscribe;
+      this.activeEpoch = epoch;
       this.publish();
-      this.emitStatus({
-        kind: "ready",
-        haVersion: connection.haVersion,
-        readySince: new Date().toISOString(),
-      });
     } catch (failure) {
-      if (current()) {
-        this.epoch++;
-        this.fail(failure);
-      }
+      live = false;
+      cancel("stopped");
       unsubscribe?.();
+      // The client may reject get_config before emitting disconnected. That
+      // transport failure still cancels this candidate; it is never terminal.
+      if (!this.stopped && transportGeneration !== this.transportGeneration)
+        throw new SyncCancelled("disconnected");
       throw failure;
     } finally {
-      if (current()) this.cancelSync = undefined;
+      if (this.cancelSync === cancel) this.cancelSync = undefined;
     }
   }
   private publish() {
@@ -407,7 +541,7 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     this.identities = mapped.identities;
     this.snapshot = {
       sessionId: this.sessionId,
-      syncEpoch: this.epoch,
+      syncEpoch: this.activeEpoch,
       receivedAt: new Date().toISOString(),
       ...mapped,
       devices: this.devices,
@@ -419,20 +553,64 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     this.emitSnapshot(this.snapshot);
   }
   async ping(timeoutMs: number): Promise<boolean> {
-    if (!this.connection?.connected || this.stopped) return false;
+    const connection = this.connection;
+    const generation = this.transportGeneration;
+    if (!connection?.connected || this.stopped || this.terminal) return false;
     try {
-      await withDeadline(
-        this.connection.ping(),
-        timeoutMs,
-        new Error("timeout"),
+      await withDeadline(connection.ping(), timeoutMs, new Error("timeout"));
+      return (
+        !this.stopped &&
+        connection.connected &&
+        generation === this.transportGeneration
       );
-      return !this.stopped;
     } catch {
       return false;
     }
   }
   recover(): void {
-    if (!this.stopped) this.connection?.reconnect(true);
+    if (this.stopped || this.terminal) return;
+    this.clearRetry();
+    if (!this.connection) {
+      void this.open().catch(() => undefined);
+      return;
+    }
+    this.emitStatus({
+      kind: "reconnecting",
+      lastReadyAt: this.snapshot?.receivedAt ?? null,
+    });
+    if (this.connection.connected) this.connection.reconnect(true);
+  }
+  private startHeartbeat() {
+    clearInterval(this.heartbeat);
+    if (!this.foreground || this.stopped || this.terminal) return;
+    this.heartbeat = setInterval(() => {
+      if (!this.connection?.connected) return;
+      const lifecycle = this.lifecycle;
+      void this.ping(10_000).then((alive) => {
+        if (!alive && lifecycle === this.lifecycle && this.foreground)
+          this.recover();
+      });
+    }, 30_000);
+  }
+  async setForeground(active: boolean): Promise<void> {
+    if (active === this.foreground) return;
+    this.foreground = active;
+    const lifecycle = ++this.lifecycle;
+    clearInterval(this.heartbeat);
+    if (!active) {
+      this.clearRetry();
+      return;
+    }
+    if (this.stopped || this.terminal) return;
+    this.emitStatus({ kind: "synchronizing" });
+    try {
+      const alive = await this.ping(5_000);
+      if (lifecycle !== this.lifecycle || this.stopped || this.terminal) return;
+      if (!alive) this.recover();
+      else await this.resync();
+    } finally {
+      this.startHeartbeat();
+    }
   }
   async callService(call: ServiceCall): Promise<ServiceCallResult> {
     if (

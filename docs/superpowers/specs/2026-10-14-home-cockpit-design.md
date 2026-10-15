@@ -1,7 +1,7 @@
 # Home Cockpit — Functional & Technical Specification
 
 - **Date:** 2026-10-14
-- **Version:** 3 — revised after [review 1](./2026-10-14-home-cockpit-review.md) and [review 2](./2026-10-14-home-cockpit-review-v2.md) (disposition in §11)
+- **Version:** 4 — revised after [review 1](./2026-10-14-home-cockpit-review.md), [review 2](./2026-10-14-home-cockpit-review-v2.md) (disposition in §11), and implementation lifecycle review on 2026-10-15
 - **Status:** Draft — for review
 - **Scope:** product definition for the MVP, the long-term shape, and detailed contracts for Stages 0–1. Later stages get their own spec revisions and implementation plans.
 
@@ -229,6 +229,7 @@ export interface HomeBackend {
    * Opens, authenticates and completes the first synchronization.
    * Resolves only when the first complete snapshot has been emitted (session usable).
    * Rejects with SessionError (incl. synchronization timeout). Idempotent while open.
+   * A transient rejection does not stop background recovery; observe onStatus.
    */
   start(): Promise<void>;
   /** Intentional close: cancels timers/retries; never reconnects afterwards. */
@@ -244,6 +245,10 @@ export interface HomeBackend {
   resync(): Promise<void>;
   /** Liveness check with a deadline; resolves false on timeout. */
   ping(timeoutMs: number): Promise<boolean>;
+  /** Force transport recovery unless stopped or terminal; backend owns retries. */
+  recover(): void;
+  /** Pause/resume liveness and resynchronize on foreground; preserve terminal errors. */
+  setForeground(active: boolean): Promise<void>;
   callService(call: ServiceCall): Promise<ServiceCallResult>;
   getCameraImageRequest(entityId: string): { uri: string; headers: Record<string, string> };
 }
@@ -256,7 +261,7 @@ export interface HomeSnapshot {
   entities: Record<string, EntityRecord>;   // keyed by entityId
   devices: Record<string, PhysicalDevice>;  // keyed by HA device id
   areas: Record<string, Area>;              // keyed by HA area id
-  syncEpoch: number;          // increments per subscription epoch; results from older epochs are discarded
+  syncEpoch: number;          // committed subscription epoch; failed candidates never replace its stream
   config: HomeConfig;
   metadata: {                 // per-registry freshness; failure never changes known identities (§5.1)
     entities: MetadataStatus;
@@ -442,7 +447,7 @@ src/
   core/                           # types.ts, store.ts, selectors.ts, capabilities.ts, policy.ts, rooms.ts
   session/
     types.ts                      # HomeBackend, HomeSnapshot, ServiceCall…
-    SessionManager.ts             # session generations, lifecycle, heartbeat, credentials binding
+    SessionManager.ts             # session generations, lifecycle forwarding, credentials binding
     homeAssistant/                # HomeAssistantBackend.ts, registries.ts, errors.ts, url.ts
     demo/                         # DemoBackend.ts, demoHome.ts
   commands/                       # semantic commands, CommandTracker.ts, predicates.ts
@@ -456,28 +461,30 @@ src/
 
 `SessionManager` creates one session per `start`, with an incrementing **generation id**. Every callback, promise continuation and timer checks its generation and is dropped if it is no longer current. Switching profile (HA ↔ demo, credentials change), disconnect and forget all bump the generation and call `backend.stop()` on the old backend, which suppresses reconnection.
 
+`HomeAssistantBackend` is the single owner of recovery policy, foreground liveness and status transitions. `SessionManager` forwards lifecycle events and binds persistence; it never sets `synchronizing` itself. The requested connection is recorded before preferences are read, independently of the saved active profile: Retry repeats the requested connection, while Forget removes the profile actually committed to storage. A connection that first fails transiently and later reaches `ready` is saved at that point.
+
 Connection sequence (`HomeAssistantBackend`):
 1. Validate & normalize URL (§4.1). Status `connecting`.
 2. `createConnection` with `createLongLivedTokenAuth` → `authenticating`. `auth_invalid` → `error(auth_invalid, retrying: false)`.
 3. `synchronizing`: load HA configuration (`get_config` → `HomeConfig`), open an entity subscription epoch (authoritative feed: initial full state + updates in one subscription — no separate `get_states`, so no fetch/subscribe race), and load the area/device/entity registries. Entity-registry access for the chosen HA user is verified in Stage 0.
    - **Deadlines:** configuration + initial entity snapshot must arrive within **15 s**, otherwise `error(sync_timeout, retrying: true)` with a Retry action; late responses of the timed-out attempt are discarded by epoch. Registries are **optional** with a **10 s** deadline: a timeout or error yields a degraded snapshot (`metadata.*.kind = 'stale'`) that keeps known identities (§5.1) and shows a Diagnostics notice.
 4. When both the first entity set and the registries have arrived → first `HomeSnapshot`, status `ready`. Controls enable only in `ready`.
-5. Registry changes (`*_registry_updated` events) trigger a registry reload and a new snapshot.
+5. Registry changes (`*_registry_updated` events) trigger a registry reload and a new snapshot. Watchers are installed before initial synchronization. Changes received during a refresh mark it dirty and force a follow-up refresh before returning to `ready`.
 
-Reconnect: the official client's own retry schedule is used; Cockpit adds no reconnect loop. On socket loss → `reconnecting`. On reconnection → `synchronizing` → a fresh complete snapshot (renewed subscription) → `ready`. Stage 0 verifies that an entity deleted while disconnected disappears; if the client's resubscription does not guarantee that, the backend forces a new subscription on reconnect.
+Reconnect: once a `Connection` exists, its transport retries belong to the official client; Cockpit adds no competing socket reconnect loop. Before a `Connection` exists, an initial network failure is retried by the backend. Synchronization failures on a healthy transport are also retried by the backend, keeping the connection open. These backend retries use exponential delays of 1, 2, 4, 8, 16 and then 30 s, reset after a complete successful synchronization. Backend retry timers pause in background and stop on intentional close or terminal error. On socket loss → `reconnecting`; cancellation of an in-progress first synchronization is not fatal and does not close the connection. On reconnection → `synchronizing` → a fresh complete snapshot → `ready`. Authentication rejection and unsupported HA versions are terminal, with no automatic retries.
 
-Heartbeat (foreground only): `ping` every 30 s with a 10 s deadline. A missed deadline triggers **forced recovery** through the client's `connection.reconnect(true)`. `connection.close()` is reserved for intentional disconnect/forget, because it disables reconnection.
+Heartbeat (foreground only, owned by the backend): `ping` every 30 s on an open connection with a 10 s deadline. A missed deadline triggers **forced recovery** through the client's `connection.reconnect(true)`. Missing/disconnected connections use the recovery paths above. `connection.close()` is reserved for intentional disconnect/forget and terminal failures, because it disables reconnection.
 
 **Fresh-snapshot mechanism.** The official client's high-level `subscribeEntities` caches the collection on the connection with an unsubscribe grace period, so an immediate unsubscribe/resubscribe can replay cached state without contacting the server. Cockpit therefore does **not** use it for epochs. Each epoch issues an explicit server subscription through the client's lower-level API (`connection.subscribeMessage` with `{ type: 'subscribe_entities' }`) and decodes the compressed entity stream in `src/session/homeAssistant/entityStream.ts` (pure, unit-tested). The previous epoch's subscription is unsubscribed after the new epoch's initial snapshot arrives. Stage 0 proves this against the pinned client release; private client fields and timed waits are not used.
 
 ### 6.3 Refresh
 
-Pull-to-refresh calls `resync()`: a new subscription epoch (§6.2) plus a registry reload; it resolves after the server's initial snapshot for that epoch. The resync deadline is 15 s; on timeout the previous snapshot stays displayed, the session goes to `error(retrying: true)`, and late epoch results are discarded. The client's `entitiesColl.refresh()` is not used.
+Pull-to-refresh calls `resync()`: a new subscription epoch (§6.2) plus a registry reload; it resolves after the server's initial snapshot for that epoch and any refresh made necessary by registry events during the operation. The deadline per epoch is 15 s. A candidate epoch never invalidates the last committed subscription. On timeout that committed stream keeps updating the displayed snapshot and retains its `syncEpoch`; the session goes to `error(retrying: true)`, late candidate results are discarded, and a backend retry is scheduled. The old stream is retired only on successful replacement, transport loss or intentional close. Controls remain disabled until `ready`. The client's `entitiesColl.refresh()` is not used.
 
 ### 6.4 App lifecycle (`AppState`)
 
 - **→ background:** stop heartbeat, camera polling and 3D rendering; cancel unsent (debounced) commands; keep tracking already-sent commands until their deadline; the OS may suspend the socket.
-- **→ foreground (every time):** first reconcile command deadlines from their recorded timestamps (background timers may not have fired: any sent command past its deadline becomes `unconfirmed` immediately); status → `synchronizing`; `ping(5 s)`; if the ping fails, `reconnect(true)`; in all cases run `resync()` before returning to `ready`. Controls stay disabled until then.
+- **→ foreground (every time):** first reconcile command deadlines from their recorded timestamps (background timers may not have fired: any sent command past its deadline becomes `unconfirmed` immediately). Preserve terminal errors and their Retry/Settings actions. Otherwise status → `synchronizing`; `ping(5 s)`; on failure recover the transport (or create the missing initial connection), then resynchronize before returning to `ready`. Restart heartbeat in `finally`, including after ping or synchronization failure. Controls stay disabled until `ready`.
 
 ### 6.5 Commands (`src/commands/`)
 
@@ -541,7 +548,7 @@ Rules:
 
 ### 6.6 Credentials and network
 
-- **Storage:** each profile has a random **storage id** (UUID without dashes → alphanumeric). Token in SecureStore under `profile.<storageId>.token` — SecureStore keys only allow alphanumerics, `.`, `-`, `_`, so the human-readable profile id (`ha:<origin>`) is never used as a key. Profile metadata (`storageId`, normalized origin, `allowInsecureHttp`) lives in AsyncStorage under `profiles.v1`, keyed by profile id. Because SecureStore cannot enumerate keys, first journal a pending storage id in metadata, then write the token, then commit the profile metadata and remove the journal. Recover incomplete writes from that journal; metadata without a token is cleaned up. Credential writes and forget operations are serialized. Acceptance: HTTPS origin with a non-default port and an IPv6 origin both save, load and forget correctly without collisions.
+- **Storage:** each profile has a random **storage id** (UUID without dashes → alphanumeric). Token in SecureStore under `profile.<storageId>.token` — SecureStore keys only allow alphanumerics, `.`, `-`, `_`, so the human-readable profile id (`ha:<origin>`) is never used as a key. Profile metadata (`storageId`, normalized origin, `allowInsecureHttp`) lives in AsyncStorage under `profiles.v1`, keyed by profile id. Because SecureStore cannot enumerate keys, first journal a pending storage id in metadata, then write the token, then commit the profile metadata and remove the journal. The commit also journals superseded storage ids until their tokens are deleted, so a crash after metadata commit cannot orphan the old token. Forget removes the active metadata and journals token cleanup before deletion, so an interrupted Forget cannot reactivate the profile. Recover both journals on the next storage operation; metadata without a token is cleaned up. Credential reads, writes and forget operations share one serialized queue. Acceptance: HTTPS origin with a non-default port and an IPv6 origin both save, load and forget correctly without collisions.
 - **Profile binding:** profile id = `ha:<normalized origin>`. Editing the URL creates a different profile; a token is never reused for another origin. Caches and preferences are per profile.
 - **No cross-origin authorization:** the bearer header is only attached to requests whose origin equals the profile origin (camera images included; redirects to another origin are not followed with credentials).
 - **Logging:** never log tokens, headers or full HA payloads in production builds.

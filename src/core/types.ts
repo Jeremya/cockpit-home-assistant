@@ -1,10 +1,18 @@
 export type Unsubscribe = () => void;
+export type UnreachableCause =
+  | "not_on_network"
+  | "local_network_permission"
+  | "server_stopped"
+  | "tls_certificate"
+  | "cleartext_blocked"
+  | "dns";
 export type SessionError =
   | { code: "invalid_url"; detail: string }
   | { code: "auth_invalid" }
   | { code: "ha_version_unsupported"; haVersion: string }
   | { code: "sync_timeout"; phase: "initial" | "resync" }
-  | { code: "unreachable" | "storage" | "unknown"; detail?: string };
+  | { code: "unreachable"; likelyCauses: UnreachableCause[] }
+  | { code: "storage" | "unknown"; detail?: string };
 export type SessionStatus =
   | { kind: "idle" | "connecting" | "authenticating" | "synchronizing" }
   | { kind: "ready"; haVersion: string; readySince: string }

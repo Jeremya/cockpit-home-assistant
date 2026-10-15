@@ -16,10 +16,10 @@ export class SessionManager {
   private backend?: HomeBackend;
   private generation = 0;
   private listeners: (() => void)[] = [];
-  private heartbeat?: ReturnType<typeof setInterval>;
   private foreground = true;
   private boot?: Promise<void>;
-  private settings?: ConnectionSettings;
+  private attempt?: ConnectionSettings | { demo: true };
+  private savedSettings?: ConnectionSettings;
   constructor(
     private credentials: Credentials,
     private preferences: PreferencesStorage,
@@ -29,20 +29,22 @@ export class SessionManager {
     return this.boot;
   }
   private async load() {
+    const generation = this.generation;
     try {
-      const settings = await this.credentials.load();
-      useCockpit.setState({ initialized: true });
-      if (settings) await this.connect(settings);
+      this.savedSettings = (await this.credentials.load()) ?? undefined;
     } catch {
       useCockpit.setState({ initialized: true });
       this.notice(
-        "Saved connection could not be opened. Review Settings to reconnect.",
+        "Saved credentials could not be read. Review Settings to reconnect.",
       );
+      return;
     }
+    useCockpit.setState({ initialized: true });
+    if (generation === this.generation && this.savedSettings)
+      await this.connect(this.savedSettings).catch(() => undefined);
   }
   private teardown(clear = true) {
     this.generation++;
-    clearInterval(this.heartbeat);
     this.listeners.forEach((unsubscribe) => unsubscribe());
     this.listeners = [];
     this.backend?.stop();
@@ -62,6 +64,7 @@ export class SessionManager {
   async connect(input: ConnectionSettings | { demo: true }) {
     const settings = "demo" in input ? undefined : validateSettings(input);
     this.teardown();
+    this.attempt = settings ?? { demo: true };
     const generation = this.generation;
     const profileId = settings ? profileIdFor(settings.url) : "demo";
     useCockpit.setState({
@@ -92,16 +95,39 @@ export class SessionManager {
     if (notice) this.notice(notice);
     const prefs = file.profiles[profileId] ?? emptyPreferences();
     useCockpit.setState({ preferences: prefs });
-    this.settings = settings;
     const backend = settings
       ? new HomeAssistantBackend(settings, String(generation), {
           identities: prefs.identities,
         })
       : new DemoBackend(String(generation));
     this.backend = backend;
+    let saved = false;
+    let saving: Promise<void> | undefined;
+    const persist = (): Promise<void> => {
+      if (!settings || saved || generation !== this.generation)
+        return Promise.resolve();
+      saving ??= this.credentials
+        .save(settings)
+        .then(() => {
+          saved = true;
+          this.savedSettings = settings;
+        })
+        .catch((error: unknown) => {
+          if (generation === this.generation)
+            this.notice("Connection could not be saved. Retry in Settings.");
+          throw error;
+        })
+        .finally(() => {
+          saving = undefined;
+        });
+      return saving;
+    };
     this.listeners = [
       backend.onStatus((status) => {
-        if (generation === this.generation) useCockpit.setState({ status });
+        if (generation !== this.generation) return;
+        useCockpit.setState({ status });
+        // Initial offline failures can recover after start() has already rejected.
+        if (status.kind === "ready") void persist().catch(() => undefined);
       }),
       backend.onSnapshot((snapshot) => {
         if (generation !== this.generation) return;
@@ -120,75 +146,32 @@ export class SessionManager {
             });
       }),
     ];
-    try {
-      await backend.start();
-      if (generation !== this.generation) return;
-      if (settings) await this.credentials.save(settings);
-      if (generation === this.generation) this.startHeartbeat();
-    } catch (error) {
-      if (
-        generation === this.generation &&
-        useCockpit.getState().status.kind !== "error"
-      )
-        useCockpit.setState({
-          status: {
-            kind: "error",
-            error: { code: "storage", detail: "Could not save connection." },
-            retrying: false,
-          },
-        });
-      throw error;
-    }
+    await backend.setForeground(this.foreground);
+    await backend.start();
+    await persist();
   }
   disconnect() {
     this.teardown(false);
   }
   async forget() {
-    const origin = this.settings?.url;
     this.teardown();
-    this.settings = undefined;
-    if (origin) await this.credentials.forget(origin);
+    this.attempt = undefined;
+    // Wait for queued saves before choosing the actual persisted profile to remove.
+    const saved = await this.credentials.load();
+    if (saved) await this.credentials.forget(saved.url);
+    this.savedSettings = undefined;
   }
   async retry() {
-    if (this.settings) return this.connect(this.settings);
-    return this.connect({ demo: true });
+    const target = this.attempt ?? this.savedSettings;
+    if (target) return this.connect(target);
+    return this.load();
   }
   async refresh() {
     if (this.backend) await this.backend.resync();
   }
-  private startHeartbeat() {
-    clearInterval(this.heartbeat);
-    if (!this.foreground || !this.backend) return;
-    const backend = this.backend;
-    const generation = this.generation;
-    this.heartbeat = setInterval(() => {
-      void backend.ping(10_000).then((alive) => {
-        if (!alive && generation === this.generation && this.foreground)
-          backend.recover();
-      });
-    }, 30_000);
-  }
   async setForeground(active: boolean) {
-    const changed = active !== this.foreground;
     this.foreground = active;
-    if (!active) {
-      clearInterval(this.heartbeat);
-      return;
-    }
-    if (!changed || !this.backend) return;
-    const backend = this.backend;
-    const generation = this.generation;
-    useCockpit.setState({ status: { kind: "synchronizing" } });
-    if (!(await backend.ping(5_000))) {
-      if (generation === this.generation) backend.recover();
-      return;
-    }
-    if (generation !== this.generation) return;
-    try {
-      await backend.resync();
-    } finally {
-      if (generation === this.generation) this.startHeartbeat();
-    }
+    await this.backend?.setForeground(active);
   }
   updatePreferences(update: (p: ProfilePreferences) => ProfilePreferences) {
     const { profileId, preferences } = useCockpit.getState();

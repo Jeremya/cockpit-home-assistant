@@ -70,6 +70,57 @@ test("forget cannot be overtaken by a pending credential write", async () => {
   expect(await credentials.load()).toBeNull();
   expect(secrets.values.size).toBe(0);
 });
+test("a crash after committing replacement metadata still cleans the superseded token on restart", async () => {
+  const local = new MemoryStorage();
+  const secrets = new MemoryStorage();
+  let n = 0;
+  const credentials = new Credentials(local, secrets, () => `id${++n}`);
+  const settings = {
+    url: "https://home.local",
+    token: "old",
+    allowInsecureHttp: false,
+  };
+  await credentials.save(settings);
+  const remove = jest
+    .spyOn(secrets, "removeItem")
+    .mockRejectedValueOnce(new Error("process stopped"));
+  await credentials.save({ ...settings, token: "new" }).catch(() => undefined);
+  remove.mockRestore();
+  const restarted = new Credentials(local, secrets, () => "unused");
+  expect((await restarted.load())?.token).toBe("new");
+  expect([...secrets.values.values()]).toEqual(["new"]);
+});
+test("an interrupted Forget cannot reactivate the forgotten profile on restart", async () => {
+  const local = new MemoryStorage();
+  const secrets = new MemoryStorage();
+  const credentials = new Credentials(local, secrets, () => "one");
+  await credentials.save({
+    url: "https://home.local",
+    token: "secret",
+    allowInsecureHttp: false,
+  });
+  jest
+    .spyOn(secrets, "removeItem")
+    .mockRejectedValueOnce(new Error("process stopped"));
+  await expect(credentials.forget("https://home.local")).rejects.toThrow(
+    "process stopped",
+  );
+  expect(await new Credentials(local, secrets, () => "two").load()).toBeNull();
+  expect(secrets.values.size).toBe(0);
+});
+test("metadata whose token is missing is removed without blocking the storage queue", async () => {
+  const local = new MemoryStorage();
+  const secrets = new MemoryStorage();
+  const credentials = new Credentials(local, secrets, () => "one");
+  await credentials.save({
+    url: "https://home.local",
+    token: "secret",
+    allowInsecureHttp: false,
+  });
+  secrets.values.clear();
+  expect(await credentials.load()).toBeNull();
+  expect(await credentials.load()).toBeNull();
+});
 test.each([
   "ftp://home.local",
   "https://user:pass@home.local",

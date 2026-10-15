@@ -35,6 +35,9 @@ export class DemoBackend extends BackendEvents implements HomeBackend {
   recover() {
     this.publish();
   }
+  async setForeground(active: boolean) {
+    if (active && this.status.kind !== "idle") this.publish();
+  }
   async callService(): Promise<ServiceCallResult> {
     return {
       kind: "rejected",
