@@ -1,48 +1,99 @@
 # Home Cockpit
 
-An Android-first Expo app for a single household's Home Assistant. The first implementation is read-only: Overview, rooms, favorites, entity detail, selection and diagnostics. Demo mode runs without Home Assistant. Physical controls and camera images are Stage 2; the spatial cockpit is Stage 3.
+An Android-first app for viewing a household's devices through Home Assistant. Built with Expo SDK 57, React Native, TypeScript, Zustand and the official HA WebSocket client. Home Assistant owns integrations and device state; Cockpit provides the household interface.
 
-## Run the application
+The current app is **read-only**: Home with attention items, favorites and rooms; entity details; connection settings; entity visibility and room overrides; diagnostics. An offline demo home is included. Device controls, camera images and the 3D floor plan are later milestones.
 
-Node 24 is the development baseline. Install the locked dependencies:
+## Current status
+
+Recorded on 2026-10-15:
+
+- 47 tests pass across 8 suites, along with TypeScript, ESLint and formatting checks.
+- The configured HA `2026.10.1` instance passes authenticated synchronization, registry loading, ping, fresh refresh, simulated foreground return and forced reconnect: 44 entities and all three registries fresh.
+- Protocol tests cover disconnect during the first synchronization, continued updates after a refresh timeout and automatic recovery. No device service calls are sent by either proof script.
+- Android native prebuild and Hermes bundle export pass. Installing and running the app on the Pixel 9 remains the next validation step.
+
+The HA checks run under Node on the development Mac. Device integration compatibility, authenticated camera images and Android lifecycle behavior still need validation on the actual hardware. See the [recorded results](docs/stage0/results.md) and [HA proof report](docs/stage0/ha-proof-2026-10-15.json).
+
+## Install and run
+
+Use Node 24 and the locked dependency versions:
 
 ```sh
 npm ci
-npm start
 ```
 
-Open the development client on the Pixel 9. To build that client locally, install Android Studio / Android SDK, configure `ANDROID_HOME`, enable USB debugging, connect the phone, then run:
+### Preview the interface
+
+```sh
+npm run web
+```
+
+Choose **Explore demo home** in Settings. This mode uses simulated data inside Cockpit and requires no HA account. The web preview is for the interface; token persistence uses native SecureStore and is not supported in the browser.
+
+### Run on the Pixel 9
+
+Install Android Studio with its Android SDK and JDK, configure `ANDROID_HOME` and `adb`, enable USB debugging on the phone, then connect and authorize it. Build and install the development client:
 
 ```sh
 npm run android
 ```
 
-Expo Go is not a supported networking validation target. `npm run web` is available for a demo preview; real credential persistence requires the native SecureStore module. The app intentionally does not save tokens to browser storage. iOS is not yet validated.
-
-## Local Home Assistant
-
-Docker Desktop must be running. Seed the local configuration without overwriting existing data, then start the pinned HA container:
+For later sessions with the client already installed:
 
 ```sh
-node scripts/setup-ha.mjs
+npm start
+```
+
+Use the development client for networking and credential validation. Expo Go is not a supported target. iOS runtime validation is deferred.
+
+## Connect Home Assistant
+
+The backend requires **HA 2026.10 or newer**; the tested version is `2026.10.1`. An existing HA instance can be used directly. To run the included local container, start Docker Desktop, then:
+
+```sh
 npm run ha:up
 ```
 
-Open <http://localhost:8123> and complete Home Assistant's initial setup. Its `demo` integration supplies simulated entities through the real API. Create a dedicated household user and a long-lived token under that user's Profile → Security; enter that token in the app. The container is exposed on port 8123 so the Pixel can reach it on the same Wi-Fi network. Use the Mac's LAN IP, not `localhost`, on the Pixel. HTTP requires explicit trusted-network consent in the app.
+This seeds `.local/home-assistant/` without overwriting an existing configuration and starts the pinned container on port 8123. Open <http://localhost:8123>, complete onboarding if needed, and create a dedicated Cockpit user. Sign in as that user and create a long-lived access token under **Profile → Security**.
 
-The HA runtime directory `.local/` is ignored by Git. It contains authentication data and should not be committed or shared. The example configuration in `home-assistant/` contains no credentials. No owner account or password is automatically created.
+In Cockpit's Settings, enter the HA origin and token. Use the Mac's LAN address on the Pixel, such as `http://192.168.1.20:8123`, with both devices on the same Wi-Fi. `localhost` on the phone refers to the phone. The URL must have no path, query or fragment. For HTTP, enable the trusted local network option; the token is sent unencrypted over that connection.
+
+The included HA configuration enables HA's `demo` integration. These simulated devices exercise the real HA API; they do not prove vendor compatibility. This is separate from Cockpit's offline demo mode.
+
+Container logs:
+
+```sh
+npm run ha:logs
+```
 
 ### Check the configured HA instance
 
-Sign in as the dedicated Cockpit user and create a long-lived token under Profile → Security. Save only the token in `.local/ha-token` (owner-readable only, `chmod 600 .local/ha-token`), rather than putting it in a shell command or chat. Then run:
+Prepare a local file with owner-only permissions:
+
+```sh
+mkdir -p .local
+touch .local/ha-token
+chmod 600 .local/ha-token
+```
+
+Open `.local/ha-token` in an editor, save only the raw token, then run:
 
 ```sh
 HA_ALLOW_INSECURE_HTTP=1 npm run proof:ha
 ```
 
-The default endpoint is `http://127.0.0.1:8123`. Set `HA_URL` for another origin and `HA_TOKEN_FILE` for another local token file. HTTP consent is required for HTTP endpoints. The check authenticates, loads a snapshot and registries, pings, refreshes, simulates foreground return and reconnects its own client. It sends no service calls and prints only version, timings and aggregate counts. Stale registry metadata is reported separately from a successful entity connection. This is a Node-side check; it does not replace Pixel/Hermes validation.
+The entire `.local/` directory is ignored by Git; it also contains HA's runtime and authentication data.
 
-## Verification
+| Variable                 | Default                 | Purpose                             |
+| ------------------------ | ----------------------- | ----------------------------------- |
+| `HA_URL`                 | `http://127.0.0.1:8123` | HA origin to test                   |
+| `HA_TOKEN_FILE`          | `.local/ha-token`       | Local file containing the token     |
+| `HA_ALLOW_INSECURE_HTTP` | Unset                   | Set to `1` to explicitly allow HTTP |
+
+The proof authenticates, loads a snapshot and registries, pings, refreshes, simulates foreground return and reconnects its own client. It prints version, timing, aggregate entity counts and metadata freshness, excluding tokens, URLs and entity details. Stale registry metadata is reported separately from a successful entity connection. Enter the token separately in the native app's Settings; the proof's local token file is not bundled into the app.
+
+## Development checks
 
 ```sh
 npm run typecheck
@@ -53,17 +104,22 @@ npm run export:android
 npm run format:check
 ```
 
-The protocol proof binds a temporary loopback WebSocket server and exercises the actual official HA client, authentication, initial compressed snapshots, immediate resync, deletion, coalescing and heartbeat. It sends no device service calls. It proves Node-side protocol compatibility; Hermes and physical-device validation remain separate gates.
+`proof:protocol` runs without HA credentials against a temporary loopback WebSocket server using the real compressed entity protocol and official client. `proof:ha` tests a configured HA instance with the local token. Neither proof replaces Pixel/Hermes runtime validation.
 
-`npm run export:android` produces a Hermes JavaScript bundle, not an installable APK. A native Android build is still required to verify phone networking and SecureStore.
+`export:android` produces a Hermes JavaScript bundle, not an installable APK. Use `npm run android` for the native development build.
 
-## Implementation boundaries
+## Design boundaries
 
-- HA owns device truth and integrations; Cockpit never invents state or persists observed states as current truth.
-- Full snapshots replace state. Subscription epochs reject old callbacks and wait for a new server snapshot.
-- Optional registry errors preserve known identity and produce diagnostics. Entity aliases migrate local preferences.
-- Tokens are stored with safe SecureStore keys. A small metadata journal makes interrupted writes recoverable without enumerating secrets.
-- Preferences and identity metadata are separate for demo and each HA origin. Changing from the Mac's address to a dedicated HA box currently creates a new profile; preferences are not automatically transferred.
-- Real device integrations, actual Ring still images, Bluetooth support for AIRTAP, APK installation, iOS and 3D feasibility have not been proven by demo mode.
+- The HA backend owns recovery policy, synchronization and foreground heartbeat. Existing transport reconnections use the official client's retry loop; initial connection and synchronization failures have backend retries. Authentication and version errors are terminal.
+- A candidate refresh keeps the committed entity stream active until replacement succeeds. Optional registry failures preserve known identities and appear in Diagnostics. Values remain qualified as cached until the session is ready.
+- Native tokens live in SecureStore with safe keys. Credential operations are serialized, and a journal recovers interrupted saves and token cleanup. Forget removes saved credentials from the phone; revocation is a separate action in HA.
+- Preferences are separate for demo and each HA origin. Moving HA from the Mac to a dedicated box creates a new profile unless preferences are explicitly migrated. Observed entity states and pending commands are not persisted.
 
-See [Stage 0 results](docs/stage0/results.md) and [the specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md).
+## Next milestones
+
+1. Build and install on the Pixel; validate setup, SecureStore, network loss, background/foreground, server restart and Forget.
+2. Complete the [household capability inventory](docs/stage0/inventory.md), including real camera images and a Bluetooth path for AIRTAP. Prototype 3D feasibility on the Pixel.
+3. Stage 2: command tracking and capability-aware controls, then camera images and related events. Outcomes must reflect observed HA state, and reconnect must never replay a command.
+4. Stage 3: the spatial cockpit, with bundled geometry, live markers and the list view remaining usable if the scene fails. Later candidates include configuration export/import, household logins and tablet layouts.
+
+The dependency audit remains an open release gate; its findings and the remaining hardware checks are tracked in [Stage 0 results](docs/stage0/results.md). Detailed contracts and acceptance criteria are in the [specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md).
