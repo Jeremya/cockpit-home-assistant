@@ -1,6 +1,7 @@
 import { ScrollView } from "react-native";
+import { router } from "expo-router";
 import { useCockpit } from "../core/store";
-import { Body, Label, Panel, Title, styles } from "../components/ui";
+import { Body, Button, Label, Panel, Title, styles } from "../components/ui";
 export function DiagnosticsScreen() {
   const { snapshot, status, notices, preferences, mode } = useCockpit();
   const known = new Set(
@@ -53,6 +54,13 @@ export function DiagnosticsScreen() {
             <Body key={key}>{key}</Body>
           ))}
         </Panel>
+      )}
+      {__DEV__ && (
+        <Button
+          title="Open 3D scene lab (development)"
+          secondary
+          onPress={() => router.push("/scene-lab")}
+        />
       )}
       <Body>
         Tokens and authenticated image URLs are excluded from this screen. Real

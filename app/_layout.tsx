@@ -37,6 +37,7 @@ export default function RootLayout() {
         <Stack.Screen name="device/[key]" options={{ title: "Device" }} />
         <Stack.Screen name="entities" options={{ title: "Your entities" }} />
         <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />
+        <Stack.Screen name="scene-lab" options={{ title: "Scene lab" }} />
       </Stack>
     </SafeAreaProvider>
   );
