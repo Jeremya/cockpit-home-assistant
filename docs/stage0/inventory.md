@@ -4,7 +4,7 @@ Source: specification v3, household answers dated 2026-10-14. This file records 
 
 | Item | Known input | Still to verify |
 |---|---|---|
-| Home Assistant | Container `2026.10.1` on the development Mac; started during foundation work | Complete initial setup, create a dedicated HA user/token, prove demo entities through this instance |
+| Home Assistant | `2026.10.1` on the development Mac; onboarding complete; authenticated proof loads 44 entities and fresh entity/device/area registries, then passes resync and reconnect (2026-10-15) | Prove the same connection on the Pixel and validate actual household integrations |
 | Phone | Pixel 9; Android-first | Android version, SDK installation and native development-client installation |
 | Nest | Learning Thermostat | Exact generation, cloud/Matter path, supported targets/modes |
 | Schlage | Encode Plus | Number of locks, code requirements, physical-state latency |

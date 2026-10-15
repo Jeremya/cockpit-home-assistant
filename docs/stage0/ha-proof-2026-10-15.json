@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-15",
+  "runtime": "Node 24 on the development Mac, loopback connection",
+  "result": "passed",
+  "haVersion": "2026.10.1",
+  "temperatureUnit": "°F",
+  "initialMs": 34,
+  "entitiesByDomain": {
+    "sensor": 22,
+    "binary_sensor": 3,
+    "camera": 3,
+    "climate": 3,
+    "event": 2,
+    "fan": 5,
+    "lock": 4,
+    "switch": 2
+  },
+  "metadata": {
+    "entities": "fresh",
+    "devices": "fresh",
+    "areas": "fresh"
+  },
+  "checks": [
+    "authentication",
+    "initial_snapshot",
+    "ping",
+    "fresh_resync",
+    "coalescing",
+    "foreground_resync",
+    "forced_reconnect"
+  ],
+  "serviceCalls": 0,
+  "limitations": [
+    "Foreground was simulated via the backend lifecycle API, not Android AppState.",
+    "One loopback timing sample is not a Pixel or household-network performance benchmark.",
+    "Entity presence does not prove real hardware compatibility or authenticated camera images."
+  ]
+}

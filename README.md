@@ -32,6 +32,16 @@ Open <http://localhost:8123> and complete Home Assistant's initial setup. Its `d
 
 The HA runtime directory `.local/` is ignored by Git. It contains authentication data and should not be committed or shared. The example configuration in `home-assistant/` contains no credentials. No owner account or password is automatically created.
 
+### Check the configured HA instance
+
+Sign in as the dedicated Cockpit user and create a long-lived token under Profile → Security. Save only the token in `.local/ha-token` (owner-readable only, `chmod 600 .local/ha-token`), rather than putting it in a shell command or chat. Then run:
+
+```sh
+HA_ALLOW_INSECURE_HTTP=1 npm run proof:ha
+```
+
+The default endpoint is `http://127.0.0.1:8123`. Set `HA_URL` for another origin and `HA_TOKEN_FILE` for another local token file. HTTP consent is required for HTTP endpoints. The check authenticates, loads a snapshot and registries, pings, refreshes, simulates foreground return and reconnects its own client. It sends no service calls and prints only version, timings and aggregate counts. Stale registry metadata is reported separately from a successful entity connection. This is a Node-side check; it does not replace Pixel/Hermes validation.
+
 ## Verification
 
 ```sh
