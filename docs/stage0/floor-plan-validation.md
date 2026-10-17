@@ -1,6 +1,6 @@
 # 2D floor-plan validation
 
-> Evidence ledger for F01 and the later profile-plan follow-up. The original build/test counts and artifact hash retain their checkpoint scope. See [project status](../README.md) for current checks and [the backlog](../BACKLOG.md) for outstanding links, placements and 3D acceptance.
+> Evidence ledger for F01 and later P01–P04 follow-ups. Original counts and artifact hashes retain their checkpoint scope. See [project status](../README.md) for current checks and [the backlog](../BACKLOG.md) for remaining delivery and 3D acceptance.
 
 Date: 2026-10-15. Base commit: `db239bf` plus the floor-plan changes recorded with this report.
 
@@ -31,4 +31,46 @@ The installed client still loads JavaScript through Metro over USB. The personal
 
 The P02 handoff records native seeding of the active HA profile, display of the reset confirmation, and cancellation leaving the profile unchanged. This was a development-client observation, not a new standalone APK or a native destructive-reset test. Automated regressions cover actual reset preservation, unloaded-profile protection, transient seed-write retry, displayed-plan identity changes and recursive allowlisting. They pass at the [latest verification checkpoint](../README.md#latest-verification-checkpoint).
 
-P01/P02 are complete in code. P03 room/area links and P04 entity placements remain unimplemented. S01 prototype code exists but its native performance/lifecycle report remains open. None of these observations proves physical device control or camera behavior.
+P01/P02 are complete in code. Later P03/P04 evidence follows below. S01 prototype code exists but its native performance/lifecycle report remains open. None of these observations proves physical device control or camera behavior.
+
+## Room links — P03 (2026-10-15, Solana Seeker)
+
+Second device: a Solana Seeker (Android 16, arm64), fresh install of the current development APK, JavaScript from Metro over USB (`adb reverse tcp:8081 tcp:8081`). First checked in demo mode (public sample plan and simulated areas), then against the household HA (below).
+
+- Home rendered; demo mode seeded the demo profile with the public sample plan.
+- Plan screen → **Link rooms to Home Assistant** → Link rooms listed rooms per floor, all Unlinked. The Kitchen picker offered Unlinked plus the four demo areas; choosing Kitchen showed "Floor 1 · Kitchen · 4 devices" and "1 of 6 rooms linked".
+- Another room's picker then marked that area "Moves the link from Kitchen · Floor 1"; the picker was closed without choosing.
+- Plan screen: "Rooms linked to Home Assistant: 1", "4 devices" on the Kitchen row; selecting Kitchen listed its HA area and four devices, and one opened its device page.
+- After a force-stop and relaunch (demo is not reconnected automatically, by design), re-entering demo kept the link; Diagnostics reported "Room links: 1".
+
+**Real areas, same day (with the household's approval):** the Seeker was connected to the household HA over Wi-Fi (`http://<Mac LAN address>:8123`, trusted local network, token typed via `adb` from the ignored local file and never printed) and showed "Synced with HA". The plan was the household plan (21 rooms). Link rooms offered the household's real HA areas, sorted by name. Linking Living room to the Salon area showed "Floor 1 · Salon · 1 device"; the Living room panel listed the Kasa "Living room lamp", whose device page opened read-only ("Off"). After a force-stop and relaunch, HA reconnected automatically and the link was kept. That link exists only in the Seeker's profile.
+
+Not checked natively: the removed-area and stale-registry states (covered by automated tests). No device service calls were sent. Captures are in ignored `.local/house-validation/`.
+
+## P03 review corrections — 2026-10-15
+
+The four reviewed issues are covered by passing regressions: discard an open area picker on profile/plan changes and reject obsolete callbacks; accept arbitrary valid room IDs including `constructor`; qualify retained area metadata as unverified; label counts as entities rather than physical devices. The earlier quoted device labels above record the original native checkpoint. Composite profile/plan/revision identities now use an unambiguous tuple encoding. Five private P03 review regressions also pass.
+
+## Entity placements — P04 (2026-10-15)
+
+Working tree after `45df8a4`. Automated and browser data use the public sample and simulated entities; no physical device services were sent.
+
+| Check                               | Result and scope                                                                                                                                                                                                                                          |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository tests                    | 141 tests across 17 suites pass, including geometry, viewport conversion, alias/UUID behavior, cached/unavailable/hidden/missing markers, profile-change guards, explicit save/cancel, restart persistence, reposition and remove                         |
+| TypeScript, ESLint, formatting      | Pass                                                                                                                                                                                                                                                      |
+| Public-sample web export            | Pass; approximately 2.2 MB main bundle                                                                                                                                                                                                                    |
+| Public-sample Android Hermes export | Pass; approximately 3.2 MB main bundle; an export is not an APK                                                                                                                                                                                           |
+| Chrome workflow                     | Pass: demo → Place device → choose entity/room → tap → explicit Save → marker detail → move to another floor → reload → offline after loading → remove; no page errors                                                                                    |
+| Coordinate validation               | Browser clicks use actual SVG polygon bounds, independently of the conversion helper. Saved X/Z meters match within one screen pixel; marker alignment and no horizontal overflow checked at 320/430/768 CSS pixels                                       |
+| Native Seeker workflow              | Pass: native touch/save, marker → detail, force-stop/relaunch and re-enter demo with placement retained, reposition to Floor 2, marker on that floor, remove and return to plan. The saved HA connection was restored and showed Synced with HA afterward |
+
+The first Chrome pass exposed a real cross-platform event mismatch: React Native Web supplied DOM client coordinates rather than native `locationX/Y`, leaving Save disabled. The editor now normalizes both event shapes before inverse projection; the regression and complete browser workflow pass after that correction.
+
+Name and observed value have separate single-line text fields in the marker label; browser checks verify the label has enough width and height at all three sizes. This fixes the narrow, truncated label found during visual inspection.
+
+Native scope: Solana Seeker, Android 16, existing SVG development client with current JavaScript from Metro over USB. Settings was opened through the normal router deep link because Expo's floating Tools control covered the Home header button; placement interactions used native touches and accessible labels. Only the public demo profile was edited. Native offline/cached-condition variants remain automated-test coverage at this checkpoint; the earlier F01 report separately records native offline geometry use. No new APK was built.
+
+Public-sample exports, browser captures/reports and native captures are kept under ignored `.local/house-validation/`. The original generated personal-plan module was restored after exports. This checkpoint does not accept S01, physical control, screen-reader runtime behavior, iOS or a standalone APK.
+
+Subsequent S01 feasibility acceptance on Pixel 9 Pro and Seeker is recorded separately in the [scene report](scene-validation.md). The earlier 2D/development-client results above retain their original scope.

@@ -1,0 +1,336 @@
+{
+  "schemaVersion": 1,
+  "id": "s01-public-house",
+  "revision": 1,
+  "name": "S01 public fixture",
+  "source": "sample",
+  "scale": "approximate",
+  "floors": [
+    {
+      "id": "s01-floor-1",
+      "name": "Floor 1",
+      "outline": [
+        {
+          "x": 0,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 4
+        },
+        {
+          "x": 4,
+          "z": 4
+        },
+        {
+          "x": 4,
+          "z": 8
+        },
+        {
+          "x": 0,
+          "z": 8
+        }
+      ],
+      "rooms": [
+        {
+          "id": "s01-living",
+          "name": "Concave living",
+          "shortName": "Concave living",
+          "kind": "living",
+          "polygon": [
+            {
+              "x": 0,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 2
+            },
+            {
+              "x": 2,
+              "z": 2
+            },
+            {
+              "x": 2,
+              "z": 6
+            },
+            {
+              "x": 0,
+              "z": 6
+            }
+          ],
+          "label": {
+            "x": 1,
+            "z": 3
+          }
+        },
+        {
+          "id": "s01-kitchen",
+          "name": "Kitchen",
+          "shortName": "Kitchen",
+          "kind": "kitchen",
+          "polygon": [
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 4
+            },
+            {
+              "x": 4,
+              "z": 4
+            }
+          ],
+          "label": {
+            "x": 6,
+            "z": 2
+          }
+        },
+        {
+          "id": "s01-study",
+          "name": "Study",
+          "shortName": "Study",
+          "kind": "bedroom",
+          "polygon": [
+            {
+              "x": 0,
+              "z": 6
+            },
+            {
+              "x": 2,
+              "z": 6
+            },
+            {
+              "x": 2,
+              "z": 2
+            },
+            {
+              "x": 4,
+              "z": 2
+            },
+            {
+              "x": 4,
+              "z": 8
+            },
+            {
+              "x": 0,
+              "z": 8
+            }
+          ],
+          "label": {
+            "x": 3,
+            "z": 5
+          }
+        }
+      ],
+      "lines": [
+        {
+          "kind": "wall",
+          "from": {
+            "x": 0,
+            "z": 0
+          },
+          "to": {
+            "x": 8,
+            "z": 0
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 8,
+            "z": 0
+          },
+          "to": {
+            "x": 8,
+            "z": 4
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 8,
+            "z": 4
+          },
+          "to": {
+            "x": 4,
+            "z": 4
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 4
+          },
+          "to": {
+            "x": 4,
+            "z": 8
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 8
+          },
+          "to": {
+            "x": 0,
+            "z": 8
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 0,
+            "z": 8
+          },
+          "to": {
+            "x": 0,
+            "z": 0
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 0
+          },
+          "to": {
+            "x": 4,
+            "z": 4
+          }
+        },
+        {
+          "kind": "window",
+          "from": {
+            "x": 0,
+            "z": 2
+          },
+          "to": {
+            "x": 0,
+            "z": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "sample-floor-2",
+      "name": "Floor 2",
+      "outline": [
+        {
+          "x": 0,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "z": 6
+        },
+        {
+          "x": 0,
+          "z": 6
+        }
+      ],
+      "rooms": [
+        {
+          "id": "sample-2-0",
+          "name": "Bedroom",
+          "shortName": "Bedroom",
+          "kind": "bedroom",
+          "polygon": [
+            {
+              "x": 0,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 4,
+              "z": 6
+            },
+            {
+              "x": 0,
+              "z": 6
+            }
+          ],
+          "label": {
+            "x": 2,
+            "z": 3
+          }
+        },
+        {
+          "id": "sample-2-1",
+          "name": "Study",
+          "shortName": "Study",
+          "kind": "living",
+          "polygon": [
+            {
+              "x": 4,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 0
+            },
+            {
+              "x": 8,
+              "z": 6
+            },
+            {
+              "x": 4,
+              "z": 6
+            }
+          ],
+          "label": {
+            "x": 6,
+            "z": 3
+          }
+        }
+      ],
+      "lines": [
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 0
+          },
+          "to": {
+            "x": 4,
+            "z": 2
+          }
+        },
+        {
+          "kind": "wall",
+          "from": {
+            "x": 4,
+            "z": 3
+          },
+          "to": {
+            "x": 4,
+            "z": 6
+          }
+        }
+      ]
+    }
+  ]
+}

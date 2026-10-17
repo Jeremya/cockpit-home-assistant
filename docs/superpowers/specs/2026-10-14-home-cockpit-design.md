@@ -1,12 +1,12 @@
 # Maurice — Functional & Technical Specification
 
 - **Date:** 2026-10-14
-- **Updated:** 2026-10-15
-- **Version:** 5 — reconciled with committed P01/P02, the S01 prototype and the [CEO review](2026-10-15-maurice-ceo-review.md). Earlier review dispositions remain in §11.
+- **Updated:** 2026-10-16
+- **Version:** 15 — reconciled through C07a UI and C04, C03, C02, C01 and S02, U03/U04, P03/P04 and their review corrections, measured S01 acceptance and the [CEO review](2026-10-15-maurice-ceo-review.md). Earlier review dispositions remain in §11.
 - **Status:** Living specification; partially implemented. Requirements below include future features, not a claim they all exist.
 - **Scope:** product boundary, current foundation contracts and future acceptance requirements. [Project status](../../README.md) is the reference for delivery; the [backlog](../../BACKLOG.md) gives the current execution order.
 
-Implemented: Android/HA read-only foundation, native 2D plans, schema-2 profile plans and reset. Kasa/Petlibro read-only integration is proven. S01 code exists but its native measurement gate is open. P03/P04, device summaries and broader attention semantics, command tracking/controls, images, production 3D and standalone distribution remain future delivery. iOS is deferred.
+Implemented: Android/HA read-only foundation, native 2D plans, schema-2 profile plans/reset, explicit HA-area links (P03), 2D entity placements (P04), shared attention semantics/coverage (U04), and physical-device summaries (U03). Kasa/Petlibro read-only integration is proven. S01 native feasibility passes on Pixel 9 Pro and Seeker ([report](../../stage0/scene-validation.md)); production 2D/3D integration is implemented in S02 ([runtime scope](../../stage0/spatial-view-validation.md)). C01 semantic commands, C02 outcomes and C03 scheduling/no replay are implemented behind the read-only UI ([facade](../../design/commands.md), [outcomes](../../design/command-outcomes.md), [scheduling](../../design/command-scheduling.md)). C04 adds deterministic offline simulated services and authoritative demo state ([simulation](../../design/demo-commands.md)). C07a adds scoped switch UI; the offline lamp is enabled and real HS103 activation remains gated pending physical acceptance ([control contract](../../design/switch-controls.md)). Proprietary-state verification, other control UI, images and household standalone distribution remain future delivery. iOS is deferred.
 
 ---
 
@@ -58,15 +58,15 @@ These are acceptance targets for the completed scope. Current delivered capabili
 
 ## 2. Devices in scope
 
-| Device                        | Expected HA path                                                                                                                            | Main entities                                                                                     | Notes / Stage 0 checks                                                                                                                                                        |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kasa HS103 plug / lamp        | Official TP-Link Smart Home integration                                                                                                     | `switch.*`                                                                                        | Read-only backend/area proof passes; first safe control target after C01–C04 and C07a                                                                                         |
-| Petlibro PLAF103 feeder       | Installed community Petlibro integration, shared account                                                                                    | `sensor.*`, `binary_sensor.*` and other HA domains                                                | 23 supported visible readings proven; summarize by physical device (U03); verify battery/problem semantics (U04); feeding/schedule control is outside the first control slice |
-| Nest Learning Thermostat      | Google Nest (official, Google Device Access: Google project setup + US$5 registration fee) **or** Matter, depending on the model generation | `climate.*`, `sensor.*`                                                                           | Confirm model; choose cloud vs Matter; record exposed features (single target vs range, modes, units)                                                                         |
-| Schlage Encode Plus (several) | Schlage (official; vendor cloud, 30 s polling)                                                                                              | `lock.*`, `sensor.*` (battery)                                                                    | Measure command-to-confirmed latency; check whether the lock exposes a code requirement                                                                                       |
-| Samsung connected fridge      | SmartThings (official)                                                                                                                      | `sensor.*`, `binary_sensor.*`, `switch.*` (setpoints may be `number.*`, not supported in the MVP) | Determine whether values are measured temperatures, setpoints, or both, and name them accurately; if setpoints matter, add `number` support in Stage 2                        |
-| Ring cameras                  | Ring (official)                                                                                                                             | `camera.*` (`live_view` / `last_recording`), `event.*` (motion, ding)                             | Prove the still-image path: subscription status, image availability and age via `camera_proxy` (§4.5)                                                                         |
-| AC Infinity AIRTAP T4 vents   | Community BLE integration [`ljmerza/ac-infinity-airtap-ble`](https://github.com/ljmerza/ac-infinity-airtap-ble) (HACS)                      | `fan.*` (on/off, 10 speed steps), `sensor.*` (temperature)                                        | Needs a connectable Bluetooth adapter or ESPHome BLE proxy within range; validate the exact hardware revision                                                                 |
+| Device                        | Expected HA path                                                                                                                            | Main entities                                                                                     | Notes / Stage 0 checks                                                                                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kasa HS103 plug / lamp        | Official TP-Link Smart Home integration                                                                                                     | `switch.*`                                                                                        | Read-only backend/area proof passes; first safe control target after C01–C04 and C07a                                                                                                                       |
+| Petlibro PLAF103 feeder       | Installed community Petlibro integration, shared account                                                                                    | `sensor.*`, `binary_sensor.*` and other HA domains                                                | 23 supported visible readings grouped by physical device (U03); generic U04 rules implemented; verify proprietary battery/power meaning in H01; feeding/schedule control is outside the first control slice |
+| Nest Learning Thermostat      | Google Nest (official, Google Device Access: Google project setup + US$5 registration fee) **or** Matter, depending on the model generation | `climate.*`, `sensor.*`                                                                           | Confirm model; choose cloud vs Matter; record exposed features (single target vs range, modes, units)                                                                                                       |
+| Schlage Encode Plus (several) | Schlage (official; vendor cloud, 30 s polling)                                                                                              | `lock.*`, `sensor.*` (battery)                                                                    | Measure command-to-confirmed latency; check whether the lock exposes a code requirement                                                                                                                     |
+| Samsung connected fridge      | SmartThings (official)                                                                                                                      | `sensor.*`, `binary_sensor.*`, `switch.*` (setpoints may be `number.*`, not supported in the MVP) | Determine whether values are measured temperatures, setpoints, or both, and name them accurately; if setpoints matter, add `number` support in Stage 2                                                      |
+| Ring cameras                  | Ring (official)                                                                                                                             | `camera.*` (`live_view` / `last_recording`), `event.*` (motion, ding)                             | Prove the still-image path: subscription status, image availability and age via `camera_proxy` (§4.5)                                                                                                       |
+| AC Infinity AIRTAP T4 vents   | Community BLE integration [`ljmerza/ac-infinity-airtap-ble`](https://github.com/ljmerza/ac-infinity-airtap-ble) (HACS)                      | `fan.*` (on/off, 10 speed steps), `sensor.*` (temperature)                                        | Needs a connectable Bluetooth adapter or ESPHome BLE proxy within range; validate the exact hardware revision                                                                                               |
 
 LG appliances from the original brief are out of scope (not in the household). Any other HA entity in a supported domain still appears **with its supported capabilities** (§5.4); full compatibility is not promised merely because a domain matches.
 
@@ -105,19 +105,19 @@ flowchart TD
 
 ### 3.3 Tech stack (pinned at kickoff)
 
-| Concern       | Choice                                                           | Version policy                                                                                                |
-| ------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Framework     | Expo **SDK 57**, React Native, TypeScript strict                 | SDK pinned; native packages installed with `npx expo install` for SDK-compatible versions; lockfile committed |
-| Builds        | **Android development builds** (`expo-dev-client`); iOS deferred | Expo Go is not a supported target; standalone Android trial is R03a, public release R03b                      |
-| Navigation    | `expo-router`                                                    | SDK-matched                                                                                                   |
-| State         | `zustand`                                                        | latest at kickoff, pinned by lockfile                                                                         |
-| Secrets       | `expo-secure-store`                                              | SDK-matched                                                                                                   |
-| Preferences   | `@react-native-async-storage/async-storage`                      | SDK-matched                                                                                                   |
-| HA client     | `home-assistant-js-websocket` **9.7.x** (official)               | Pinned; its own reconnect schedule is accepted (no second reconnect loop)                                     |
-| 2D / geometry | `react-native-svg`, shared `HousePlan` in X/Z meters             | Native viewer delivered; preference schema 2 and geometry schema 1 are independent                            |
-| 3D            | Three.js in an **Expo DOM component** (`'use dom'`)              | S01 prototype exists; asynchronous bridge, native performance and lifecycle acceptance remain open            |
-| Tests         | `jest-expo`, `@testing-library/react-native`                     | SDK-matched                                                                                                   |
-| Lint / format | ESLint (`eslint-config-expo`), Prettier                          | —                                                                                                             |
+| Concern       | Choice                                                           | Version policy                                                                                                                                                      |
+| ------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework     | Expo **SDK 57**, React Native, TypeScript strict                 | SDK pinned; native packages installed with `npx expo install` for SDK-compatible versions; lockfile committed                                                       |
+| Builds        | **Android development builds** (`expo-dev-client`); iOS deferred | Expo Go is not a supported target; standalone Android trial is R03a, public release R03b                                                                            |
+| Navigation    | `expo-router`                                                    | SDK-matched                                                                                                                                                         |
+| State         | `zustand`                                                        | latest at kickoff, pinned by lockfile                                                                                                                               |
+| Secrets       | `expo-secure-store`                                              | SDK-matched                                                                                                                                                         |
+| Preferences   | `@react-native-async-storage/async-storage`                      | SDK-matched                                                                                                                                                         |
+| HA client     | `home-assistant-js-websocket` **9.7.x** (official)               | Pinned; its own reconnect schedule is accepted (no second reconnect loop)                                                                                           |
+| 2D / geometry | `react-native-svg`, shared `HousePlan` in X/Z meters             | Native viewer delivered; preference schema 2 and geometry schema 1 are independent                                                                                  |
+| 3D            | Three.js in an **Expo DOM component** (`'use dom'`)              | S01 native bridge/performance/lifecycle accepted on Pixel and Seeker; S02 production integration is implemented; its target-phone acceptance is recorded separately |
+| Tests         | `jest-expo`, `@testing-library/react-native`                     | SDK-matched                                                                                                                                                         |
+| Lint / format | ESLint (`eslint-config-expo`), Prettier                          | —                                                                                                                                                                   |
 
 **Minimum Home Assistant version: 2026.10**, tested with `2026.10.1`. Below the minimum, the app refuses the connection with `ha_version_unsupported`, a blocking error with the detected version.
 
@@ -141,16 +141,16 @@ flowchart TD
 Stage 1 combines the long-term _Overview_ and _Rooms_ into one screen:
 
 1. **Session banner** (§4.6) — hidden when ready.
-2. **Needs attention** — items derived from domain policy (§5.5) for **visible** entities only (hiding an entity also removes it from this section): e.g. a jammed or unknown-state lock, an unlocked lock (default policy "normal = locked"), an unavailable favorite. "Unavailable" and "unknown" never count as all-clear. Each entity appears at most once here, and an entity listed here is not repeated in Favorites. Session-level staleness is **not** listed per entity: while the session is not ready, the banner carries a single home-level notice and this section shows "Status unknown while disconnected" instead of its items.
-3. **Favorites** — user-pinned entities in the whole-home view.
-4. **Rooms** — a horizontal room filter and one section per selected area (all areas initially), then **Unassigned**. Room resolution: app override → entity area → device area → Unassigned. Attention remains household-wide even when a room is selected. A missing selection falls back to all rooms; profile changes reset selection. Unassigned does not count as a room.
+2. **Needs attention** — items derived from domain policy (§5.5) for **visible** entities only (hiding an entity also removes it from this section): e.g. a jammed or unknown-state lock, an unlocked lock (default policy "normal = locked"), an unavailable favorite. "Unavailable" and "unknown" never count as all-clear. Each entity appears at most once here. Attention links target individual observations; a favorite physical-device summary may also contain that member without duplicating the full summary. Session-level staleness is **not** listed per entity: while the session is not ready, the banner carries a single home-level notice and this section shows "Status unknown while disconnected" instead of its items.
+3. **Favorites** — entity stable-key favorites represented by one eligible physical-device summary in the whole-home view, or an individual standalone card. A full summary appears only once across Favorites and room sections; a room filter can still find it. Compact attention links can separately point to affected members.
+4. **Rooms** — a horizontal room filter and one section per selected area (all areas initially), then **Unassigned**. A device with members in several rooms stays one group labeled Multiple rooms; each member-room filter can find it. Room resolution: app override → entity area → device area → Unassigned. Attention remains household-wide even when a room is selected. A missing selection falls back to all rooms; profile changes reset selection. Unassigned does not count as a room.
 5. Pull-to-refresh renews the HA subscription (§6.3).
 
 Attention initially previews at most two items with the full count and an explicit expand action; alerts precede lower-severity observations. Stage 3 adds a list/plan toggle on this screen. A separate _Activity_ tab (recent HA events and command outcomes) is a Stage 4 candidate. The [interface direction and previews](../../design/2026-10-15-interface-direction.md) record the House Control reference and delivery sequence.
 
 ### 4.3 Entity cards
 
-Currently one card per visible entity in an adaptive grid (one column for narrow screens or large system text). U03 adds physical-device summaries, beginning with the feeder and lamp, while retaining access to individual readings. Group by registry `deviceId`, never names; retain standalone entities and partial availability. Each card shows name, primary state and freshness qualifier. Controls below are future Stage 2 requirements:
+U03 now shows one summary per actual registry `deviceId` and retains standalone entity cards. The pure profile-scoped selector applies existing visibility, aliases, favorites, room overrides and U04 assessments; a missing model/role uses generic readings. Counts distinguish devices from readings, and all eligible members remain accessible through stable-key details. The verified PLAF103 presenter uses integration registry roles, local timestamps and validated weight units; manufacturer reports never become proof the pet ate. Cached, partial, missing and uninterpreted coverage remains explicit. See the [implemented contract](../../design/device-summaries.md) and [validation](../../stage0/device-summary-validation.md). Controls below are future Stage 2 requirements:
 
 | Kind                   | Primary state                                                       | Primary control (Stage 2)                                            |
 | ---------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
@@ -173,8 +173,14 @@ During a command, the card shows the command's lifecycle state (§6.5) next to t
   - **fan**: on/off; percentage slider honoring `percentage_step` when supported; preset selector when the fan is preset-only.
   - **switch**: on/off.
   - **camera**: see §4.5.
-- Related entities of the same physical device (e.g. battery, motion events, fridge readings).
+- U03 device summaries (`/appliance/[id]`, scoped to the profile) expose all eligible related readings and link to existing `/device/[key]` observation details. Details can return to the same device. Removed, hidden or obsolete-profile device routes render unavailable. Future related examples include battery, motion events and measured fridge readings.
 - Collapsible raw attributes for diagnostics.
+
+### 4.4a Spatial view — implemented S02
+
+The existing plan screen owns a 2D/3D switch with shared floor/room selection, saved P04 placements, room focus and an explicit whole-floor reset. It starts in 2D and resets UI selection on profile/plan identity changes. Native code revalidates marker callbacks against current profile/plan/floor/placement/visibility before existing stable-key navigation. The scene receives only allowlisted geometry and marker fields, never an HA connection or command facade.
+
+Updates diff by key and retain unchanged geometry/materials/labels and camera state. Shared U04 colors retain unavailable/unknown/cached meaning. Screen-sized labels avoid collisions or defer to the native list when crowded. The canvas pauses outside its viewport, on blur and in background; choosing 2D unmounts it. Failures preserve real 2D markers and native lists with deliberate Retry. Room framing has no automatic animation/damping. See the [contract](../../design/spatial-view.md) and [artifact/runtime acceptance](../../stage0/spatial-view-validation.md). This does not certify physical positions, detailed furnishings, large-home budgets or household standalone use.
 
 ### 4.5 Cameras and events (Ring)
 
@@ -449,7 +455,7 @@ export function getCondition(entity: EntityRecord, ready: boolean): Condition;
 
 Defaults: lock `locked` → normal, `unlocked`/`open` → attention, `jammed` → alert, transitions → active; fan/switch on → active (not "good" or "bad"); `unavailable`/`unknown` map to their own conditions; any value while the session is not ready → stale. Colors and icons are a theme mapping of `Condition`, never encoded in the policy. Household-specific thresholds (e.g. freezer temperature) are a Stage 4 preference.
 
-**Implementation gap — U04:** generic sensor handling currently treats non-`on` values as normal; battery `low`, binary problems and connectivity need verified domain/device-class rules. Keep availability, severity and observation quality distinguishable. Empty attention must not certify the whole house as safe. U03 summaries consume the same policy. A fresh HA session or registry does not prove a fresh hardware measurement.
+**Implemented — U04:** `assessEntity` supplies condition, rule coverage, explanation and binary labels; `getCondition` delegates to it. Declared HA problem/connectivity/battery and safety/opening classes use explicit polarity. Numeric battery percentages at or below 20% are attention (app default, valid 0–100% values only). Uninterpreted textual/enum states remain unknown with their raw value and an explanation; no proprietary Petlibro adapter is inferred. Home states assessed/visible reading coverage, and empty attention means no issue detected by available rules. Availability, severity and cached observations remain distinct. U03 summaries reuse this policy and preserve partial-device uncertainty. A fresh HA session or registry does not prove a fresh hardware measurement; an old unchanged value is not automatically stale. See [policy contract and validation](../../design/attention-policy.md).
 
 ### 5.6 Preferences and plan (`src/preferences/types.ts`)
 
@@ -475,13 +481,13 @@ export interface ProfilePreferences {
 export interface SpatialPreferences {
   plan: HousePlan | null;
   seededFrom: { planId: string; revision: number } | null;
-  areaLinks: Record<string, string>; // plan-room ID -> HA area ID; P03 UI pending
+  areaLinks: Record<string, string>; // plan-room ID -> HA area ID; explicit P03 editor
   placements: Record<
     string,
     {
       floorId: string;
       roomId: string | null;
-      position: PlanPoint; // X/Z meters; P04 UI pending
+      position: PlanPoint; // X/Z meters; explicit P04 placement editor
     }
   >; // stable entity key -> placement
 }
@@ -489,7 +495,7 @@ export interface SpatialPreferences {
 
 The actual declarations are in [preferences/types.ts](../../../src/preferences/types.ts) and [spatial/model.ts](../../../src/spatial/model.ts). `HousePlan` geometry schema 1 nests rooms, outlines, detail lines and optional approximate furniture within floors. It supports concave polygons and one displayed floor at a time; no compass origin or story elevation is assumed. Plan geometry, area links and entity placements are separate concepts. See [the format guide](../../design/floor-plans.md).
 
-P01/P02 are implemented: profile plans seed once, survive bundle changes and reset explicitly. Not persisted: entity states, session state, pending commands, credentials or image authorization.
+P01–P04 are implemented: profile plans seed once, survive bundle changes and reset explicitly; room links and placements are deliberate per-profile edits. The placement editor validates a draft inside the floor and optional room before explicit Save; Cancel does not write. A shared SVG projection/inverse projection handles viewport letterboxing, while native selectors resolve stable keys/aliases, visibility, conditions and cached qualifiers. Hidden/missing entities or invalid geometry references remain saved and appear in Diagnostics/editor; they are never reassigned by name. Marker and list navigation use the existing stable-key device route. Latest-state profile/plan identity guards prevent stale edits. No service calls are sent by the editor. Not persisted: entity states, session state, pending commands, credentials or image authorization.
 
 ---
 
@@ -503,7 +509,7 @@ Current modules below are implemented unless marked planned. Exact declarations 
 app/                              # expo-router routes; each renders a screen from src/screens
   _layout.tsx                     # providers, session bootstrap, lifecycle hook
   index.tsx · settings.tsx · entities.tsx · diagnostics.tsx
-  house.tsx · scene-lab.tsx · device/[key].tsx
+  house.tsx · house-links.tsx · house-place.tsx · scene-lab.tsx · device/[key].tsx
 src/
   screens/                        # HomeScreen, SettingsScreen (+ sub-screens), DeviceDetailScreen
   components/                     # native UI, EntityCard, SessionBanner, FloorPlanView, CockpitSceneView
@@ -512,10 +518,10 @@ src/
     types.ts                      # HomeBackend, HomeSnapshot, ServiceCall…
     SessionManager.ts             # session generations, lifecycle forwarding, credentials binding
     homeAssistant/                # HomeAssistantBackend, entityStream, mapSnapshot, url
-    demo/                         # DemoBackend.ts, demoHome.ts
-  commands/                       # PLANNED C01–C04: semantic commands, tracker, predicates
+    demo/                         # DemoBackend.ts, fixtures.ts, services.ts
+  commands/                       # C01–C03: facade, validation, scheduler, tracker, predicates
   preferences/                    # types.ts, storage.ts; validation and ordered migrations
-  spatial/                        # model, plans, profilePlan, public sample; ignored generated plan
+  spatial/                        # model, plans, profilePlan, selectors, viewport, placements/actions, sample
   services/                       # credentials.ts, storage.ts, runtime.ts; image service PLANNED I01
   web/                            # CockpitScene.tsx ('use dom'), sceneModel.ts; S01 prototype
 ```
@@ -550,9 +556,11 @@ Pull-to-refresh calls `resync()`: a new subscription epoch (§6.2) plus a regist
 - **→ background:** stop heartbeat, camera polling and 3D rendering; cancel unsent (debounced) commands; keep tracking already-sent commands until their deadline; the OS may suspend the socket.
 - **→ foreground (every time):** first reconcile command deadlines from their recorded timestamps (background timers may not have fired: any sent command past its deadline becomes `unconfirmed` immediately). Preserve terminal errors and their Retry/Settings actions. Otherwise status → `synchronizing`; `ping(5 s)`; on failure recover the transport (or create the missing initial connection), then resynchronize before returning to `ready`. Restart heartbeat in `finally`, including after ping or synchronization failure. Controls stay disabled until `ready`.
 
-### 6.5 Commands (`src/commands/`, future C01–C07)
+<a id="command-contract"></a>
 
-This command layer is not implemented. The current backend's service-call primitive does not satisfy these contracts and is not exposed as physical UI controls.
+### 6.5 Commands (`src/commands/`, C01–C04 and C07a UI implemented; hardware gates remain)
+
+C01 implements a typed semantic facade, latest-observation validation and service mapping through SessionManager. It returns `refused`, `no-op` or `started` with a separate service-acknowledgement promise; the latter does not confirm physical success. Capture a manager-issued target before any future confirmation dialog and pass that exact target back for dispatch. Profile/backend generation, stable key→same entity ID, ready/foreground, availability and capabilities are rechecked immediately before sending. C02 registers sending records before transport, tracks local observation revisions and reconciles code-free outcomes, deadlines and late evidence. C03 adds per-entity guards/serialization, 600 ms debounce, immediate cancellation and invalidation of prepared targets after any readiness/background interruption. Continuous methods may return `queued` with a `completion` promise that settles to a dispatch decision or typed cancellation; no sending record exists until actual dispatch. C07a adds explicit On/Off in the entity-detail flow, with separate observed state and command outcomes, a captured target, lifecycle/availability guards and synchronous sending/accepted exclusion. The public demo lamp is enabled; real HS103 control remains acceptance-gated, and other categories stay read-only. C04 implements a closed offline service whitelist, persistent simulated session state, independent acknowledgement/effect timers and deterministic scenarios validated through this facade. Locks/climate/fan control UI remains C05/C06/C07b work; see the [facade](../../design/commands.md), [outcomes](../../design/command-outcomes.md) and [scheduling](../../design/command-scheduling.md), plus [simulation/C07a handoff](../../design/demo-commands.md).
 
 Screens call semantic commands only:
 
@@ -564,13 +572,18 @@ setFanOn(key, on) · setFanPercentage(key, pct) · setFanPreset(key, preset)
 setSwitch(key, on)
 ```
 
-Each command produces a tracked record:
+C02: each dispatched command produces a transient tracked record (`started.commandId` references it):
 
 ```ts
 export interface CommandRecord {
   id: string;
   sessionId: string;
+  profileId: string;
+  scopeId: string; // backend generation; old acknowledgements cannot alter new outcomes
   entityKey: string;
+  entityId: string; // resolved ID captured at dispatch
+  desired: DesiredState; // explicit code-free intent, step and temperature unit
+  dismissed: boolean; // visibility only; tracking/freshness remains intact
   label: string; // "Unlock Front door"
   issuedAt: string;
   deadline: string;
@@ -606,18 +619,19 @@ Rules:
   Attribute-only updates count.
 
 - **Ordering:** the tracker records, at dispatch, the entity's **baseline observation revision** (a local monotonically increasing counter per entity, not HA timestamps vs the phone clock) and observes every update from dispatch onward — a matching update that arrives **before** the service-call acknowledgement is kept, and the predicate is re-evaluated when the acknowledgement arrives. A terminal status (`confirmed`, `failed`) is never downgraded by a late acknowledgement.
-- **Already satisfied:** if the latest observation already satisfies the target, no service call is sent; the UI reports "Already locked" (explicit no-op).
+- **Already satisfied:** if the latest observation already satisfies the target and no preceding unsettled call can overwrite it, no service call is sent; the UI reports "Already locked" (explicit no-op).
+- **Latest continuous target:** returning a slider to its observed baseline while an older target is in flight/accepted/unconfirmed retains a new compensating intent; serialize and dispatch it once, even if the baseline still matches at dispatch. With no earlier sent call, an already-satisfied latest value cancels any older unsent value and sends nothing.
 - **Late reconciliation window:** an `unconfirmed` command can still become `confirmed` within **5 minutes** of its deadline, only for the same profile and entity key, and only until a newer command for that entity supersedes it. After a reconnect, the wording is "Home Assistant now shows Locked" — it reports state, not which actor caused it. After the window, a matching change is ordinary state, not a command outcome.
 - **Meaning of `failed`:** HA returned an error. The UI says "Home Assistant reported an error", without claiming that no physical effect occurred.
 - **Assumed-state integrations** (`assumed_state: true`): confirmation is labeled "Confirmed (state assumed by the integration)".
 - **No invented state:** the card keeps the last observed value, qualified by the command status. Nothing is rolled back.
-- **Actuator policy per kind:**
+- **Actuator policy per kind (C03):**
   - **Locks:** a new command is **refused** while the previous one is `sending` or `accepted` (awaiting confirmation). After an `unconfirmed` outcome, the next lock action is enabled only after a fresh observation of the entity (a new snapshot epoch or a state update newer than the outcome).
   - **Climate target, fan percentage:** only the latest unsent intent is kept (600 ms debounce). Dispatch is serialized per entity: the next value is sent only after the previous call returns a `ServiceCallResult`; a newer value **supersedes** the previous command (status `superseded`, not shown to the user). Only the final target's confirmation is reported.
   - **HVAC mode, fan on/off, fan preset, switch:** one in-flight call per entity; further taps while `sending` are ignored.
 - **Eligibility is revalidated immediately before dispatch** (including after a confirmation dialog): session `ready`, same profile, the key still maps to the same `entityId`, the entity is available, and the capability still declares the action. Otherwise nothing is sent and the dialog explains why.
-- **No replay:** every unsent intent (debounced or queued) is **dropped** as soon as the session leaves `ready`, not only on timers. Commands are never re-sent after reconnect. An `unconfirmed` unlock or open tells the user to check the door; it is not retried.
-- **Deadlines (initial, tuned from Stage 0 measurements):** lock 45 s (30 s vendor polling), climate 30 s, fan/switch 15 s. Stored in `constants/config.ts`.
+- **No replay (C03):** every unsent intent (debounced or queued) is **dropped** as soon as the session leaves `ready`, not only on timers. Commands are never re-sent after reconnect. An `unconfirmed` unlock or open tells the user to check the door; it is not retried.
+- **Deadlines (initial, tuned from Stage 0 measurements):** lock 45 s (30 s vendor polling), climate 30 s, fan/switch 15 s. Stored in `src/constants/config.ts`.
 - `unconfirmed` and `failed` outcomes stay visible on the card until the next observed change or dismissal.
 
 ### 6.6 Credentials and network
@@ -639,16 +653,16 @@ Rules:
 - **Malformed JSON:** the raw value is copied to `prefs.corrupt.<timestamp>`, defaults are loaded, and Diagnostics shows a notice.
 - **Newer unsupported schema:** preserve a backup and show a distinct notice. Saved fields, including nested geometry, are recursively allowlisted.
 - **Profile plan:** seed with a cloned bundled plan only once, save after the first snapshot and retry a failed seed write on a later snapshot. A bundled revision change shows a notice, not a replacement. Reset clears only plan/links/placements; selection uses actual profile/plan ID/revision.
-- **Unresolved placements/overrides** are kept. Full link/placement diagnostics are future P03/P04/U01 work; retaining the data is already implemented.
+- **Unresolved placements/overrides** are kept. P03/P04 expose unresolved area links, missing/hidden entities and invalid placement geometry in Diagnostics/editor. U01 retains the broader diagnostics/accessibility pass.
 - Demo and HA profiles never share preferences.
 - Export/import of non-secret JSON: Stage 4.
 
-### 6.8 3D bridge (S01 prototype; S02 production remains future)
+### 6.8 3D bridge (S01 accepted; S02 integration implemented)
 
 - The native `CockpitSceneView` takes the shared `PlanFloor`, selection and sanitized markers. `toSceneFloor` in `web/sceneModel.ts` produces the smaller JSON-safe geometry sent to `CockpitScene` (`'use dom'`). Reuse these actual types instead of inventing another `FloorPlan` model.
 - Native callbacks are top-level async props: room/marker selection, readiness, sanitized errors and metrics. The bridge carries no nested action objects. The wrapper has an initialization watchdog and fallback; DOM errors are caught inside the DOM runtime.
 - No credentials, raw attributes or remote content cross into the web view.
-- S01 has fixture markers and instrumentation. Verify offline assets, async selection, tap/orbit separation, at least 30 fps during interaction, no continuous idle rendering, background/unfocused pause, disposal and context-loss fallback on the Pixel; retain a report before S02.
+- S01 has fixture markers and instrumentation; its [kept Pixel/Seeker report](../../stage0/scene-validation.md) accepts offline assets, async selection, tap/orbit separation, ≥30 rendered fps, zero ongoing idle/hidden/unfocused rendering, disposal and context-loss fallback/retry. Preserve these properties in S02 and measure again with production placements.
 - S02 shares production selection/navigation with the native list and 2D plan, and updates marker materials without rebuilding geometry on every sensor change. The list remains usable after scene failure.
 
 ### 6.9 Testing strategy
@@ -681,29 +695,29 @@ Rules:
 
 The [backlog](../../BACKLOG.md) owns ticket status and execution order; [project status](../../README.md#delivery-order) gives the current sequence. Gates are acceptance criteria, not calendar estimates. These stages describe capability groups, not a requirement to finish every vendor before independent app work.
 
-| Stage                            | Delivered / current                                                                                       | Remaining acceptance                                                                                                                                                  |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **0 — Prove dependencies**       | Scaffold, HA/Hermes protocol/native checks, actual Kasa/Petlibro read-only proofs; S01 prototype exists   | Remaining household capabilities, camera path, authorized physical checks and S01 Pixel measurements; gate each family independently                                  |
-| **1 — Read-only home**           | Native Home/details/settings/diagnostics, session recovery, identity, profiles, demo, 2D plan and P01/P02 | U03 device summaries and U04 sensor attention; accessibility/diagnostics follow-ups                                                                                   |
-| **2 — Safe controls**            | Backend primitives only                                                                                   | C01–C04, then Kasa switch C07a; locks/climate/fans require their own hardware proof and controls; I01/I02 remain separate camera work                                 |
-| **3 — Spatial cockpit**          | Shared geometry and native 2D plan; S01 lab in progress                                                   | P03 links, P04 placements, S01 acceptance before S02 production 3D; shared navigation and list/2D fallback                                                            |
-| **Internal daily trial**         | Development client installed                                                                              | R03a standalone APK with accepted enabled features and documented R01 assessment; proposed seven-day household trial; HA availability required independently of Metro |
-| **Release and later candidates** | Not delivered                                                                                             | R01/R02/R03b public-release gates; later L01–L06 for import/export/editor, iOS, household OAuth, activity, tablet and extra capabilities                              |
+| Stage                            | Delivered / current                                                                                     | Remaining acceptance                                                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **0 — Prove dependencies**       | Scaffold, HA/Hermes protocol/native checks, actual Kasa/Petlibro read-only proofs; S01 prototype exists | Remaining household capabilities, camera path, authorized physical checks; S01 feasibility accepted separately on Pixel/Seeker; gate each family independently        |
+| **1 — Read-only home**           | Native Home/details/settings/diagnostics, identity, profiles, demo, 2D plan, P01/P02 and U03/U04        | Proprietary semantics and accessibility/diagnostics follow-ups                                                                                                        |
+| **2 — Safe controls**            | C01 facade, C02 outcomes, C03 scheduling/no replay and C04 simulation                                   | Kasa switch C07a; locks/climate/fans require their own hardware proof and controls; I01/I02 remain separate camera work                                               |
+| **3 — Spatial cockpit**          | Shared geometry, native 2D, P03/P04, accepted S01 lab and S02 saved-placement 2D/3D integration         | S02 Pixel acceptance, broader accessibility and measured large-home budgets; [runtime ledger](../../stage0/spatial-view-validation.md)                                |
+| **Internal daily trial**         | Development client installed                                                                            | R03a standalone APK with accepted enabled features and documented R01 assessment; proposed seven-day household trial; HA availability required independently of Metro |
+| **Release and later candidates** | Not delivered                                                                                           | R01/R02/R03b public-release gates; later L01–L06 for import/export/editor, iOS, household OAuth, activity, tablet and extra capabilities                              |
 
-Next: P03, then U03/U04 and the complete Kasa command path. Finish S01 as an independent measured experiment. A read-only R03a build can advance before controls; do not defer all household use until production 3D. Keep stage proof results, package versions and precise limitations in `docs/stage0/`.
+Next: close the remaining S02 phone gate and complete C07a installed-app/physical acceptance before enabling real Kasa control. C01–C04 and C07a UI are implemented; R03a can independently build the accepted feature set. S01 is accepted within its [measured scope](../../stage0/scene-validation.md). A read-only R03a build can advance before controls; do not defer all household use until production 3D. Keep stage proof results, package versions and precise limitations in `docs/stage0/`.
 
 ---
 
 ## 8. Household inputs (updated 2026-10-15)
 
-| Input                    | Current answer                                                                                                                                                                           | Consequence                                                                                                                                         |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HA host                  | HA Container `2026.10.1` is configured on the development Mac                                                                                                                            | Dedicated always-on host remains H02; a new origin creates a new app profile, so preference migration must be explicit                              |
-| Proven real integrations | Kasa HS103 and Petlibro PLAF103 have read-only backend/area proofs                                                                                                                       | Native presentation and controls remain separate acceptance; see [inventory](../../stage0/inventory.md)                                             |
-| Remaining devices        | Nest generation and Schlage count/code behavior unknown; Samsung model/capabilities need matching; Ring subscription confirmed; AIRTAP revision `F1.0.26`, no Bluetooth adapter supplied | Verify each integration from actual capabilities; camera and BLE paths are open, not inferred                                                       |
-| Phone / distribution     | Pixel 9 Pro, Android 17; development client installed; no iPhone/signing path supplied                                                                                                   | Android-first; iOS deferred. R03a must run without Metro and has its own native acceptance                                                          |
-| HA identity              | One dedicated HA user and token configured                                                                                                                                               | Native SecureStore and origin-bound profiles implemented; per-occupant OAuth remains L03                                                            |
-| Plan                     | Private image-traced multi-floor layout; public sample separate                                                                                                                          | P01/P02 persist a profile copy; P03/P04 links and placements pending; approximate geometry is not a survey; shared bundles must contain sample data |
+| Input                    | Current answer                                                                                                                                                                           | Consequence                                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HA host                  | HA Container `2026.10.1` is configured on the development Mac                                                                                                                            | Dedicated always-on host remains H02; a new origin creates a new app profile, so preference migration must be explicit                                  |
+| Proven real integrations | Kasa HS103 and Petlibro PLAF103 have read-only backend/area proofs                                                                                                                       | Native presentation and controls remain separate acceptance; see [inventory](../../stage0/inventory.md)                                                 |
+| Remaining devices        | Nest generation and Schlage count/code behavior unknown; Samsung model/capabilities need matching; Ring subscription confirmed; AIRTAP revision `F1.0.26`, no Bluetooth adapter supplied | Verify each integration from actual capabilities; camera and BLE paths are open, not inferred                                                           |
+| Phone / distribution     | Pixel 9 Pro, Android 17; development client installed; no iPhone/signing path supplied                                                                                                   | Android-first; iOS deferred. R03a must run without Metro and has its own native acceptance                                                              |
+| HA identity              | One dedicated HA user and token configured                                                                                                                                               | Native SecureStore and origin-bound profiles implemented; per-occupant OAuth remains L03                                                                |
+| Plan                     | Private image-traced multi-floor layout; public sample separate                                                                                                                          | P01/P02 persist a profile copy; P03/P04 explicit links and placements implemented; approximate geometry is not a survey; shared bundles use sample data |
 
 ---
 
@@ -766,4 +780,4 @@ Historical kickoff snapshot below. Docker and the project-local Android SDK/JDK 
 - Java (Homebrew OpenJDK) present; **Android SDK / `adb` not installed** — Android Studio (or command-line tools) is required for local Android development builds on the Pixel 9 Pro (USB debugging enabled). EAS cloud builds are the alternative.
 - Node 24.11, npm 11.11.
 
-Foundation implementation results and the updated environment are recorded in [Stage 0 results](../../stage0/results.md). Docker is running and the Android SDK/dev build has been validated on the Pixel 9 Pro, including Wi-Fi recovery and HA restart with an ephemeral entity-removal fixture. Since that checkpoint, Kasa/Petlibro read-only proofs, P01/P02 and the S01 prototype code have been added. Remaining vendor capabilities, physical controls, authenticated images and S01 native measurements remain open gates. The dated environment observations above are historical; use [project status](../../README.md) for current delivery.
+Foundation implementation results and the updated environment are recorded in [Stage 0 results](../../stage0/results.md). Docker is running and the Android SDK/dev build has been validated on the Pixel 9 Pro, including Wi-Fi recovery and HA restart with an ephemeral entity-removal fixture. Since that checkpoint, Kasa/Petlibro read-only proofs, P01/P02 and the S01 prototype code have been added. Remaining vendor capabilities, physical controls and authenticated images remain open gates. S01 native feasibility was subsequently accepted on Pixel and Seeker; see the [scene report](../../stage0/scene-validation.md). The dated environment observations above are historical; use [project status](../../README.md) for current delivery.

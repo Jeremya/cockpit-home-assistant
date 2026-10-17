@@ -72,7 +72,7 @@ See [Android validation](android-validation.md) for the fixture's scope, timing 
 
 - Native authenticated camera images remain a later Stage 2 check; a standalone production binary still needs its own network and persistence smoke tests.
 - H01 is now partial: Kasa and Petlibro have read-only proofs in [the inventory](inventory.md). Remaining vendor paths and physical actions still need acceptance; neither demo certifies them.
-- S01 prototype code is now present (`a505fec`). Finish its Pixel measurement report before S02; the native 2D/P01/P02 work does not close the 3D gate.
+- P01–P04 profile plans, area links and 2D placements are implemented; their later validation is in the [floor-plan ledger](floor-plan-validation.md). S01 prototype code (`a505fec`) was subsequently hardened and accepted on Pixel 9 Pro and Seeker; see the [scene report](scene-validation.md). S02 production integration is now implemented; its [own runtime ledger](spatial-view-validation.md) records the later artifact and phone gates. The earlier 2D checkpoint alone does not accept 3D.
 - Implement the Stage 2 command tracker and controls, including confirmation/ordering/no-replay tests, then camera images with verified freshness and redirect handling. The current UI exposes no physical controls.
 - Validate iOS only when a target device and signing path are available.
 

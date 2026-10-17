@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-17",
+  "scope": "Current working-tree review after 45df8a4; not a standalone or hardware acceptance run",
+  "head": "45df8a4",
+  "workingTree": true,
+  "checks": {
+    "tests": {
+      "passed": 561,
+      "suites": 32
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "format": "passed",
+    "audit": {
+      "completed": true,
+      "affectedPackageEntries": {
+        "info": 0,
+        "low": 0,
+        "moderate": 15,
+        "high": 49,
+        "critical": 0,
+        "total": 64
+      },
+      "uniqueAdvisoryCount": 5,
+      "advisoryUrls": [
+        "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+        "https://github.com/advisories/GHSA-hp3w-g68c-fv3c",
+        "https://github.com/advisories/GHSA-vcc3-ghjq-m6fr",
+        "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+        "https://github.com/advisories/GHSA-w5hq-g745-h8pq"
+      ],
+      "reachabilityAssessment": "partial; router decode path identified locally, exploit not reproduced"
+    }
+  },
+  "packageLockSha256": "a74498e9135034e98272d57bad3c9ba51d1a44945ba567969b8bec410afa2d86",
+  "scopeCase": {
+    "syntheticOnly": true,
+    "independentHs103Identities": 2,
+    "gateFalseBlocksBoth": true,
+    "gateTrueAllowsBoth": true,
+    "deviceServiceCalls": 0
+  },
+  "notRun": [
+    "new native acceptance",
+    "new public export",
+    "real HA actuation",
+    "S02 Pixel acceptance",
+    "standalone binary acceptance"
+  ],
+  "unchanged": [
+    "application code",
+    "dependencies",
+    "device state",
+    "git HEAD",
+    "remote repository"
+  ],
+  "remaining": [
+    "WIP checkpoint and clone reproducibility",
+    "R01 security reachability/compatibility and native startup diagnosis",
+    "F02/R02 automation",
+    "C07a scoped enrollment and authorized physical acceptance",
+    "S02 Pixel gate",
+    "R03a standalone trial"
+  ]
+}

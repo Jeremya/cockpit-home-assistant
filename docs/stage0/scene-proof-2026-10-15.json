@@ -1,0 +1,223 @@
+{
+  "date": "2026-10-15",
+  "decision": "Three.js in Expo DOM is feasible for S02 on the tested Android targets",
+  "scope": "S01 public single-floor fixture; three fake markers; no device service calls",
+  "apk": {
+    "bytes": 44921978,
+    "sha256": "6f8470d9a2cac69f28e244e20f6af7fa9982e3e621b12bca6ccb7b9f2d3bbe3a",
+    "isolatedPackage": true,
+    "publicFixtureOnly": true,
+    "embeddedHermesAndDOM": true
+  },
+  "devices": {
+    "pixel_9_pro": {
+      "model": "Pixel 9 Pro",
+      "android": "17",
+      "webview": "154.0.8037.107",
+      "mode": "optimized embedded APK",
+      "sceneCSSPixels": {
+        "width": 383,
+        "height": 380
+      },
+      "initialReadiness": {
+        "hostReadyMs": 382,
+        "rendererReadyMs": 129
+      },
+      "interaction": {
+        "frames": 591,
+        "durationMs": 4971.799999999814,
+        "fps": 118.8704292208098,
+        "p95FrameMs": 8.400000000001455
+      },
+      "idleFrameDelta": 0,
+      "roomMarkerAndConcaveCutout": true,
+      "pinchDoesNotSelect": true,
+      "hiddenFrameDelta": 0,
+      "showFreshFrame": true,
+      "unfocusedFrameDelta": 0,
+      "refocusFreshFrame": true,
+      "backgroundResume": {
+        "hiddenFrames": 0,
+        "frameDeltaIncludingResume": 2
+      },
+      "resize": {
+        "before": {
+          "width": 383,
+          "height": 380
+        },
+        "after": {
+          "width": 436,
+          "height": 380
+        },
+        "restored": {
+          "width": 383,
+          "height": 380
+        }
+      },
+      "nativeRemountCycles": [
+        {
+          "remainingTargetsAfterUnmount": 0,
+          "memory": {
+            "geometries": 15,
+            "textures": 7
+          }
+        },
+        {
+          "remainingTargetsAfterUnmount": 0,
+          "memory": {
+            "geometries": 15,
+            "textures": 7
+          }
+        },
+        {
+          "remainingTargetsAfterUnmount": 0,
+          "memory": {
+            "geometries": 15,
+            "textures": 7
+          }
+        }
+      ],
+      "contextLossNativeFallbackAndRetry": true,
+      "embeddedOffline": {
+        "wifiDisabled": true,
+        "metroTunnelRemoved": true,
+        "domAssetBundled": true,
+        "uncachedReloadWithNetworkBlocked": true,
+        "native": {
+          "hostReadyMs": 371,
+          "rendererReadyMs": 64
+        }
+      },
+      "result": "passed",
+      "restoration": {
+        "normalAppOpened": true,
+        "wifiEnabled": true,
+        "displayOverride": false
+      }
+    },
+    "seeker": {
+      "model": "Seeker",
+      "android": "16",
+      "webview": "154.0.8037.106",
+      "mode": "optimized embedded APK",
+      "sceneCSSPixels": {
+        "width": 356,
+        "height": 380
+      },
+      "initialReadiness": {
+        "hostReadyMs": 558,
+        "rendererReadyMs": 136
+      },
+      "interaction": {
+        "frames": 596,
+        "durationMs": 5001.10000000149,
+        "fps": 119.17378176797553,
+        "p95FrameMs": 8.400000000000546
+      },
+      "idleFrameDelta": 0,
+      "roomMarkerAndConcaveCutout": true,
+      "pinchDoesNotSelect": true,
+      "hiddenFrameDelta": 0,
+      "showFreshFrame": true,
+      "unfocusedFrameDelta": 0,
+      "refocusFreshFrame": true,
+      "backgroundResume": {
+        "hiddenFrames": 0,
+        "frameDeltaIncludingResume": 2
+      },
+      "resize": {
+        "before": {
+          "width": 356,
+          "height": 380
+        },
+        "after": {
+          "width": 316,
+          "height": 380
+        },
+        "restored": {
+          "width": 356,
+          "height": 380
+        }
+      },
+      "nativeRemountCycles": [
+        {
+          "remainingTargetsAfterUnmount": 0,
+          "memory": {
+            "geometries": 15,
+            "textures": 7
+          }
+        },
+        {
+          "remainingTargetsAfterUnmount": 0,
+          "memory": {
+            "geometries": 15,
+            "textures": 7
+          }
+        },
+        {
+          "remainingTargetsAfterUnmount": 0,
+          "memory": {
+            "geometries": 15,
+            "textures": 7
+          }
+        }
+      ],
+      "contextLossNativeFallbackAndRetry": true,
+      "embeddedOffline": {
+        "wifiDisabled": true,
+        "metroTunnelRemoved": true,
+        "domAssetBundled": true,
+        "uncachedReloadWithNetworkBlocked": true,
+        "native": {
+          "hostReadyMs": 435,
+          "rendererReadyMs": 76
+        }
+      },
+      "result": "passed",
+      "restoration": {
+        "normalAppOpened": true,
+        "wifiEnabled": true,
+        "displayOverride": false
+      }
+    }
+  },
+  "desktopChrome": {
+    "publicFixtureOnly": true,
+    "deviceServiceCalls": 0,
+    "concavePickingAndCutout": true,
+    "outAndBackIsOrbit": true,
+    "resizeWidths": [
+      320,
+      430,
+      768
+    ],
+    "hiddenFrameDelta": 0,
+    "idleFrameDelta": 0,
+    "teardownContextLost": true,
+    "teardown": {
+      "disposed": true,
+      "listenersActive": 0,
+      "controlsDisposed": true,
+      "observerDisconnected": true,
+      "memory": {
+        "geometries": 0,
+        "textures": 1
+      },
+      "teardown": {
+        "geometries": 15,
+        "materials": 14,
+        "textures": 6
+      }
+    },
+    "contextLossFallbackAndRetry": true,
+    "pageErrors": [],
+    "result": "passed"
+  },
+  "verification": {
+    "jestTests": 196,
+    "jestSuites": 19,
+    "typecheck": "passed",
+    "lint": "passed",
+    "prettier": "passed"
+  }
+}

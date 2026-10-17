@@ -80,3 +80,5 @@ The debug development client needs Metro (`npm start`) to load the app. The mach
 JDK baseline reference: [Android Gradle Plugin 8.12 compatibility](https://developer.android.com/build/releases/agp-8-12-0-release-notes?hl=en).
 
 The subsequent SVG-enabled development APK and its separate acceptance checks are recorded in [2D floor-plan validation](floor-plan-validation.md). The APK hash and original native session results above remain historical artifacts.
+
+Subsequent S01 feasibility acceptance on Pixel 9 Pro and Seeker is recorded separately in the [scene report](scene-validation.md). The earlier 2D/development-client results above retain their original scope.

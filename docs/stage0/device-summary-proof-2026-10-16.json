@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-16",
+  "scope": "U03 read-only device summaries; working tree after 45df8a4",
+  "repository": {
+    "passedTests": 215,
+    "passedSuites": 21,
+    "typecheck": "passed",
+    "lint": "passed",
+    "configuredFormatting": "passed",
+    "publicWebExport": "passed",
+    "publicAndroidHermesExport": "passed"
+  },
+  "backend": {
+    "checkedAt": "2026-10-16T17:08:58.930Z",
+    "feederCards": 1,
+    "feederReadings": 23,
+    "mappedRoles": 6,
+    "roleValuesAvailable": 6,
+    "interpretationRemainsQualified": true,
+    "plugCards": 1,
+    "deviceServiceCalls": 0,
+    "result": "passed"
+  },
+  "browser": {
+    "publicDemoOnly": true,
+    "deviceServiceCalls": 0,
+    "oneFeederCard": true,
+    "allReadingsAndStableKeyDetail": true,
+    "localizedTimestamps": true,
+    "favoriteMemberDeduplicatesSummary": true,
+    "roomFilterAndGlobalAttention": true,
+    "loadedDemoWorksOffline": true,
+    "widthsWithoutOverflow": [320, 430, 768],
+    "pageErrors": [],
+    "result": "passed"
+  },
+  "native": {
+    "date": "2026-10-16",
+    "device": "Seeker",
+    "realHAReadOnly": true,
+    "deviceServiceCalls": 0,
+    "feederSummaryReadingCount": 23,
+    "feederRolePresentation": true,
+    "individualReadingNavigation": true,
+    "readingReturnsToSameDevice": true,
+    "plugSummary": true,
+    "haSummaryAfterProcessRestart": true,
+    "result": "passed"
+  },
+  "limits": [
+    "No physical actuation",
+    "Petlibro battery/power semantics remain unverified",
+    "Native smoke on Seeker development client; no new APK",
+    "TalkBack, large fonts, Pixel U03 and iOS not accepted",
+    "No standalone or production-3D acceptance"
+  ]
+}

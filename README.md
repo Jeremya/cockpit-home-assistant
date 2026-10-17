@@ -19,7 +19,7 @@ Meet Maurice: a 1970s French butler with a moustache, a three-piece suit, a Gita
 
 ![Android: verified on Pixel 9 Pro](https://img.shields.io/badge/Android-verified%20on%20Pixel%209%20Pro-91d9bd?style=flat-square&logo=android&logoColor=white)
 [![Verification documented](https://img.shields.io/badge/verification-documented-91d9bd?style=flat-square)](docs/README.md#latest-verification-checkpoint)
-![Mode: read-only](https://img.shields.io/badge/mode-read--only-ffc083?style=flat-square)
+![Mode: scoped switch controls](https://img.shields.io/badge/mode-scoped%20switch%20controls-ffc083?style=flat-square)
 
 [Features](#-features) · [Quick start](#-quick-start) · [Home Assistant](#-connect-home-assistant) · [Architecture](#-architecture) · [Project status](docs/README.md) · [Roadmap](#-roadmap)
 
@@ -27,18 +27,16 @@ Meet Maurice: a 1970s French butler with a moustache, a three-piece suit, a Gita
 
 <br />
 
-**Current scope:** Android-first and read-only. Kasa HS103 and Petlibro PLAF103 pass real HA/backend checks. Profile plans are implemented; the 3D scene is an experiment awaiting native measurements. See [current status, evidence and next steps](docs/README.md).
+**Current scope:** Android-first, with scoped On/Off controls in the entity-detail screen. Demo lamp control is enabled; real Kasa switching remains gated pending physical acceptance. Kasa HS103 and Petlibro PLAF103 have physical-device summaries, verified read-only against real HA and on Seeker. Profile plans and 2D/3D switching use saved placements; [S02 validation](docs/stage0/spatial-view-validation.md) records target-phone acceptance. See [current status, evidence and next steps](docs/README.md).
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/design/screenshots/home-demo.png" alt="Home screen with attention items, room filter and device cards" /></td>
-    <td align="center" width="33%"><img src="docs/design/screenshots/kitchen-demo.png" alt="Home filtered to the kitchen" /></td>
-    <td align="center" width="33%"><img src="docs/design/screenshots/device-demo.png" alt="Front door lock detail with observation provenance" /></td>
+    <td align="center" width="50%"><img src="docs/design/screenshots/u03-kitchen-demo.png" alt="Home filtered to the kitchen with one card per device" /></td>
+    <td align="center" width="50%"><img src="docs/design/screenshots/u03-feeder-demo.png" alt="Feeder summary with reported times, quantities and access to every reading" /></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>Your home at a glance</b><br />attention first, then rooms</sub></td>
-    <td align="center"><sub><b>Room filters</b><br />one tap per room</sub></td>
-    <td align="center"><sub><b>Honest device detail</b><br />where each value came from</sub></td>
+    <td align="center"><sub><b>Your devices at a glance</b><br />global attention, then room summaries</sub></td>
+    <td align="center"><sub><b>Useful readings together</b><br />explicit coverage and observation details</sub></td>
   </tr>
 </table>
 
@@ -46,18 +44,19 @@ Meet Maurice: a 1970s French butler with a moustache, a three-piece suit, a Gita
 
 ## ✨ Features
 
-|     | Feature                     | What it does                                                                                                                                                                                                                  |
-| :-: | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🏠  | **Home overview**           | Attention items first (an unlocked door, an unavailable favorite), then favorites and a device grid you can filter by room. "Unknown" and "unavailable" never count as all-clear.                                             |
-| 🗺️  | **Floor plans**             | Offline 2D plans, several floors, rooms you can tap, the dimensions printed on the source plan, and rough furniture footprints to help you find your way around.                                                              |
-| 🧭  | **A plan for each profile** | Each Home Assistant origin and the demo keep their own copy of the plan. App updates never overwrite it; resetting it is a deliberate action in Diagnostics.                                                                  |
-| 🔌  | **Live Home Assistant**     | Official WebSocket client, compressed entity stream, registries, foreground resync and automatic recovery after network loss or an HA restart.                                                                                |
-| 🔐  | **Private configuration**   | Tokens stay in native SecureStore; personal source files stay outside Git. Bundles contain the prepared plan, so shared artifacts must use the public sample. Preferences store neither tokens, observed states nor commands. |
-| 🧪  | **Offline demo home**       | Simulated locks, sensors, cameras and switches with no account at all.                                                                                                                                                        |
-| 🩺  | **Diagnostics**             | Session and registry health, unresolved identities, floor-plan status and reset, with no secrets on screen.                                                                                                                   |
+|     | Feature                     | What it does                                                                                                                                                                                                                                                          |
+| :-: | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🏠  | **Home overview**           | Attention items first (an unlocked door, an unavailable favorite), then favorites and physical-device summaries you can filter by room. "Unknown" and "unavailable" never count as all-clear.                                                                         |
+| 📋  | **Device summaries**        | One card per actual HA device, with all eligible readings accessible. The feeder summarizes reported feed times, quantities and connectivity while preserving uncertainty.                                                                                            |
+| 🗺️  | **Floor plans**             | Offline 2D/3D plans, shared floor/room selection, room links to HA areas and saved device markers, with a native fallback. Place, reposition or remove a marker; tap it to open the existing device details. Approximate geometry remains separate from device state. |
+| 🧭  | **A plan for each profile** | Each Home Assistant origin and the demo keep their own copy of the plan. App updates never overwrite it; resetting it is a deliberate action in Diagnostics.                                                                                                          |
+| 🔌  | **Live Home Assistant**     | Official WebSocket client, compressed entity stream, registries, foreground resync and automatic recovery after network loss or an HA restart.                                                                                                                        |
+| 🔐  | **Private configuration**   | Tokens stay in native SecureStore; personal source files stay outside Git. Bundles contain the prepared plan, so shared artifacts must use the public sample. Preferences store neither tokens, observed states nor commands.                                         |
+| 🧪  | **Offline demo home**       | Simulated locks, sensors, cameras, switches and a feeder with no account. Deterministic offline command services are ready for the future controls.                                                                                                                   |
+| 🩺  | **Diagnostics**             | Session and registry health, unresolved identities, floor-plan status and reset, with no secrets on screen.                                                                                                                                                           |
 
 > [!NOTE]
-> Maurice is **read-only** today: he observes Home Assistant and never sends a device command. Controls come in Stage 2, with command tracking that cannot replay an unlock after a reconnect.
+> **C07a switch UI is implemented.** Explicit On/Off actions preserve the observed value until a matching report; sending, accepted and unconfirmed results remain separate. The demo lamp is enabled. Real HS103 control stays gated until its physical acceptance; other devices remain read-only. See [scope and validation](docs/design/switch-controls.md).
 
 ## 🚀 Quick start
 
@@ -101,6 +100,8 @@ The development APK loads its JavaScript from Metro; the recorded Pixel sessions
 Put a private plan in the ignored `.local/home-plan.json`. `npm run house:prepare`, which runs before `start`, `web`, `android`, `test` and `typecheck`, validates it and bundles an ignored local module. Fresh checkouts and demo mode use the [public sample](src/spatial/sample-plan.json).
 
 Coordinates are meters on the X/Z plane. Rooms may be concave, and each floor can also list rough furniture footprints. A connected profile keeps the copy it was first given: after editing the local plan, use **Diagnostics → Reset plan to default** to pick up the new version.
+
+In the plan screen, **Link rooms** associates spaces with existing HA areas. **Place device** lets you choose an entity, floor and optional room, tap a position, then explicitly save it. Positions stay with that profile, work offline with cached observations and do not change HA assignments. **Manage placements** and Diagnostics retain missing or hidden references so they can be reviewed or removed.
 
 Format, privacy of build artifacts and the path to 3D: [local floor plans](docs/design/floor-plans.md).
 
@@ -163,6 +164,7 @@ flowchart LR
 ```
 
 - **The backend owns recovery.** Transport reconnections use the official client's retry loop; failures during the initial connection and synchronization get backend retries. Authentication and version errors are terminal.
+- **Commands stay semantic.** The C01 facade validates the latest session, entity identity, availability and capabilities, then projects one supported service request. C02 tracks observations, deadlines and qualified outcomes separately from HA acceptance. C03 serializes requests and cancels unsent work across lifecycle changes. C04 simulates the same command path offline with independent acknowledgements and observations. C07a adds explicit On/Off UI, guarded targets and qualified outcomes for the demo lamp and the acceptance-gated HS103. Other control UI remains future work.
 - **No stale truth.** A refresh keeps the committed entity stream until its replacement succeeds. Values stay marked as cached until the session is ready, and optional registry failures show up in Diagnostics.
 - **Credentials are journaled.** Operations are serialized, and an interrupted save or cleanup is recovered. _Forget_ removes the token from the phone; revoke it in HA separately.
 - **Preferences are per origin.** Demo and each HA origin never share favorites, overrides, plans or placements. Schema migrations are ordered and validated, and data written by a newer app version is backed up rather than lost. Moving HA to a dedicated host creates a new profile unless preferences are explicitly migrated.
@@ -171,19 +173,19 @@ flowchart LR
 
 [Project status](docs/README.md) is the delivery reference; the [backlog](docs/BACKLOG.md) contains the implementation contracts. Stages in the specification describe the broader scope, not a claim every feature is available.
 
-| Track                       | Status                              | Next step                                                                                                          |
-| --------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Read-only HA foundation     | Implemented, native checks recorded | Broader sensor attention semantics remain U04                                                                      |
-| Native 2D and profile plans | F01 / P01 / P02 done                | **P03** link plan rooms to HA areas; **P04** placements later                                                      |
-| Household integrations      | H01 partial                         | Kasa HS103 and Petlibro PLAF103 read-only proven; native presentation and remaining hardware still need acceptance |
-| Useful device overview      | Planned, priority                   | **U03** physical-device summaries, starting with the feeder/lamp; **U04** battery/problem/connectivity rules       |
-| 3D scene                    | S01 in progress                     | Existing fixture lab needs a Pixel measurement report; **S02** requires S01 pass and P04                           |
-| Controls                    | Planned                             | **C01 → C02 → C03 → C04 → C07a**, first Kasa lamp; locks/climate/fans follow verified capabilities                 |
-| Camera images               | Planned                             | **I01** image-path/transport isolation proof, then **I02** display and polling                                     |
-| Internal daily trial        | Planned                             | **R03a** standalone Android APK without Metro, dependency assessment and enabled-feature acceptance                |
-| Public release              | Planned                             | **R01** maintenance, **R02** CI and **R03b** hardening; HA always-on hosting is separate **H02** work              |
+| Track                       | Status                              | Next step                                                                                                                                 |
+| --------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Read-only HA foundation     | Implemented, native checks recorded | U04 attention rules and honest coverage delivered                                                                                         |
+| Native 2D and profile plans | F01 / P01 / P02 / P03 / P04 done    | Explicit links and placements delivered; broader accessibility and large-home rendering remain U01/U02                                    |
+| Household integrations      | H01 partial                         | Kasa/Petlibro read-only summaries pass on Seeker; proprietary meanings and remaining hardware stay open                                   |
+| Useful device overview      | U03 delivered                       | [Grouping, related readings and verified feeder roles](docs/design/device-summaries.md), preserving U04 uncertainty/coverage              |
+| 3D scene                    | S02 implemented                     | [Production spatial view and phone-acceptance ledger](docs/stage0/spatial-view-validation.md); S01 evidence remains a separate checkpoint |
+| Controls                    | C07a UI implemented; hardware gated | **R01 assessment → R03a trial**; C07a scoped activation/physical acceptance remains separate                                              |
+| Camera images               | Planned                             | **I01** image-path/transport isolation proof, then **I02** display and polling                                                            |
+| Internal daily trial        | Planned                             | **R03a** standalone Android APK without Metro, dependency assessment and enabled-feature acceptance                                       |
+| Public release              | Planned                             | **R01** maintenance, **R02** CI and **R03b** hardening; HA always-on hosting is separate **H02** work                                     |
 
-Finish S01 alongside independent work. P03 is the next bounded code task. A read-only internal APK can advance before all controls or production 3D. The [CEO review](docs/superpowers/specs/2026-10-15-maurice-ceo-review.md) explains the priorities; the [specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md) and [interface direction](docs/design/2026-10-15-interface-direction.md) preserve the contracts and visual intent inspired by [House Control](https://github.com/0xProbabillity/house-control).
+Production 2D/3D integration, P03/P04 and U03/U04 are implemented. Keep S02’s phone-acceptance scope explicit; **C01–C04** are implemented ([facade](docs/design/commands.md), [outcomes](docs/design/command-outcomes.md), [scheduling](docs/design/command-scheduling.md), [offline simulation](docs/design/demo-commands.md)); **C07a UI** is implemented ([scope and evidence](docs/design/switch-controls.md)); physical Kasa acceptance remains before enabling the real control. The [global review](docs/reviews/2026-10-17-global-review.md) prioritizes a source checkpoint, R01 release assessment and R03a standalone internal trial before more actuator categories. A read-only internal APK can advance before all controls are complete. The [CEO review](docs/superpowers/specs/2026-10-15-maurice-ceo-review.md) explains the priorities; the [specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md) and [interface direction](docs/design/2026-10-15-interface-direction.md) preserve the contracts and visual intent inspired by [House Control](https://github.com/0xProbabillity/house-control).
 
 ## 🧰 Development
 
@@ -207,6 +209,8 @@ Maurice's portrait lives in [`assets/source/maurice.png`](assets/source/maurice.
 - Protocol tests cover a disconnect during the first synchronization, continued updates after a refresh timeout, and automatic recovery.
 - The ARM64 development APK runs on a Pixel 9 Pro (Android 17, Hermes). Native checks pass for HA over Wi-Fi, token persistence across process restarts, foreground resync, pull-to-refresh, terminal authentication errors, Forget, demo navigation, recovery after a cold start without Wi-Fi, and HA restarts.
 - Native floor-plan interaction, including offline floor switching, passes on the Pixel. P01/P02 have migration/regression coverage; native profile seeding and reset cancellation were observed. Full reset preservation is covered by automated tests.
+- U03 physical-device summaries pass real-backend and Seeker navigation/restart checks: one card for the feeder’s 23 visible readings and one for Kasa. Public browser checks cover all readings, favorite persistence, room filtering and responsive widths. See [scope and limits](docs/stage0/device-summary-validation.md).
+- P03 links were checked with real HA areas on a Seeker. P04 native demo acceptance covers touch/save, marker detail, persistence after restart, moving between floors and removing; Chrome also checks responsive alignment and offline use after loading.
 
 Details: [Stage 0 results](docs/stage0/results.md) · [HA proof report](docs/stage0/ha-proof-2026-10-15.json) · [Android validation](docs/stage0/android-validation.md) · [Floor-plan validation](docs/stage0/floor-plan-validation.md). The dependency audit remains an open release gate.
 

@@ -1,0 +1,139 @@
+{
+  "date": "2026-10-16",
+  "scope": "S02 production spatial integration; public saved placements; working tree after 45df8a4",
+  "artifact": {
+    "package": "com.larrabee.homecockpit.s02proof",
+    "sha256": "594bd5eb75e8a69bf84bca058d55e9cb6160b0edebcd2b84b6fb0d2ab495e51f",
+    "bytes": 45251655,
+    "publicSampleOnly": true,
+    "debugSigned": true,
+    "embeddedHermesAndDOM": true
+  },
+  "repository": {
+    "passedTests": 232,
+    "passedSuites": 25,
+    "typecheck": "passed",
+    "lint": "passed",
+    "configuredFormatting": "passed",
+    "publicWebExport": "passed",
+    "androidProofBuild": "passed"
+  },
+  "browser": {
+    "publicSampleOnly": true,
+    "deviceServiceCalls": 0,
+    "reducedMotionHasNoAnimatedCamera": true,
+    "sharedSelectionAndRealRoomPicking": true,
+    "observedConditionDiffPreservesResourcesAndCamera": true,
+    "unfocusedFrameDelta": 0,
+    "offscreenFrameDelta": 0,
+    "responsiveUnclippedFloor": [320, 430, 768],
+    "contextLossKeepsPlacedMarkersAndListAndRetry": true,
+    "threeDisposedRemounts": [
+      {
+        "geometries": 7,
+        "textures": 3
+      },
+      {
+        "geometries": 7,
+        "textures": 3
+      },
+      {
+        "geometries": 7,
+        "textures": 3
+      }
+    ],
+    "savedPlacementFloorIsolation": true,
+    "loadedDemoWorksOffline": true,
+    "pageErrors": [],
+    "result": "passed"
+  },
+  "native": [
+    {
+      "device": "Seeker",
+      "android": "16",
+      "package": "isolated embedded S02 proof",
+      "publicSampleOnly": true,
+      "deviceServiceCalls": 0,
+      "installedApkSha256": "594bd5eb75e8a69bf84bca058d55e9cb6160b0edebcd2b84b6fb0d2ab495e51f",
+      "proofInstalled": true,
+      "publicDemoOpened": true,
+      "savedPlacementsPrepared": true,
+      "initial": {
+        "rendererReadyMs": 291,
+        "memory": {
+          "geometries": 7,
+          "textures": 3
+        },
+        "markers": 2,
+        "domAssetsBundled": true,
+        "noAnimatedCamera": true
+      },
+      "sharedRoomSelectionAndWholeFloorReset": true,
+      "unfocusedFrameDelta": 0,
+      "orbit": {
+        "interaction": {
+          "frames": 590,
+          "durationMs": 4993.199999988079,
+          "fps": 118.16069855031014,
+          "p95FrameMs": 8.400000000001455
+        },
+        "idleFrameDelta": 0,
+        "hiddenFrames": 0
+      },
+      "conditionDiffKeepsGeometryLabelsAndCamera": true,
+      "offscreenFrameDelta": 0,
+      "backgroundResume": {
+        "hiddenFrames": 0,
+        "frameDeltaIncludingResume": 1
+      },
+      "resize": {
+        "before": {
+          "width": 334,
+          "height": 380
+        },
+        "after": {
+          "width": 294,
+          "height": 380
+        },
+        "restored": {
+          "width": 334,
+          "height": 380
+        }
+      },
+      "nativeRemountCycles": [
+        {
+          "geometries": 7,
+          "textures": 4
+        },
+        {
+          "geometries": 7,
+          "textures": 4
+        },
+        {
+          "geometries": 7,
+          "textures": 4
+        }
+      ],
+      "contextLossKeepsNativeDeviceListRoomSelectionAndRetry": true,
+      "savedPlacementFloorIsolation": true,
+      "uncachedDOMReloadWithNetworkBlocked": true,
+      "savedPlacementsAfterProcessRestart": true,
+      "result": "passed",
+      "normalAppRestored": true
+    }
+  ],
+  "remainingGates": [
+    "Pixel 9 Pro S02 measurements",
+    "Larger inventories and longer memory/thermal trials",
+    "TalkBack and large system fonts",
+    "iOS",
+    "Household standalone HA acceptance and dependency assessment"
+  ],
+  "deviceServiceCalls": 0,
+  "normalDevelopmentSmoke": {
+    "normalPrivateHome3DReady": true,
+    "savedHASession": true,
+    "privateGeometryNotRecorded": true,
+    "deviceServiceCalls": 0
+  }
+}
