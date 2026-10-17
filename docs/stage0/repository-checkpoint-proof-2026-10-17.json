@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-17",
+  "result": "passed",
+  "scope": "Repository checkpoint and isolated clean-clone verification; no native/hardware/standalone acceptance",
+  "commits": {
+    "application": "ec6abf0f4c2f0d90040cf4e25a1f1339b60a358a",
+    "documentationAndValidatedBase": "3cf13a21f3af6a26820748c43147b019f5b63212",
+    "validationRecord": "subsequent documentation-only commit"
+  },
+  "environment": {
+    "node": "24.11.1",
+    "npm": "11.11.0",
+    "source": "git clone --no-hardlinks from the recorded local repository commits",
+    "dependencies": "fresh npm ci; no shared node_modules",
+    "exportTransformCache": "fresh isolated OS temporary directory"
+  },
+  "checks": {
+    "npmCi": "passed",
+    "publicFallback": "sample-home automatically prepared at postinstall",
+    "typecheck": "passed",
+    "lint": "passed",
+    "tests": {
+      "passed": 561,
+      "suites": 32
+    },
+    "format": "passed",
+    "protocol": {
+      "passed": true,
+      "fakeServiceCalls": 18,
+      "configuredHaUsed": false
+    },
+    "webExport": "passed with isolated transform cache",
+    "androidHermesDomExport": "passed with isolated transform cache",
+    "cleanCloneGitStatus": true
+  },
+  "encounteredFailures": [
+    {
+      "stage": "sandboxed npm ci",
+      "result": "failed before postinstall",
+      "resolution": "Repeated npm ci with required cache/network access; successful install recorded"
+    },
+    {
+      "stage": "Android export using the shared host transform cache",
+      "result": "failed: generated DOM entry referred to the previous checkout location",
+      "resolution": "Both web and Android exports passed using a fresh isolated temporary transform cache; no application code or dependency change"
+    }
+  ],
+  "privacy": {
+    "initialCandidateFilesReviewed": 122,
+    "knownPrivateLiteralMatches": 0,
+    "privateIpPatternHit": "README explicitly labeled LAN example only",
+    "newScreenshots": "three public-demo captures visually reviewed",
+    "privateFilesTracked": false,
+    "cloneContainsOriginalPrivateDirectory": false,
+    "originalGeneratedPrivatePlanPreserved": true,
+    "exportFilesScanned": 59,
+    "configuredTokenOrOriginalCheckoutPathFoundInFinalExports": false
+  },
+  "packageLockSha256": "a74498e9135034e98272d57bad3c9ba51d1a44945ba567969b8bec410afa2d86",
+  "packageLockUnchanged": true,
+  "applicationTree": {
+    "app": "30ad5c320b1d33bd482ae9b3ddacc2d7aaf1f01a",
+    "src": "caeaab075683a3581df2b4d6e2101939e62631d3",
+    "scripts": "bf7c0bc2131acdd5616a40055458ff9368492617",
+    "jest.config.js": "6ef85433319673861d713438f9e753987da549a2"
+  },
+  "remainingGates": [
+    "R01 dependency reachability/compatible maintenance",
+    "Native startup crash investigation",
+    "C07a scoped enrollment and authorized physical check",
+    "S02 Pixel acceptance",
+    "F02/R02 checked-in public automation",
+    "R03a standalone household APK"
+  ]
+}

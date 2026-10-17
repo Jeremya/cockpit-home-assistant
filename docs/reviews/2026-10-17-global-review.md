@@ -4,6 +4,8 @@ Maurice has reached a development alpha with a useful Android/HA foundation, hou
 
 This review examines the current working tree, including uncommitted work after `45df8a4`. It is a product/architecture and delivery assessment, with refreshed automated checks and dependency triage. It is not a new full phone acceptance run or an exhaustive security audit. [Current status](../README.md), [implementation backlog](../BACKLOG.md) and the dated validation ledgers retain their roles.
 
+**Checkpoint follow-up:** the implementation/tests were subsequently committed in `ec6abf0`, and public documentation/evidence in `3cf13a2`. [Isolated clean-clone verification](../stage0/repository-checkpoint.md) passes, closing finding 1's checkpoint/reproduction task. The original review observations below retain their recorded state and counts; R01 and the hardware/standalone gates remain open.
+
 ## What exists and what it proves
 
 | Area                        | Current delivery                                                                                                                                         | Remaining boundary                                                                                              |
