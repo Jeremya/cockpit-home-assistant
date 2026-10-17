@@ -3,11 +3,14 @@ import { ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useCockpit } from "../core/store";
 import { getCapability } from "../core/capabilities";
+import { assessEntity } from "../core/policy";
 import { kindLabel, primaryValue } from "../core/presentation";
 import { entityAppearance, Icon } from "../components/EntityIcon";
-import { roomId } from "../core/selectors";
+import { isVisible, roomId } from "../core/selectors";
 import { resolveAlias } from "../preferences/types";
 import { session } from "../services/runtime";
+import { openDeviceSummary } from "../services/deviceNavigation";
+import { SwitchControl } from "../components/controls/SwitchControl";
 import {
   Body,
   Button,
@@ -19,7 +22,7 @@ import {
 } from "../components/ui";
 export function DeviceDetailScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
-  const { snapshot, status, preferences, mode } = useCockpit();
+  const { snapshot, status, preferences, mode, profileId } = useCockpit();
   const [raw, setRaw] = useState(false);
   const resolved = resolveAlias(key, preferences.identities.aliases);
   const entity = Object.values(snapshot?.entities ?? {}).find(
@@ -39,6 +42,7 @@ export function DeviceDetailScreen() {
   const room = roomId(entity, snapshot, preferences);
   const favorite = preferences.favorites.includes(entity.key);
   const { icon, tint } = entityAppearance(entity, status.kind === "ready");
+  const assessment = assessEntity(entity, status.kind === "ready");
   const device = entity.deviceId
     ? snapshot.devices[entity.deviceId]
     : undefined;
@@ -101,11 +105,32 @@ export function DeviceDetailScreen() {
             is unknown.
           </Body>
         )}
+        <Body>{assessment.explanation}</Body>
         <Body>
-          Read-only observation. Values reflect the last state reported to
-          Maurice.
+          {cap?.kind === "switch"
+            ? mode === "demo"
+              ? "Values are simulated inside Maurice. Sending a request does not change the observed value until the simulation reports it."
+              : "Values reflect the last state reported to Maurice. A fresh HA connection does not confirm a recent device poll."
+            : "Read-only observation. Values reflect the last state reported to Maurice. A fresh HA connection does not confirm a recent device poll."}
         </Body>
       </Panel>
+      {cap?.kind === "switch" && profileId && (
+        <SwitchControl
+          key={`${profileId}:${snapshot.sessionId}:${entity.key}:${entity.entityId}`}
+          entity={entity}
+          snapshot={snapshot}
+          profileId={profileId}
+          mode={mode}
+          ready={status.kind === "ready"}
+        />
+      )}
+      {entity.deviceId && profileId && isVisible(entity, preferences) && (
+        <Button
+          title="All readings for this device"
+          secondary
+          onPress={() => openDeviceSummary(profileId, entity.deviceId!)}
+        />
+      )}
       <Button
         title={favorite ? "Remove from favorites" : "Add to favorites"}
         secondary

@@ -4,17 +4,9 @@ import type {
   IdentityMetadata,
 } from "../../core/types";
 import { emptyIdentity } from "../../preferences/types";
+import { OBSERVATION_DOMAINS } from "../../core/types";
 import type { RawEntity } from "./entityStream";
-const domains = new Set([
-  "lock",
-  "climate",
-  "fan",
-  "switch",
-  "camera",
-  "sensor",
-  "binary_sensor",
-  "event",
-]);
+const domains = new Set<string>(OBSERVATION_DOMAINS);
 const shallowEqual = (a: object, b: object) =>
   Object.keys(a).length === Object.keys(b).length &&
   Object.entries(a).every(([key, value]) =>

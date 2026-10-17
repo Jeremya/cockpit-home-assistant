@@ -623,15 +623,25 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     }
   }
   async callService(call: ServiceCall): Promise<ServiceCallResult> {
+    const connection = this.connection;
+    const transportGeneration = this.transportGeneration;
     if (
       this.stopped ||
+      this.terminal ||
       this.status.kind !== "ready" ||
-      !this.connection?.connected
+      !connection?.connected
     )
       return { kind: "rejected", message: "Session is not ready." };
+    const current = () =>
+      !this.stopped &&
+      !this.terminal &&
+      this.connection === connection &&
+      this.transportGeneration === transportGeneration &&
+      connection.connected;
+    const timeout = new Error("Service acknowledgement deadline");
     try {
       await withDeadline(
-        this.connection.sendMessagePromise({
+        connection.sendMessagePromise({
           type: "call_service",
           domain: call.domain,
           service: call.service,
@@ -639,14 +649,14 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
           service_data: call.data ?? {},
         }),
         10_000,
-        new Error("timeout"),
+        timeout,
       );
-      return { kind: "accepted" };
+      return current()
+        ? { kind: "accepted" }
+        : { kind: "unknown", reason: "connection_lost" };
     } catch (error) {
-      if (error instanceof Error && error.message === "timeout")
-        return { kind: "unknown", reason: "timeout" };
-      if (!this.connection.connected)
-        return { kind: "unknown", reason: "connection_lost" };
+      if (!current()) return { kind: "unknown", reason: "connection_lost" };
+      if (error === timeout) return { kind: "unknown", reason: "timeout" };
       return { kind: "rejected", message: "Home Assistant reported an error." };
     }
   }

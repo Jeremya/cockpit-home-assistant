@@ -7,21 +7,9 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-export const colors = {
-  background: "#0b0f19",
-  surface: "#171d2a",
-  raised: "#232b3b",
-  text: "#f3f5fb",
-  muted: "#a5afc2",
-  accent: "#98c2ff",
-  border: "#2c3547",
-  warning: "#ffc083",
-  danger: "#ffa6ad",
-  comfort: "#87cefa",
-  security: "#beb4ff",
-  sensor: "#91d9bd",
-  accentSurface: "#1b2d47",
-};
+import { colors } from "../theme";
+export { colors } from "../theme";
+
 export function Label({ children }: PropsWithChildren) {
   return <Text style={styles.label}>{children}</Text>;
 }

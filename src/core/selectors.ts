@@ -1,5 +1,6 @@
-import type { EntityRecord, HomeSnapshot } from "./types";
+import type { Condition, EntityRecord, HomeSnapshot } from "./types";
 import type { ProfilePreferences } from "../preferences/types";
+import { assessEntity, needsAttention } from "./policy";
 export function isVisible(
   entity: EntityRecord,
   prefs: ProfilePreferences,
@@ -44,4 +45,40 @@ export function groupByRoom(snapshot: HomeSnapshot, prefs: ProfilePreferences) {
         ? -1
         : a.name.localeCompare(b.name),
   );
+}
+
+/** Global visible coverage, independent of the selected room or physical grouping. */
+export const attentionPriority: Partial<Record<Condition, number>> = {
+  alert: 0,
+  attention: 1,
+  unavailable: 2,
+  unknown: 3,
+};
+export function attentionSummary(
+  snapshot: HomeSnapshot,
+  prefs: ProfilePreferences,
+  ready: boolean,
+) {
+  const visible = Object.values(snapshot.entities).filter((entity) =>
+    isVisible(entity, prefs),
+  );
+  const assessed = visible.map((entity) => ({
+    entity,
+    assessment: assessEntity(entity, ready),
+  }));
+  return {
+    visibleCount: visible.length,
+    assessedCount: assessed.filter((item) => item.assessment.ruleApplied)
+      .length,
+    unassessedCount: assessed.filter((item) => !item.assessment.ruleApplied)
+      .length,
+    items: assessed
+      .filter((item) => needsAttention(item.assessment.condition))
+      .sort(
+        (a, b) =>
+          (attentionPriority[a.assessment.condition] ?? 4) -
+          (attentionPriority[b.assessment.condition] ?? 4),
+      )
+      .map((item) => item.entity),
+  };
 }

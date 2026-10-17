@@ -3,6 +3,8 @@ import { router } from "expo-router";
 import { useCockpit } from "../core/store";
 import { session } from "../services/runtime";
 import { useHousePlan } from "../spatial/plans";
+import { areaLinkStatus } from "../spatial/selectors";
+import { savedPlacements, placementIssueLabel } from "../spatial/placements";
 import { Body, Button, Label, Panel, Title, styles } from "../components/ui";
 export function DiagnosticsScreen() {
   const {
@@ -17,6 +19,22 @@ export function DiagnosticsScreen() {
   const preferencesReady = !!profileId && preferencesLoadedFor === profileId;
   const { plan, defaultChanged } = useHousePlan();
   const { spatial } = preferences;
+  const placementProblems = savedPlacements(
+    snapshot,
+    preferences,
+    plan,
+    status.kind === "ready",
+  ).filter((entry) => entry.issues.length);
+  const brokenLinks = Object.keys(spatial.areaLinks).filter(
+    (room) =>
+      areaLinkStatus(room, spatial.areaLinks, snapshot).kind === "missing",
+  ).length;
+  const planRooms = new Set(
+    plan.floors.flatMap((floor) => floor.rooms.map((room) => room.id)),
+  );
+  const orphanLinks = Object.keys(spatial.areaLinks).filter(
+    (room) => !planRooms.has(room),
+  ).length;
   const known = new Set(
     Object.values(snapshot?.entities ?? {}).map((entity) => entity.key),
   );
@@ -48,9 +66,29 @@ export function DiagnosticsScreen() {
             Plan: {plan.name} (revision {plan.revision}){"\n"}Saved for this
             profile: {spatial.plan ? "yes" : "not yet"}
             {"\n"}Room links: {Object.keys(spatial.areaLinks).length}
+            {brokenLinks ? ` (${brokenLinks} to removed HA areas)` : ""}
+            {orphanLinks ? ` (${orphanLinks} to rooms not in this plan)` : ""}
             {"\n"}Device placements: {Object.keys(spatial.placements).length}
+            {placementProblems.length
+              ? ` (${placementProblems.length} unresolved or hidden)`
+              : ""}
             {defaultChanged ? "\nA newer default plan is available." : ""}
           </Body>
+          {placementProblems.map((entry) => (
+            <Body key={entry.key}>
+              {entry.entity?.name ?? entry.storedKey}:{" "}
+              {entry.issues
+                .map((issue) => placementIssueLabel[issue])
+                .join(" · ")}
+            </Body>
+          ))}
+          {!!Object.keys(spatial.placements).length && (
+            <Button
+              title="Manage device placements"
+              secondary
+              onPress={() => router.push("/house-place")}
+            />
+          )}
           {!preferencesReady && (
             <Body>Preferences for this profile are not loaded yet.</Body>
           )}

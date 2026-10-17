@@ -3,6 +3,7 @@ import type { ComponentProps } from "react";
 import { getCondition } from "../core/policy";
 import type { EntityRecord } from "../core/types";
 import { colors } from "./ui";
+import { entityTint } from "../core/appearance";
 
 export type IconName = ComponentProps<typeof Feather>["name"];
 
@@ -40,20 +41,7 @@ export function entityAppearance(entity: EntityRecord, ready: boolean) {
     event: "bell",
   };
   if (deviceClass === "temperature") icons.sensor = "thermometer";
-  const category = ["lock", "camera", "event"].includes(entity.domain)
-    ? colors.security
-    : ["climate", "fan"].includes(entity.domain)
-      ? colors.comfort
-      : entity.domain === "switch"
-        ? colors.warning
-        : colors.sensor;
   const condition = getCondition(entity, ready);
-  const tint = !ready
-    ? colors.muted
-    : ["alert", "unknown", "unavailable"].includes(condition)
-      ? colors.danger
-      : condition === "attention"
-        ? colors.warning
-        : category;
+  const tint = entityTint(entity.domain, condition);
   return { icon: icons[entity.domain] ?? "activity", tint };
 }

@@ -452,3 +452,135 @@ test("stopping invalidates pending epochs and late callbacks", async () => {
   expect(count).toBe(1);
   expect(fake.close).toHaveBeenCalled();
 });
+
+const switchCall = {
+  domain: "switch",
+  service: "turn_on",
+  entityId: "switch.public_lamp",
+};
+test("service dispatch constructs the exact WebSocket message and reports acceptance separately from state", async () => {
+  const fake = new FakeConnection();
+  const backend = make(fake);
+  try {
+    await backend.start();
+    const send = jest.spyOn(fake, "sendMessagePromise");
+    await expect(backend.callService(switchCall)).resolves.toEqual({
+      kind: "accepted",
+    });
+    expect(send).toHaveBeenLastCalledWith({
+      type: "call_service",
+      domain: "switch",
+      service: "turn_on",
+      target: { entity_id: "switch.public_lamp" },
+      service_data: {},
+    });
+  } finally {
+    backend.stop();
+  }
+});
+test.each(["resolve", "reject"])(
+  "stopping during service %s never accepts an obsolete result or throws",
+  async (outcome) => {
+    const fake = new FakeConnection();
+    const backend = make(fake);
+    await backend.start();
+    let resolve!: (value: never[]) => void;
+    let reject!: (error: unknown) => void;
+    jest.spyOn(fake, "sendMessagePromise").mockImplementation(
+      () =>
+        new Promise((done, fail) => {
+          resolve = done;
+          reject = fail;
+        }),
+    );
+    const result = backend.callService(switchCall);
+    backend.stop();
+    if (outcome === "resolve") resolve([]);
+    else reject(new Error("late service rejection"));
+    await expect(result).resolves.toEqual({
+      kind: "unknown",
+      reason: "connection_lost",
+    });
+  },
+);
+test("a transport reconnect using the same Connection object invalidates old service acknowledgements", async () => {
+  const fake = new FakeConnection();
+  const backend = make(fake);
+  try {
+    await backend.start();
+    const original = fake.sendMessagePromise.bind(fake);
+    let resolve!: (value: never[]) => void;
+    const send = jest
+      .spyOn(fake, "sendMessagePromise")
+      .mockImplementation((message) =>
+        message.type === "call_service"
+          ? new Promise((done) => {
+              resolve = done;
+            })
+          : original(message),
+      );
+    const result = backend.callService(switchCall);
+    fake.connected = false;
+    fake.fire("disconnected");
+    fake.connected = true;
+    fake.fire("ready");
+    await backend.resync();
+    resolve([]);
+    await expect(result).resolves.toEqual({
+      kind: "unknown",
+      reason: "connection_lost",
+    });
+    expect(
+      send.mock.calls.filter(([message]) => message.type === "call_service"),
+    ).toHaveLength(1);
+  } finally {
+    backend.stop();
+  }
+});
+test.each([
+  { code: "secret", message: "private response" },
+  new Error("timeout"),
+])(
+  "a service rejection is sanitized and is never automatically retried: %#",
+  async (failure) => {
+    const fake = new FakeConnection();
+    const backend = make(fake);
+    try {
+      await backend.start();
+      const send = jest
+        .spyOn(fake, "sendMessagePromise")
+        .mockRejectedValue(failure);
+      await expect(backend.callService(switchCall)).resolves.toEqual({
+        kind: "rejected",
+        message: "Home Assistant reported an error.",
+      });
+      expect(send).toHaveBeenCalledTimes(1);
+    } finally {
+      backend.stop();
+    }
+  },
+);
+test("service timeout is unknown, while a non-ready session sends nothing", async () => {
+  jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+  const fake = new FakeConnection();
+  const backend = make(fake);
+  try {
+    const send = jest.spyOn(fake, "sendMessagePromise");
+    await expect(backend.callService(switchCall)).resolves.toMatchObject({
+      kind: "rejected",
+    });
+    expect(send).not.toHaveBeenCalled();
+    await backend.start();
+    send.mockClear().mockImplementation(() => new Promise(() => undefined));
+    const result = backend.callService(switchCall);
+    await jest.advanceTimersByTimeAsync(10_000);
+    await expect(result).resolves.toEqual({
+      kind: "unknown",
+      reason: "timeout",
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+  } finally {
+    backend.stop();
+    jest.useRealTimers();
+  }
+});

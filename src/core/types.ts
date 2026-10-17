@@ -48,7 +48,21 @@ export interface EntityRegistryEntry {
   disabled_by: string | null;
   name: string | null;
   original_name?: string;
+  /** Integration-owned semantics; never inferred from translated display names. */
+  platform?: string;
+  translation_key?: string | null;
 }
+
+export const OBSERVATION_DOMAINS = [
+  "lock",
+  "climate",
+  "fan",
+  "switch",
+  "camera",
+  "sensor",
+  "binary_sensor",
+  "event",
+] as const;
 export interface PhysicalDevice {
   id: string;
   name: string;
@@ -111,6 +125,8 @@ export type Capability =
   | {
       kind: "fan";
       onOff: boolean;
+      canTurnOn: boolean;
+      canTurnOff: boolean;
       percentage: { step: number } | null;
       presets: string[];
     }

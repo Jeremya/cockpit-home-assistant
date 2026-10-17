@@ -71,11 +71,14 @@ test("only a short single-pointer press with little movement counts as a tap", (
   expect(classifyGesture({ ...base, dx: 14, dy: 0 })).toBe("drag");
   expect(classifyGesture({ ...base, maxPointers: 2 })).toBe("multi");
   expect(classifyGesture({ ...base, durationMs: 900 })).toBe("long");
+  expect(classifyGesture({ ...base, maxDistance: 40 })).toBe("drag"); // out and back is still an orbit
 });
 
 test("markers are sanitized to the bridge contract and invalid entries are dropped", () => {
   const markers = sanitizeMarkers(
     [
+      null,
+      "malformed",
       {
         key: "fixture:lock",
         floorId: floor.id,
@@ -138,4 +141,28 @@ test("frame stats report interaction fps, idle frames and hidden frames separate
   expect(report.idleFrames).toBe(1);
   expect(report.hiddenFrames).toBe(1);
   expect(report.totalFrames).toBe(53);
+});
+
+test("live interaction duration and frame spacing reset without erasing idle history", () => {
+  const stats = new FrameStats();
+  stats.frame(0, true);
+  stats.beginInteraction(100);
+  stats.frame(120, true);
+  stats.frame(140, true);
+  stats.frame(160, true);
+  expect(stats.report(200).interaction).toMatchObject({
+    frames: 3,
+    durationMs: 100,
+    fps: 30,
+    p95FrameMs: 20,
+  });
+  stats.endInteraction(200);
+  stats.beginInteraction(1000);
+  expect(stats.report(1010).interaction).toMatchObject({
+    frames: 0,
+    durationMs: 10,
+    fps: 0,
+    p95FrameMs: 0,
+  });
+  expect(stats.report().idleFrames).toBe(1);
 });

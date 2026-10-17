@@ -13,3 +13,7 @@ export const session = new SessionManager(
   new Credentials(AsyncStorage, secrets, randomUUID),
   new PreferencesStorage(AsyncStorage),
 );
+/** The only command API for screens. No backend connection/service JSON. */
+export const commands = session.commands;
+/** Transient outcomes only; observations remain in the authoritative cockpit store. */
+export const commandStore = session.commandStore;

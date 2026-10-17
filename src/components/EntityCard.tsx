@@ -1,10 +1,11 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
+import { openReading } from "../services/deviceNavigation";
 import { useCockpit } from "../core/store";
 import { kindLabel, primaryValue } from "../core/presentation";
 import { colors } from "./ui";
 import { entityAppearance, Icon } from "./EntityIcon";
+import { assessEntity, needsAttention } from "../core/policy";
 export const EntityCard = memo(function EntityCard({
   entityId,
   now,
@@ -17,6 +18,7 @@ export const EntityCard = memo(function EntityCard({
   const entity = useCockpit((state) => state.snapshot?.entities[entityId]);
   const config = useCockpit((state) => state.snapshot?.config);
   const ready = useCockpit((state) => state.status.kind === "ready");
+  const profileId = useCockpit((state) => state.profileId);
   const favorite = useCockpit((state) =>
     entity ? state.preferences.favorites.includes(entity.key) : false,
   );
@@ -24,14 +26,13 @@ export const EntityCard = memo(function EntityCard({
   const { icon, tint } = entityAppearance(entity, ready);
   const tile = layout === "tile";
   const value = primaryValue(entity, config, now);
+  const assessment = assessEntity(entity, ready);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${entity.name}, ${value}${ready ? "" : ", cached"}`}
-      accessibilityHint="Opens observed state and device details"
-      onPress={() =>
-        router.push({ pathname: "/device/[key]", params: { key: entity.key } })
-      }
+      accessibilityHint={`Opens observed state and device details. ${assessment.explanation}`}
+      onPress={() => profileId && openReading(profileId, entity.key)}
       style={({ pressed }) => [
         card.container,
         tile ? card.tile : card.row,
@@ -56,6 +57,9 @@ export const EntityCard = memo(function EntityCard({
           {kindLabel[entity.domain]}
           {ready ? "" : " · Cached"}
         </Text>
+        {ready && needsAttention(assessment.condition) && (
+          <Text style={card.subtitle}>{assessment.explanation}</Text>
+        )}
       </View>
       <Text style={[tile ? card.tileValue : card.rowValue, { color: tint }]}>
         {value}

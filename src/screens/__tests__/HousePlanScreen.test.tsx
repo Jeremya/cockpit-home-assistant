@@ -4,6 +4,17 @@ import { useCockpit } from "../../core/store";
 import { emptyPreferences } from "../../preferences/types";
 import { sampleHouse } from "../../spatial/plans";
 import { resetSpatial } from "../../spatial/profilePlan";
+import { DemoBackend } from "../../session/demo/DemoBackend";
+import { router } from "expo-router";
+import {
+  fixtureEntity,
+  fixtureSnapshot,
+  fixturePreferences,
+  location,
+} from "../../spatial/__tests__/placementFixtures";
+
+jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+jest.mock("../../web/CockpitScene", () => () => null);
 
 beforeEach(() =>
   useCockpit.setState({
@@ -33,9 +44,134 @@ test("the plan works without an HA connection and floor changes clear room selec
   expect(screen.queryByRole("button", { name: "Explore Kitchen" })).toBeNull();
   fireEvent.press(screen.getByRole("button", { name: "Explore Bedroom 2" }));
   expect(screen.getByRole("header", { name: "Bedroom 2" })).toBeTruthy();
-  expect(screen.getByText("Device locations have not been set.")).toBeTruthy();
+  expect(screen.getByText("Not linked to a Home Assistant area.")).toBeTruthy();
   fireEvent.press(screen.getByRole("tab", { name: "Floor 1" }));
   expect(screen.queryByRole("header", { name: "Bedroom 2" })).toBeNull();
+});
+
+test("placed markers and their list share stable navigation and isolate floors", async () => {
+  useCockpit.setState({
+    preferencesLoadedFor: "demo",
+    snapshot: fixtureSnapshot(),
+    status: { kind: "ready", haVersion: "Demo", readySince: "" },
+    preferences: fixturePreferences({ stable: location }),
+  });
+  const screen = await renderAsync(<HousePlanScreen />);
+  fireEvent(screen.getByTestId("plan-frame"), "layout", {
+    nativeEvent: { layout: { width: 348, height: 360 } },
+  });
+  fireEvent.press(screen.getByTestId("plan-marker-stable"));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: "/device/[key]",
+    params: { key: "stable" },
+  });
+  fireEvent.press(screen.getByRole("button", { name: "Reposition Test lamp" }));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: "/house-place",
+    params: { key: "stable" },
+  });
+  fireEvent.press(screen.getByRole("tab", { name: "Floor 2" }));
+  expect(screen.queryByTestId("plan-marker-stable")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Open placed Test lamp" }),
+  ).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "Place device" }));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: "/house-place",
+    params: { floor: "sample-floor-2" },
+  });
+});
+
+test("marker state becomes cached or unavailable and hidden entities keep only their saved metadata", async () => {
+  const preferences = fixturePreferences({ stable: location });
+  useCockpit.setState({
+    snapshot: fixtureSnapshot(),
+    preferences,
+    status: { kind: "reconnecting", lastReadyAt: null },
+  });
+  const screen = await renderAsync(<HousePlanScreen />);
+  fireEvent(screen.getByTestId("plan-frame"), "layout", {
+    nativeEvent: { layout: { width: 348, height: 360 } },
+  });
+  expect(
+    screen.getByRole("button", { name: "Test lamp, Off · Cached" }),
+  ).toBeTruthy();
+  await act(async () =>
+    useCockpit.setState({
+      snapshot: fixtureSnapshot([fixtureEntity({ state: "unavailable" })]),
+      status: { kind: "ready", haVersion: "Demo", readySince: "" },
+    }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Test lamp, Unavailable" }),
+  ).toBeTruthy();
+  await act(async () =>
+    useCockpit.setState({
+      preferences: { ...preferences, visibility: { stable: "hidden" } },
+    }),
+  );
+  expect(screen.queryByTestId("plan-marker-stable")).toBeNull();
+  expect(useCockpit.getState().preferences.spatial.placements.stable).toEqual(
+    location,
+  );
+  expect(
+    screen.getByText(/Some saved placements cannot be shown/),
+  ).toBeTruthy();
+});
+
+test("placement markers use the same connectivity polarity and wording as Home", async () => {
+  useCockpit.setState({
+    snapshot: fixtureSnapshot([
+      fixtureEntity({
+        domain: "binary_sensor",
+        state: "off",
+        attributes: { device_class: "connectivity" },
+      }),
+    ]),
+    status: { kind: "ready", haVersion: "Test", readySince: "" },
+    preferences: fixturePreferences({ stable: location }),
+  });
+  const screen = await renderAsync(<HousePlanScreen />);
+  fireEvent(screen.getByTestId("plan-frame"), "layout", {
+    nativeEvent: { layout: { width: 348, height: 360 } },
+  });
+  expect(
+    screen.getByRole("button", { name: "Test lamp, Disconnected" }),
+  ).toBeTruthy();
+  await act(async () =>
+    useCockpit.setState({
+      status: { kind: "reconnecting", lastReadyAt: null },
+    }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Test lamp, Disconnected · Cached" }),
+  ).toBeTruthy();
+});
+
+test("retained HA area names stay qualified after a failed registry refresh", async () => {
+  const preferences = fixturePreferences();
+  preferences.spatial.areaLinks = { "sample-1-1": "kitchen" };
+  useCockpit.setState({ snapshot: fixtureSnapshot(), preferences });
+  const screen = await renderAsync(<HousePlanScreen />);
+  fireEvent.press(screen.getByRole("button", { name: "Explore Kitchen" }));
+  await act(async () =>
+    useCockpit.setState({
+      snapshot: {
+        ...fixtureSnapshot(),
+        metadata: {
+          ...fixtureSnapshot().metadata,
+          areas: {
+            kind: "stale",
+            lastLoadedAt: "earlier",
+            reason: "forbidden",
+          },
+        },
+      },
+    }),
+  );
+  expect(
+    screen.getByText(/Home Assistant area: Kitchen \(cached, not verified\)/),
+  ).toBeTruthy();
 });
 
 test("touching a room polygon selects that room", async () => {
@@ -91,4 +227,32 @@ test("replacing the displayed plan resets floor and room selection even with the
     screen.getByRole("tab", { name: "Floor 1", selected: true }),
   ).toBeTruthy();
   expect(screen.queryByRole("header", { name: "Bedroom 2" })).toBeNull();
+});
+
+test("a linked room lists the devices of its HA area and opens them", async () => {
+  let demo: import("../../core/types").HomeSnapshot | undefined;
+  const backend = new DemoBackend("plan-links");
+  backend.onSnapshot((snapshot) => (demo = snapshot));
+  await backend.start();
+  backend.stop();
+  const spatial = resetSpatial(sampleHouse);
+  spatial.areaLinks = { "sample-1-1": "kitchen" };
+  useCockpit.setState({
+    snapshot: demo!,
+    preferences: { ...emptyPreferences(), spatial },
+  });
+  const screen = await renderAsync(<HousePlanScreen />);
+  expect(screen.getByText(/^11 entities$/)).toBeTruthy();
+  fireEvent.press(screen.getByRole("button", { name: "Explore Kitchen" }));
+  expect(screen.getByText(/Home Assistant area: Kitchen/)).toBeTruthy();
+  fireEvent.press(
+    screen.getByRole("button", { name: "Open Fridge temperature" }),
+  );
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: "/device/[key]",
+    params: { key: expect.stringContaining("fridge") },
+  });
+  expect(screen.queryByRole("button", { name: "Open Front door" })).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "Explore Living room" }));
+  expect(screen.getByText("Not linked to a Home Assistant area.")).toBeTruthy();
 });

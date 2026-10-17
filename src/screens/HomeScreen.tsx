@@ -7,124 +7,111 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useCockpit } from "../core/store";
-import { groupByRoom, isVisible } from "../core/selectors";
-import { getCondition } from "../core/policy";
+import { attentionSummary, groupByRoom } from "../core/selectors";
+import { deviceSummaries, type DeviceSummary } from "../core/deviceSummaries";
 import { session } from "../services/runtime";
-import {
-  Body,
-  Button,
-  Label,
-  Panel,
-  Title,
-  colors,
-  styles,
-} from "../components/ui";
+import { Body, Button, Label, Panel, colors, styles } from "../components/ui";
 import { Icon } from "../components/EntityIcon";
 import { EntityCard } from "../components/EntityCard";
+import { DeviceSummaryCard } from "../components/DeviceSummaryCard";
 import { SessionBanner } from "../components/SessionBanner";
 import { HousePlanCard } from "../components/HousePlanCard";
 
-function EntityGrid({
-  ids,
-  now,
-  columns,
-}: {
-  ids: string[];
-  now: number;
-  columns: number;
-}) {
-  return (
-    <View style={{ gap: 10 }}>
-      {Array.from({ length: Math.ceil(ids.length / columns) }, (_, row) => (
-        <View key={row} style={home.gridRow}>
-          {ids.slice(row * columns, (row + 1) * columns).map((id) => (
-            <EntityCard key={id} entityId={id} now={now} layout="tile" />
-          ))}
-          {Array.from(
-            { length: Math.max(0, (row + 1) * columns - ids.length) },
-            (_, index) => (
-              <View key={`space-${index}`} style={{ flex: 1 }} />
-            ),
-          )}
-        </View>
-      ))}
-    </View>
-  );
-}
-
 export function HomeScreen() {
   const profileId = useCockpit((state) => state.profileId);
-  return <HomeContent key={profileId ?? "welcome"} />;
+  return <HomeContent key={profileId ?? "welcome"} profileId={profileId} />;
 }
-
-function HomeContent() {
+function HomeContent({ profileId }: { profileId: string | null }) {
   const { snapshot, status, preferences, mode, initialized } = useCockpit();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [expandedAttention, setExpandedAttention] = useState(false);
+  const [expandedCoverage, setExpandedCoverage] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const { width, fontScale } = useWindowDimensions();
-  const columns = width < 360 || fontScale > 1.3 ? 1 : width >= 720 ? 3 : 2;
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(timer);
   }, []);
+  const ready = status.kind === "ready";
   const rooms = useMemo(
     () => (snapshot ? groupByRoom(snapshot, preferences) : []),
     [snapshot, preferences],
   );
-  // A deleted/hidden room must not leave the home on an empty selection.
+  const summaries = useMemo(
+    () =>
+      snapshot && profileId
+        ? deviceSummaries(snapshot, preferences, profileId, ready)
+        : [],
+    [snapshot, preferences, profileId, ready],
+  );
   const selection = rooms.find((room) => room.id === selectedRoom);
-  const displayedRooms = selection ? [selection] : rooms;
-  const ready = status.kind === "ready";
-  const attention =
-    snapshot && ready
-      ? Object.values(snapshot.entities)
-          .filter(
-            (entity) =>
-              isVisible(entity, preferences) &&
-              ["attention", "alert", "unknown", "unavailable"].includes(
-                getCondition(entity, true),
-              ),
-          )
-          .sort(
-            (a, b) =>
-              Number(getCondition(a, true) !== "alert") -
-              Number(getCondition(b, true) !== "alert"),
-          )
-      : [];
-  const attentionKeys = new Set(attention.map((entity) => entity.key));
-  const favorites = snapshot
-    ? Object.values(snapshot.entities)
-        .filter(
-          (entity) =>
-            isVisible(entity, preferences) &&
-            preferences.favorites.includes(entity.key) &&
-            !attentionKeys.has(entity.key),
+  const coverage = snapshot
+    ? attentionSummary(snapshot, preferences, ready)
+    : null;
+  const attention = coverage?.items ?? [];
+  const favorites = summaries
+    .filter((group) => group.favoriteRank !== null)
+    .sort((a, b) => a.favoriteRank! - b.favoriteRank!);
+  const favoriteIds = new Set(favorites.map((group) => group.id));
+  const displayed = summaries.filter((group) =>
+    selection
+      ? group.roomIds.includes(
+          selection.id === "unassigned" ? null : selection.id,
         )
-        .sort(
-          (a, b) =>
-            preferences.favorites.indexOf(a.key) -
-            preferences.favorites.indexOf(b.key),
-        )
-    : [];
-  const count = rooms.reduce((total, room) => total + room.entityIds.length, 0);
-  const roomCount = rooms.filter((room) => room.id !== "unassigned").length;
+      : !favoriteIds.has(group.id),
+  );
+  const buckets = new Map<string, { name: string; items: DeviceSummary[] }>();
+  for (const group of displayed) {
+    const key =
+      selection?.id ??
+      (group.roomIds.length > 1
+        ? JSON.stringify(["multiple"])
+        : JSON.stringify(["room", group.roomIds[0]]));
+    const bucket = buckets.get(key) ?? {
+      name: selection?.name ?? group.roomLabel,
+      items: [],
+    };
+    bucket.items.push(group);
+    buckets.set(key, bucket);
+  }
+  const count = coverage?.visibleCount ?? 0;
+  const deviceCount = summaries.filter((group) => group.deviceId).length;
   const refresh = async () => {
     setRefreshing(true);
     try {
       await session.refresh();
     } catch {
-      /* Session banner owns the failure. */
+      /* Banner owns errors. */
     } finally {
       setRefreshing(false);
     }
   };
+  const renderGroups = (groups: DeviceSummary[]) =>
+    snapshot && (
+      <View style={{ gap: 12 }}>
+        {groups.map((group) =>
+          group.deviceId ? (
+            <DeviceSummaryCard
+              key={group.id}
+              summary={group}
+              snapshot={snapshot}
+              ready={ready}
+              now={now}
+            />
+          ) : (
+            <EntityCard
+              key={group.id}
+              entityId={group.members[0]!.entityId}
+              now={now}
+            />
+          ),
+        )}
+      </View>
+    );
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <ScrollView
@@ -157,7 +144,7 @@ function HomeContent() {
                     : "Synced with HA"
                   : snapshot
                     ? "Cached observations"
-                    : "At your service. Reluctantly."}
+                    : "Your home, at a glance."}
               </Text>
             </View>
           </View>
@@ -172,16 +159,6 @@ function HomeContent() {
           >
             <Icon name="sliders" color={colors.text} />
           </Pressable>
-        </View>
-        <View style={{ gap: 8 }}>
-          <Title>Your home.</Title>
-          <Body>
-            {new Date(now).toLocaleDateString(undefined, {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </Body>
         </View>
         {!initialized ? (
           <Body>Opening your home…</Body>
@@ -201,51 +178,26 @@ function HomeContent() {
             />
             <Button
               title="Explore demo home"
+              secondary
               onPress={() => {
                 void session.connect({ demo: true }).catch(() => undefined);
               }}
-              secondary
             />
           </Panel>
         ) : (
           <SessionBanner />
         )}
-        {initialized && <HousePlanCard />}
         {snapshot && (
           <>
-            <View style={home.summary}>
-              {[
-                {
-                  value: String(roomCount),
-                  label: mode === "demo" ? "Rooms" : "HA rooms",
-                },
-                { value: String(count), label: "Entities" },
-                {
-                  value: ready ? String(attention.length) : "—",
-                  label: "Attention",
-                },
-              ].map((stat) => (
-                <View key={stat.label} style={home.stat}>
-                  <Text style={home.statValue}>{stat.value}</Text>
-                  <Text style={home.statLabel}>{stat.label}</Text>
-                </View>
-              ))}
-            </View>
-            <Panel style={home.attention}>
+            <View style={{ gap: 10 }}>
               <View style={styles.row}>
                 <View style={home.heading}>
                   <Icon
-                    name={
-                      ready && !attention.length
-                        ? "check-circle"
-                        : "alert-circle"
-                    }
-                    color={
-                      ready && !attention.length
-                        ? colors.sensor
-                        : colors.warning
-                    }
+                    name={ready && !attention.length ? "info" : "alert-circle"}
                     size={18}
+                    color={
+                      ready && !attention.length ? colors.muted : colors.warning
+                    }
                   />
                   <Text style={home.attentionTitle}>Needs attention</Text>
                 </View>
@@ -271,8 +223,7 @@ function HomeContent() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityState={{ expanded: expandedAttention }}
-                      aria-expanded={expandedAttention}
-                      onPress={() => setExpandedAttention(!expandedAttention)}
+                      onPress={() => setExpandedAttention((value) => !value)}
                       style={home.expand}
                     >
                       <Text style={home.link}>
@@ -280,23 +231,53 @@ function HomeContent() {
                           ? "Show less"
                           : `Show all ${attention.length} attention items`}
                       </Text>
-                      <Icon
-                        name={expandedAttention ? "chevron-up" : "chevron-down"}
-                        color={colors.accent}
-                        size={16}
-                      />
                     </Pressable>
                   )}
                 </>
               ) : (
-                <Body>Nothing to report. Maurice is almost disappointed.</Body>
+                <Body>
+                  {count
+                    ? "No issue detected by the available attention rules."
+                    : "No visible entities to assess yet."}
+                </Body>
               )}
-            </Panel>
-            <View style={{ gap: 16 }}>
-              <View style={[styles.row, { flexWrap: "wrap" }]}>
-                <Text style={home.sectionTitle}>Around your home</Text>
-                <Text style={home.caption}>{count} visible entities</Text>
-              </View>
+              {ready && count > 0 && coverage && (
+                <>
+                  <Text style={home.caption}>
+                    Attention rules assessed {coverage.assessedCount} of{" "}
+                    {coverage.visibleCount} visible entities.
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: expandedCoverage }}
+                    onPress={() => setExpandedCoverage((value) => !value)}
+                    style={home.expand}
+                  >
+                    <Text style={home.link}>
+                      {expandedCoverage
+                        ? "Hide explanation"
+                        : "About these readings"}
+                    </Text>
+                  </Pressable>
+                  {expandedCoverage && (
+                    <Body>
+                      Other readings are not a device health check. Hidden
+                      entities are excluded. A fresh HA connection does not
+                      confirm a recent device poll.
+                    </Body>
+                  )}
+                </>
+              )}
+            </View>
+            <View style={{ gap: 14 }}>
+              <Text style={home.sectionTitle}>Around your home</Text>
+              <Text style={home.caption}>
+                {deviceCount} {deviceCount === 1 ? "device" : "devices"} ·{" "}
+                {count} visible readings
+                {summaries.some((group) => !group.deviceId)
+                  ? " · includes standalone readings"
+                  : ""}
+              </Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -312,7 +293,6 @@ function HomeContent() {
                       key={room.id ?? "all"}
                       accessibilityRole="tab"
                       accessibilityState={{ selected }}
-                      aria-selected={selected}
                       onPress={() => setSelectedRoom(room.id)}
                       style={[home.chip, selected && home.selectedChip]}
                     >
@@ -335,51 +315,36 @@ function HomeContent() {
                   <Icon name="star" size={16} color={colors.accent} />
                   <Text style={home.sectionTitle}>Favorites</Text>
                 </View>
-                <EntityGrid
-                  ids={favorites.map((entity) => entity.entityId)}
-                  now={now}
-                  columns={columns}
-                />
+                {renderGroups(favorites)}
               </View>
             )}
-            {displayedRooms.map((room) => (
-              <View key={room.id} style={{ gap: 14 }}>
-                <View style={styles.row}>
-                  <Text style={home.roomTitle}>{room.name}</Text>
-                  <Text style={home.caption}>
-                    {room.entityIds.length} entities
-                  </Text>
-                </View>
-                {room.id === "unassigned" && (
-                  <Text style={home.caption}>
-                    Assign rooms in Settings → Entities and rooms.
-                  </Text>
-                )}
-                <EntityGrid ids={room.entityIds} now={now} columns={columns} />
+            {[...buckets].map(([key, bucket]) => (
+              <View key={key} style={{ gap: 14 }}>
+                <Text style={home.roomTitle}>{bucket.name}</Text>
+                {renderGroups(bucket.items)}
               </View>
             ))}
-            {!rooms.length && (
-              <Panel>
-                <Body>
-                  No visible supported entities yet. Select entities in
-                  Settings, or finish configuring your integrations in Home
-                  Assistant.
-                </Body>
-              </Panel>
+            {!count && (
+              <Body>
+                No visible supported entities yet. Select entities in Settings,
+                or finish configuring your integrations in Home Assistant.
+              </Body>
             )}
-            <Text style={home.footer}>
-              {mode === "demo"
-                ? "Demo home · simulated observations"
-                : "Observations from Home Assistant"}
-              {"\n"}Pull down to refresh
-            </Text>
           </>
+        )}
+        {initialized && <HousePlanCard />}
+        {snapshot && (
+          <Text style={home.footer}>
+            {mode === "demo"
+              ? "Demo home · simulated observations"
+              : "Observations from Home Assistant"}
+            {"\n"}Pull down to refresh
+          </Text>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
-
 const home = StyleSheet.create({
   content: {
     paddingTop: 16,
@@ -436,7 +401,7 @@ const home = StyleSheet.create({
     borderRadius: 10,
   },
   expand: {
-    minHeight: 44,
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -447,7 +412,7 @@ const home = StyleSheet.create({
   caption: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   filters: { gap: 8, paddingRight: 2 },
   chip: {
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: 17,
     justifyContent: "center",
     borderRadius: 22,

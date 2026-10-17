@@ -11,16 +11,24 @@ export function houseForMode(mode: "demo" | "homeAssistant" | null) {
   return mode === "demo" ? sampleHouse : installedHouse;
 }
 /** The one place screens get the active plan: the profile's own copy, else the bundled default. */
-export function useHousePlan() {
-  const mode = useCockpit((state) => state.mode);
-  const spatial = useCockpit((state) => state.preferences.spatial);
-  const profileId = useCockpit((state) => state.profileId);
+type PlanState = Pick<
+  ReturnType<typeof useCockpit.getState>,
+  "mode" | "profileId" | "preferences"
+>;
+/** Pure form of useHousePlan, for checks against the latest store state. */
+export function housePlanFor({ mode, profileId, preferences }: PlanState) {
   const fallback = houseForMode(mode);
-  const plan = planForProfile(spatial, fallback);
+  const plan = planForProfile(preferences.spatial, fallback);
   return {
     plan,
-    defaultChanged: defaultPlanChanged(spatial, fallback),
+    defaultChanged: defaultPlanChanged(preferences.spatial, fallback),
     /** The displayed plan's identity: a change resets floor and room selection. */
-    identity: `${profileId}:${plan.id}:${plan.revision}`,
+    identity: JSON.stringify([profileId, plan.id, plan.revision]),
   };
+}
+export function useHousePlan() {
+  const mode = useCockpit((state) => state.mode);
+  const preferences = useCockpit((state) => state.preferences);
+  const profileId = useCockpit((state) => state.profileId);
+  return housePlanFor({ mode, profileId, preferences });
 }

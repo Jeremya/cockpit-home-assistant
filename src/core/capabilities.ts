@@ -10,7 +10,11 @@ export function getCapability(
   config: HomeConfig,
 ): Capability | null {
   const a = entity.attributes;
-  const flags = finite(a.supported_features, 0);
+  const rawFlags = finite(a.supported_features, 0);
+  const flags =
+    Number.isInteger(rawFlags) && rawFlags >= 0 && rawFlags <= 0x7fffffff
+      ? rawFlags
+      : 0;
   switch (entity.domain) {
     case "lock":
       return {
@@ -46,9 +50,11 @@ export function getCapability(
       const step = finite(a.percentage_step, 1);
       return {
         kind: "fan",
-        onOff: (flags & 48) !== 0,
+        onOff: (flags & 48) === 48,
+        canTurnOn: (flags & 32) !== 0,
+        canTurnOff: (flags & 16) !== 0,
         percentage: (flags & 1) !== 0 ? { step: step > 0 ? step : 1 } : null,
-        presets: strings(a.preset_modes),
+        presets: (flags & 8) !== 0 ? strings(a.preset_modes) : [],
       };
     }
     case "switch":

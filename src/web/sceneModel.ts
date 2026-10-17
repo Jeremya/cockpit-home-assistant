@@ -30,7 +30,7 @@ export interface SceneFloor {
   extent: number; // largest side, meters
 }
 export type MarkerIcon =
-  "lock" | "climate" | "fan" | "switch" | "camera" | "sensor";
+  "lock" | "climate" | "fan" | "switch" | "camera" | "sensor" | "event";
 export interface SceneMarker {
   key: string;
   floorId: string;
@@ -43,7 +43,13 @@ export type SceneErrorCode =
   "webgl_unavailable" | "init_failed" | "context_lost" | "runtime_error";
 export interface SceneMetrics {
   readyMs: number | null;
-  interaction: { frames: number; durationMs: number; fps: number };
+  hostReadyMs?: number | null;
+  interaction: {
+    frames: number;
+    durationMs: number;
+    fps: number;
+    p95FrameMs?: number;
+  };
   idleFrames: number;
   hiddenFrames: number;
   totalFrames: number;
@@ -97,9 +103,14 @@ export function classifyGesture(gesture: {
   dy: number;
   durationMs: number;
   maxPointers: number;
+  maxDistance?: number;
 }): "tap" | "drag" | "multi" | "long" {
   if (gesture.maxPointers > 1) return "multi";
-  if (Math.hypot(gesture.dx, gesture.dy) > TAP_MAX_MOVE_PX) return "drag";
+  if (
+    Math.max(gesture.maxDistance ?? 0, Math.hypot(gesture.dx, gesture.dy)) >
+    TAP_MAX_MOVE_PX
+  )
+    return "drag";
   if (gesture.durationMs > TAP_MAX_MS) return "long";
   return "tap";
 }
@@ -111,6 +122,7 @@ const icons = new Set<MarkerIcon>([
   "switch",
   "camera",
   "sensor",
+  "event",
 ]);
 const conditions = new Set<Condition>([
   "normal",
@@ -128,16 +140,18 @@ const finite = (value: unknown) =>
 
 /** Keeps only the documented marker fields for the active floor; drops anything malformed. */
 export function sanitizeMarkers(
-  input: readonly Record<string, unknown>[],
+  input: readonly unknown[],
   floorId: string,
 ): SceneMarker[] {
   const markers: SceneMarker[] = [];
-  for (const raw of input) {
+  for (const candidate of input) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const raw = candidate as Record<string, unknown>;
     const position = raw.position as Record<string, unknown> | undefined;
     if (
       typeof raw.key !== "string" ||
       !raw.key ||
-      raw.key.length > 200 ||
+      raw.key.length > 512 ||
       raw.floorId !== floorId ||
       !position ||
       !finite(position.x) ||
@@ -169,29 +183,45 @@ export class FrameStats {
   private idle = 0;
   private hidden = 0;
   private total = 0;
+  private intervals: number[] = [];
+  private lastFrame: number | null = null;
   beginInteraction(now: number) {
     this.interactionStart = now;
     this.interactionFrames = 0;
-    this.idle = 0;
+    this.interactionMs = 0;
+    this.intervals = [];
+    this.lastFrame = null;
   }
   endInteraction(now: number) {
     if (this.interactionStart !== null)
       this.interactionMs = now - this.interactionStart;
     this.interactionStart = null;
   }
-  frame(_now: number, visible: boolean) {
+  frame(now: number, visible: boolean) {
     this.total++;
     if (!visible) this.hidden++;
-    else if (this.interactionStart !== null) this.interactionFrames++;
-    else this.idle++;
+    else if (this.interactionStart !== null) {
+      this.interactionFrames++;
+      if (this.lastFrame !== null) {
+        this.intervals.push(now - this.lastFrame);
+        if (this.intervals.length > 600) this.intervals.shift();
+      }
+      this.lastFrame = now;
+    } else this.idle++;
   }
-  report() {
-    const durationMs = this.interactionMs;
+  report(now?: number) {
+    const durationMs =
+      this.interactionStart !== null && now !== undefined
+        ? now - this.interactionStart
+        : this.interactionMs;
+    const sorted = [...this.intervals].sort((a, b) => a - b);
     return {
       interaction: {
         frames: this.interactionFrames,
         durationMs,
         fps: durationMs > 0 ? (this.interactionFrames * 1000) / durationMs : 0,
+        p95FrameMs:
+          sorted[Math.max(0, Math.ceil(sorted.length * 0.95) - 1)] ?? 0,
       },
       idleFrames: this.idle,
       hiddenFrames: this.hidden,

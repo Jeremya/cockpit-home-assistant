@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useHousePlan } from "../spatial/plans";
-import type { PlanFloor } from "../spatial/model";
+import type { HousePlan, PlanFloor } from "../spatial/model";
 import { CockpitSceneView } from "../components/CockpitSceneView";
 import {
   Body,
@@ -13,6 +13,7 @@ import {
   styles,
 } from "../components/ui";
 import type { SceneMetrics } from "../web/sceneModel";
+import { router } from "expo-router";
 
 /**
  * S01 feasibility lab (development builds only). Fixture markers are fake and sit on
@@ -32,7 +33,10 @@ function fixtureMarkers(floor: PlanFloor) {
 }
 
 export function SceneLabScreen() {
-  const { plan } = useHousePlan();
+  const { plan, identity } = useHousePlan();
+  return <SceneLab key={identity} plan={plan} />;
+}
+function SceneLab({ plan }: { plan: HousePlan }) {
   const [floorId, setFloorId] = useState(plan.floors[0]!.id);
   const floor =
     plan.floors.find((item) => item.id === floorId) ?? plan.floors[0]!;
@@ -42,13 +46,12 @@ export function SceneLabScreen() {
   const [simulate, setSimulate] = useState<"context_loss" | null>(null);
   const [mounted, setMounted] = useState(true);
   const [metrics, setMetrics] = useState<SceneMetrics | null>(null);
-  // The React Compiler memoizes these; markers stay stable while the floor is unchanged.
-  const markers = fixtureMarkers(floor);
-  const onRoomPress = (id: string) => {
+  const markers = useMemo(() => fixtureMarkers(floor), [floor]);
+  const onRoomPress = useCallback((id: string) => {
     setRoomId(id);
     setMarker(null);
-  };
-  const onMarkerPress = (key: string) => setMarker(key);
+  }, []);
+  const onMarkerPress = useCallback((key: string) => setMarker(key), []);
   const room = floor.rooms.find((item) => item.id === roomId);
 
   return (
@@ -83,6 +86,7 @@ export function SceneLabScreen() {
           visible={visible}
           simulate={simulate}
           onMetrics={setMetrics}
+          onRetry={() => setSimulate(null)}
         />
       ) : (
         <Body>Scene unmounted.</Body>
@@ -101,16 +105,29 @@ export function SceneLabScreen() {
         >
           {metrics
             ? [
-                `ready ${metrics.readyMs ?? "—"} ms`,
+                `host ready ${metrics.hostReadyMs ?? "—"} ms · renderer ${metrics.readyMs ?? "—"} ms`,
                 `interaction ${metrics.interaction.frames} frames / ${metrics.interaction.durationMs.toFixed(0)} ms = ${metrics.interaction.fps.toFixed(1)} fps`,
                 `idle ${metrics.idleFrames} · hidden ${metrics.hiddenFrames} · total ${metrics.totalFrames}`,
                 `rebuilds ${metrics.rebuilds} · geometries ${metrics.memory.geometries} · textures ${metrics.memory.textures}`,
-                `context losses ${metrics.contextLosses}`,
+                `context losses ${metrics.contextLosses} · p95 ${metrics.interaction.p95FrameMs?.toFixed(1) ?? "—"} ms`,
               ].join("\n")
             : "no metrics yet"}
         </Text>
       </Panel>
       <View style={{ gap: 8 }}>
+        <Button
+          title="Open native settings"
+          secondary
+          onPress={() => router.push("/settings")}
+        />
+        {floor.rooms.map((room) => (
+          <Button
+            key={room.id}
+            title={`Select room: ${room.name}`}
+            secondary
+            onPress={() => onRoomPress(room.id)}
+          />
+        ))}
         <Button
           title={visible ? "Hide scene (visible=false)" : "Show scene"}
           secondary

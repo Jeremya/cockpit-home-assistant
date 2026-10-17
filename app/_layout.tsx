@@ -34,7 +34,13 @@ export default function RootLayout() {
         />
         <Stack.Screen name="settings" options={{ title: "Connection" }} />
         <Stack.Screen name="house" options={{ title: "Floor plan" }} />
+        <Stack.Screen name="house-links" options={{ title: "Link rooms" }} />
+        <Stack.Screen name="house-place" options={{ title: "Place device" }} />
         <Stack.Screen name="device/[key]" options={{ title: "Device" }} />
+        <Stack.Screen
+          name="appliance/[id]"
+          options={{ title: "Device readings" }}
+        />
         <Stack.Screen name="entities" options={{ title: "Your entities" }} />
         <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />
         <Stack.Screen name="scene-lab" options={{ title: "Scene lab" }} />

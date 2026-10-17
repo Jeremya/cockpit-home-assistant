@@ -18,7 +18,7 @@ import {
   type SceneErrorCode,
   type SceneMetrics,
 } from "../web/sceneModel";
-import { FloorPlanView } from "./FloorPlanView";
+import { FloorPlanView, type FloorPlanMarker } from "./FloorPlanView";
 import { Body, Button, colors } from "./ui";
 
 export const SCENE_WATCHDOG_MS = 10_000;
@@ -64,9 +64,12 @@ export function CockpitSceneView({
   visible = true,
   simulate = null,
   onMetrics,
+  onRetry,
+  fallbackMarkers = [],
+  resetKey = 0,
 }: {
   floor: PlanFloor;
-  markers: readonly Record<string, unknown>[];
+  markers: readonly unknown[];
   selectedRoomId: string | null;
   onRoomPress: (roomId: string) => void;
   onMarkerPress: (key: string) => void;
@@ -74,6 +77,9 @@ export function CockpitSceneView({
   visible?: boolean;
   simulate?: "context_loss" | null;
   onMetrics?: (metrics: SceneMetrics) => void;
+  onRetry?: () => void;
+  fallbackMarkers?: FloorPlanMarker[];
+  resetKey?: number;
 }) {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<
@@ -82,6 +88,23 @@ export function CockpitSceneView({
     | { kind: "failed"; code: FailureCode }
   >({ kind: "loading" });
   const current = useRef(attempt);
+  const mounted = useRef(true);
+  const phase = useRef(state.kind);
+  const started = useRef(0);
+  const hostReady = useRef<number | null>(null);
+  const latestFloor = useRef(floor);
+  useLayoutEffect(() => {
+    started.current = performance.now();
+  }, []);
+  useLayoutEffect(() => {
+    latestFloor.current = floor;
+  });
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   useLayoutEffect(() => {
     current.current = attempt;
   }, [attempt]);
@@ -93,7 +116,11 @@ export function CockpitSceneView({
       return () => setFocused(false);
     }, []),
   );
-  const [active, setActive] = useState(AppState.currentState !== "background");
+  const [active, setActive] = useState(AppState.currentState === "active");
+  const interactive = useRef(false);
+  useLayoutEffect(() => {
+    interactive.current = visible && focused && active;
+  }, [visible, focused, active]);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (next) =>
       setActive(next === "active"),
@@ -102,13 +129,15 @@ export function CockpitSceneView({
   }, []);
 
   useEffect(() => {
-    if (state.kind !== "loading") return;
+    if (state.kind !== "loading" || !visible || !focused || !active) return;
     const timer = setTimeout(() => {
-      if (current.current === attempt)
+      if (mounted.current && current.current === attempt) {
+        phase.current = "failed";
         setState({ kind: "failed", code: "watchdog" });
+      }
     }, SCENE_WATCHDOG_MS);
     return () => clearTimeout(timer);
-  }, [attempt, state.kind]);
+  }, [attempt, state.kind, visible, focused, active]);
 
   const sceneFloor = useMemo(() => toSceneFloor(floor), [floor]);
   const sceneMarkers = useMemo(
@@ -116,29 +145,56 @@ export function CockpitSceneView({
     [markers, floor.id],
   );
 
+  const latestMarkers = useRef(sceneMarkers);
+  useLayoutEffect(() => {
+    latestMarkers.current = sceneMarkers;
+  });
+
   // Every callback is bound to the attempt that created it; late calls from an
   // obsolete scene (after a retry or remount) are dropped.
   const bridge = useMemo(() => {
-    const live = () => current.current === attempt;
+    const live = () =>
+      mounted.current &&
+      current.current === attempt &&
+      latestFloor.current.id === floor.id &&
+      phase.current !== "failed";
     return {
       onRoomPress: async (roomId: string) => {
-        if (live()) onRoomPress(roomId);
+        if (
+          live() &&
+          interactive.current &&
+          phase.current === "ready" &&
+          latestFloor.current.rooms.some((room) => room.id === roomId)
+        )
+          onRoomPress(roomId);
       },
       onMarkerPress: async (key: string) => {
-        if (live()) onMarkerPress(key);
+        if (
+          live() &&
+          interactive.current &&
+          phase.current === "ready" &&
+          latestMarkers.current.some((marker) => marker.key === key)
+        )
+          onMarkerPress(key);
       },
       onSceneReady: async () => {
-        if (live())
-          setState((s) => (s.kind === "loading" ? { kind: "ready" } : s));
+        if (live() && phase.current === "loading") {
+          phase.current = "ready";
+          hostReady.current = Math.round(performance.now() - started.current);
+          setState({ kind: "ready" });
+        }
       },
       onSceneError: async (code: SceneErrorCode) => {
-        if (live()) setState({ kind: "failed", code });
+        if (live()) {
+          phase.current = "failed";
+          setState({ kind: "failed", code });
+        }
       },
       onMetrics: async (metrics: SceneMetrics) => {
-        if (live()) onMetrics?.(metrics);
+        if (live()) onMetrics?.({ ...metrics, hostReadyMs: hostReady.current });
       },
     };
-  }, [attempt, onRoomPress, onMarkerPress, onMetrics]);
+  }, [attempt, onRoomPress, onMarkerPress, onMetrics, floor.id]);
 
   if (state.kind === "failed")
     return (
@@ -148,6 +204,8 @@ export function CockpitSceneView({
           selectedRoom={selectedRoomId}
           onSelectRoom={onRoomPress}
           height={height}
+          markers={fallbackMarkers}
+          onMarkerPress={onMarkerPress}
         />
         <Text style={{ color: colors.warning, fontWeight: "600" }}>
           3D view unavailable
@@ -159,7 +217,12 @@ export function CockpitSceneView({
           title="Retry 3D view"
           secondary
           onPress={() => {
-            setAttempt((value) => value + 1);
+            onRetry?.();
+            current.current += 1;
+            phase.current = "loading";
+            started.current = performance.now();
+            hostReady.current = null;
+            setAttempt(current.current);
             setState({ kind: "loading" });
           }}
         />
@@ -171,8 +234,10 @@ export function CockpitSceneView({
       <SceneBoundary
         key={attempt}
         onError={() => {
-          if (current.current === attempt)
+          if (mounted.current && current.current === attempt) {
+            phase.current = "failed";
             setState({ kind: "failed", code: "init_failed" });
+          }
         }}
       >
         <CockpitScene
@@ -180,11 +245,19 @@ export function CockpitSceneView({
           floor={sceneFloor}
           markers={sceneMarkers}
           selectedRoomId={selectedRoomId}
+          resetKey={resetKey}
           visible={visible && focused && active}
           wallHeight={PREVIEW_WALL_HEIGHT}
           simulate={simulate}
           {...bridge}
-          dom={{ style: { flex: 1 }, scrollEnabled: false, bounces: false }}
+          dom={{
+            style: { flex: 1 },
+            scrollEnabled: false,
+            bounces: false,
+            nestedScrollEnabled: true,
+            webviewDebuggingEnabled:
+              __DEV__ || process.env.EXPO_PUBLIC_S01_PROOF === "1",
+          }}
         />
       </SceneBoundary>
     </View>
