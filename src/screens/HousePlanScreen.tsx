@@ -12,6 +12,7 @@ import { areaLinkStatus, entitiesByPlanRoom, own } from "../spatial/selectors";
 import type { HousePlan, RoomKind } from "../spatial/model";
 import { FloorPlanView } from "../components/FloorPlanView";
 import { CockpitSceneView } from "../components/CockpitSceneView";
+import { buildFeatures } from "../config/build";
 import {
   entityAppearance,
   Icon,
@@ -205,7 +206,10 @@ function HousePlanContent({
         accessibilityRole="tablist"
         accessibilityLabel="Plan view"
       >
-        {(["2d", "3d"] as const).map((item) => (
+        {(buildFeatures.spatial3d
+          ? (["2d", "3d"] as const)
+          : (["2d"] as const)
+        ).map((item) => (
           <Pressable
             key={item}
             accessibilityRole="tab"
@@ -253,7 +257,7 @@ function HousePlanContent({
               updateVisibility();
             }}
           >
-            {view === "3d" ? (
+            {buildFeatures.spatial3d && view === "3d" ? (
               <CockpitSceneView
                 floor={floor}
                 markers={placementSceneMarkers(placements, floor.id)}

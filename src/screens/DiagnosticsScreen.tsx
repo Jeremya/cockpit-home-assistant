@@ -6,6 +6,7 @@ import { useHousePlan } from "../spatial/plans";
 import { areaLinkStatus } from "../spatial/selectors";
 import { savedPlacements, placementIssueLabel } from "../spatial/placements";
 import { Body, Button, Label, Panel, Title, styles } from "../components/ui";
+import { buildInfo } from "../config/build";
 export function DiagnosticsScreen() {
   const {
     snapshot,
@@ -49,6 +50,20 @@ export function DiagnosticsScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Label>Connection & data health</Label>
       <Title>Diagnostics</Title>
+      {buildInfo.trial && (
+        <Panel>
+          <Label>Internal trial</Label>
+          <Body>
+            Maurice {buildInfo.version} · build {buildInfo.number}
+            {"\n"}
+            Source: {buildInfo.revision}
+            {"\n"}
+            Bundled plan: {buildInfo.plan}
+            {"\n"}
+            2D plan · HA observations · simulated demo controls
+          </Body>
+        </Panel>
+      )}
       <Panel>
         <Body>
           Mode: {mode ?? "None"}

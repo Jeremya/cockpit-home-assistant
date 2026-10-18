@@ -134,7 +134,7 @@ The final preparation restores local development configuration. Browser storage 
 | U02  | Not started         | P2 / S                 | Measured large-home rendering                        | Realistic public fixture                                 |
 | R01  | Assessed / follow-up | P1 / M                 | Runtime decoder fixed; SDK 57 maintenance             | Four tooling advisories and native incident remain       |
 | R02  | Not started         | P1 / S                 | CI with public fixtures                              | F02 for browser checks                                   |
-| R03a | Not started         | P1 / M                 | Standalone APK for internal trial                    | R01 assessment; current enabled features only            |
+| R03a | In progress         | P1 / M                 | Signed standalone Android internal candidate          | Seeker + public sample selected; installed acceptance next |
 | R03b | Not started         | P2 / M                 | Public distribution and release hardening            | R03a, R01 closure, R02, enabled-feature acceptance       |
 | H02  | Deferred            | Hardware / conditional | Always-on HA and explicit profile move               | Advance if Mac availability blocks trial                 |
 
@@ -411,6 +411,8 @@ R01 remains open for upstream tooling fixes/reassessment and native follow-up. A
 Add GitHub Actions using Node 24/`npm ci`, sample-only preparation, functional checks, protocol proof and Android JS export. No HA token or personal plan is required. Add F02's headless UI workflow with bounded artifacts. Keep dependency findings as an explicit tracked gate; do not make a failing audit look passed by suppressing its output. Production binary building/signing is separate. Assert private generated/source files are ignored and never uploaded as artifacts. CI should work from a fresh clone, not a developer's generated module.
 
 ### R03 — Standalone Android trial and release
+
+**Preparation (2026-10-17):** [trial architecture and reproducible build](design/internal-trial.md) define a separate signed package, embedded release bundle, default sample-only staging, explicit backup rules and a 2D/read-only feature scope. The user selected **Seeker for this step, Pixel later**, and **the public sample for the first candidate**. Installed-binary acceptance is still pending; do not substitute R01 development-client starts.
 
 **R03a — Internal household trial:** build a standalone binary that runs without Metro, with the currently accepted feature set; a read-only build need not wait for all MVP controls/cameras/3D. Document signing/install/update, enabled features, version/hash and the R01 dependency assessment, including remaining exposure and limitations. Keep unresolved features disabled. A private trial is not public release acceptance. HA still needs an available host; advance H02 if the Mac blocks use.
 
