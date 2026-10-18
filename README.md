@@ -180,12 +180,12 @@ flowchart LR
 | Household integrations      | H01 partial                         | Kasa/Petlibro read-only summaries pass on Seeker; proprietary meanings and remaining hardware stay open                                   |
 | Useful device overview      | U03 delivered                       | [Grouping, related readings and verified feeder roles](docs/design/device-summaries.md), preserving U04 uncertainty/coverage              |
 | 3D scene                    | S02 implemented                     | [Production spatial view and phone-acceptance ledger](docs/stage0/spatial-view-validation.md); S01 evidence remains a separate checkpoint |
-| Controls                    | C07a UI implemented; hardware gated | **R01 assessment → R03a trial**; C07a scoped activation/physical acceptance remains separate                                              |
+| Controls                    | C07a UI implemented; hardware gated | **R03a trial**; R01 minimum assessment delivered; C07a scoped activation/physical acceptance remains separate                                              |
 | Camera images               | Planned                             | **I01** image-path/transport isolation proof, then **I02** display and polling                                                            |
 | Internal daily trial        | Planned                             | **R03a** standalone Android APK without Metro, dependency assessment and enabled-feature acceptance                                       |
 | Public release              | Planned                             | **R01** maintenance, **R02** CI and **R03b** hardening; HA always-on hosting is separate **H02** work                                     |
 
-Production 2D/3D integration, P03/P04 and U03/U04 are implemented. Keep S02’s phone-acceptance scope explicit; **C01–C04** are implemented ([facade](docs/design/commands.md), [outcomes](docs/design/command-outcomes.md), [scheduling](docs/design/command-scheduling.md), [offline simulation](docs/design/demo-commands.md)); **C07a UI** is implemented ([scope and evidence](docs/design/switch-controls.md)); physical Kasa acceptance remains before enabling the real control. The [source checkpoint and clean-clone verification](docs/stage0/repository-checkpoint.md) are recorded. The [global review](docs/reviews/2026-10-17-global-review.md) prioritizes R01 release assessment and an R03a standalone internal trial before more actuator categories. A read-only internal APK can advance before all controls are complete. The [CEO review](docs/superpowers/specs/2026-10-15-maurice-ceo-review.md) explains the priorities; the [specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md) and [interface direction](docs/design/2026-10-15-interface-direction.md) preserve the contracts and visual intent inspired by [House Control](https://github.com/0xProbabillity/house-control).
+Production 2D/3D integration, P03/P04 and U03/U04 are implemented. Keep S02’s phone-acceptance scope explicit; **C01–C04** are implemented ([facade](docs/design/commands.md), [outcomes](docs/design/command-outcomes.md), [scheduling](docs/design/command-scheduling.md), [offline simulation](docs/design/demo-commands.md)); **C07a UI** is implemented ([scope and evidence](docs/design/switch-controls.md)); physical Kasa acceptance remains before enabling the real control. The [source checkpoint and clean-clone verification](docs/stage0/repository-checkpoint.md) are recorded. The [R01 assessment](docs/stage0/dependency-maintenance.md) delivers SDK 57 patches and a runtime decoder fix; four tooling advisories and the unreproduced native incident remain tracked. The [global review](docs/reviews/2026-10-17-global-review.md) prioritizes an R03a standalone internal trial before more actuator categories. A read-only internal APK can advance before all controls are complete. The [CEO review](docs/superpowers/specs/2026-10-15-maurice-ceo-review.md) explains the priorities; the [specification](docs/superpowers/specs/2026-10-14-home-cockpit-design.md) and [interface direction](docs/design/2026-10-15-interface-direction.md) preserve the contracts and visual intent inspired by [House Control](https://github.com/0xProbabillity/house-control).
 
 ## 🧰 Development
 
@@ -194,6 +194,7 @@ npm run typecheck        # TypeScript
 npm run lint             # ESLint
 npm test                 # latest recorded results: docs/README.md
 npm run format:check     # Prettier
+npm run proof:dependencies # bounded installed-decoder regression proof
 npm run proof:protocol   # real compressed HA protocol against a loopback server, no credentials
 npm run export:android   # Hermes JS bundle (not an APK; use npm run android)
 ```
@@ -212,7 +213,7 @@ Maurice's portrait lives in [`assets/source/maurice.png`](assets/source/maurice.
 - U03 physical-device summaries pass real-backend and Seeker navigation/restart checks: one card for the feeder’s 23 visible readings and one for Kasa. Public browser checks cover all readings, favorite persistence, room filtering and responsive widths. See [scope and limits](docs/stage0/device-summary-validation.md).
 - P03 links were checked with real HA areas on a Seeker. P04 native demo acceptance covers touch/save, marker detail, persistence after restart, moving between floors and removing; Chrome also checks responsive alignment and offline use after loading.
 
-Details: [Stage 0 results](docs/stage0/results.md) · [HA proof report](docs/stage0/ha-proof-2026-10-15.json) · [Android validation](docs/stage0/android-validation.md) · [Floor-plan validation](docs/stage0/floor-plan-validation.md). The dependency audit remains an open release gate.
+Details: [Stage 0 results](docs/stage0/results.md) · [HA proof report](docs/stage0/ha-proof-2026-10-15.json) · [Android validation](docs/stage0/android-validation.md) · [Floor-plan validation](docs/stage0/floor-plan-validation.md). [R01 maintenance](docs/stage0/dependency-maintenance.md) records 564 tests, SDK-compatible patches, the decoder correction and twenty passing controlled development starts. Four tooling advisories and standalone/native reliability remain open release work.
 
 </details>
 

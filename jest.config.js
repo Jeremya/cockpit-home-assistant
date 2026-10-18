@@ -8,6 +8,6 @@ module.exports = {
     "^three$": "<rootDir>/node_modules/three/build/three.module.js",
   },
   transformIgnorePatterns: expoPreset.transformIgnorePatterns.map((pattern) =>
-    pattern.replace(".pnpm|", ".pnpm|three|"),
+    pattern.replace(".pnpm|", ".pnpm|three|decode-uri-component|"),
   ),
 };
