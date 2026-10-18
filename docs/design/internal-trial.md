@@ -31,7 +31,7 @@ The first build generates a dedicated RSA signing key and password record under 
 
 Install with `adb -s <device> install -r <apk>`; launch `com.larrabee.homecockpit.trial/.MainActivity`. Reuse the same key/package and increment the version code to preserve SecureStore and AsyncStorage through updates. Uninstalling this trial deletes its local data; reconnect through onboarding after reinstall. The development app's credentials are not migrated or read.
 
-Android backup is disabled for the trial. Explicit cloud-backup and device-transfer rules exclude all app data domains; a restored preference-only profile must not be mistaken for a restored native token. SecureStore's normal encryption remains in place. This policy trades automatic restore for a consistent fresh onboarding after reinstall; export/import and account recovery are separate work.
+Android backup is disabled for the trial. Explicit cloud-backup and device-transfer rules exclude the credential-protected data domains used by preferences and SecureStore; a restored preference-only profile must not be mistaken for a restored native token. SecureStore's normal encryption remains in place. This policy trades automatic restore for a consistent fresh onboarding after reinstall; export/import and account recovery are separate work.
 
 HA HTTP remains an explicit opt-in on the connection screen and is supported by the actual native network configuration. No OTA update service or update-signing workflow is configured. Keep production logs free of tokens; acceptance checks scan device logs without printing secrets.
 
