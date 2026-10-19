@@ -59,3 +59,8 @@ The active-service setting is verified without UiAutomator during listening. Foc
 Accessibility settings are restored to their prior values, the temporary demo placement is removed and zero demo placements verified, and the saved household HA session returns ready. No physical HA service is called. Earlier build 1005's 100/150/200% text checks retain their own source/binary; they are not relabeled as a new 1007 font battery. Pixel, terminal-action TalkBack traversal, complete reading order and other enabled-feature acceptances remain separate U01/phone scope.
 
 The [latest source CI](https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39279840689) is queued when this acceptance is recorded; it is not counted as a pass. The earlier web-fix CI is green. R01's independent dependency audit remains open. The intermediate `12b04e8` test-formatting issue is corrected by `83a8c73`; no application code changes between them.
+
+
+## Subsequent CI conclusion
+
+The final M00 documentation source `e05d88e` passes [Public checks](https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39280755699). Its separate audit failure was the known four-advisory R01 finding, not a focus regression. The [dependency CI follow-up](dependency-ci-validation.md) records the actual uuid fix and user-approved expiring policy for the three remaining tooling advisories. This supersedes the queued status recorded above without changing the 1007 phone evidence.

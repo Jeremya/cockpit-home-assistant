@@ -104,6 +104,7 @@ try {
       "export",
       "--platform",
       "web",
+      "--source-maps",
       "--output-dir",
       "build-web",
     ],
@@ -111,6 +112,11 @@ try {
   );
   // A mutated/generated private plan must fail before any browser capture.
   await assertPublicPlan(workspace);
+  await run(
+    "npm",
+    ["run", "check:runtime-dependencies", "--", "build-web", "web"],
+    options,
+  );
   publicVerified = true;
   const plan = JSON.parse(
     await readFile(join(workspace, "src/spatial/sample-plan.json"), "utf8"),

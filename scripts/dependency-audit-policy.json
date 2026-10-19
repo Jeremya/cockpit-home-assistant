@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "scope": "private-household-tooling",
+  "reviewedOn": "2026-10-19",
+  "expiresOn": "2026-11-02",
+  "reviewedLatestVersions": {
+    "braces": "3.0.3",
+    "node-forge": "1.4.0",
+    "sprintf-js": "1.1.3"
+  },
+  "approval": "User explicitly selected strict temporary tooling exceptions after reviewing the failed audit on 2026-10-19. This does not authorize public release.",
+  "affectedGraphSha256": "be25df44053a42786d29b29035e4c26adc19664bf7ea3e4bf8c574f98b117ee8",
+  "reviewedFiles": {
+    "package.json": "b48d37fc84e9c2e354e263593aecbfdf52275977a5a4bd5a9943abed9180e40b",
+    "package-lock.json": "76ef20d916c5f4ad790e1e6f9c737b58bac699004b603ba0b4fd59afe898cb82",
+    "app.json": "da6812f82718c9ed64379f3a4f9d8d296738f634587a4a7473a65de15bd1d71d",
+    "app.config.js": "1b7c522b3bfc6215fb401c977fb387ed179fffb24989c2151fa5eabffdd94e0d",
+    "metro.config.js": null,
+    "babel.config.js": null,
+    "jest.config.js": "b35b333041c57f2a108c5eaa5ca78c0fcf0c2143623f1055bef3042410080811",
+    "eslint.config.js": "2d22744e2d35b71a4523f356f46fbe5ffb03791b4b567947f26f208580657db8",
+    "plugins/withTrialAndroid.js": "ffb551a998d63360620bf3a4f3fdc2c39c8d8c27735d819c53549da67451dea6",
+    "scripts/build-trial-android.mjs": "e76d5d291a1b64086370d1b3ee56e4dff94429fe9cca51c1d39184820c306414",
+    "scripts/check-audit.mjs": "ac8c6d24e29af125fcb50ae62f5ac4d7453d663da0d0f77496118aa270aecd30",
+    "scripts/lib/dependency-audit.mjs": "a85e5fed7c8ad6a368efce911b2be479bcf030fcafee343eefe5a49c7ae89269",
+    "scripts/check-runtime-dependencies.mjs": "f119c69dd8d9d984716bc15cc4acac0bae1cf4c6f0b934adeba3dc17860ccd46",
+    "scripts/lib/runtime-dependencies.mjs": "2df0b4e0a895e9dd3e4a9d435a098fd2b39ab77480362f47d9691b457e981b4c",
+    "scripts/check-ui.mjs": "ddd612dd4142cd94be3ab0dde4ca5ae3bade0227d5dceb04443e974005fed7bd",
+    "scripts/lib/public-build.mjs": "b2e184491043e6d2e184b97776fd6159e5dbfb43a2a00c95ff37bc30a95cd29c",
+    ".github/workflows/public-checks.yml": "d04afbea8fab7229fb570941595c4f488a130eb3b587e58ddf21c278110cad70",
+    ".github/workflows/dependency-audit.yml": "4a39b33cd911a472b710912913f4b31275894ac78085fefdd0edec20dd12a1f8",
+    "patches/query-string+7.1.3.patch": "4243811b237ee15497eabf949651f47db8bfecb01dbc1885b14a2c70c8821282"
+  },
+  "exceptions": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "severity": "high",
+      "range": "<=3.0.3",
+      "reason": "braces 3.0.3 is used by Jest/file tooling with repository-owned patterns. No patched npm release; must stay outside web/Android runtime maps.",
+      "revisitWhen": "A patched release, expiry, changed dependency/affected graph or reviewed build/signing/glob configuration; any runtime-map inclusion blocks Public checks."
+    },
+    {
+      "id": "GHSA-86w9-cpqp-85rv",
+      "package": "node-forge",
+      "severity": "high",
+      "range": "<=1.4.0",
+      "reason": "node-forge 1.4.0 is Expo CLI/certificate tooling. No EAS project ID or update-signing certificate is configured; trial signing uses JDK/apksigner. No patched npm release; runtime maps must exclude it.",
+      "revisitWhen": "A patched release, expiry, changed dependency/affected graph or reviewed build/signing/glob configuration; any runtime-map inclusion blocks Public checks."
+    },
+    {
+      "id": "GHSA-hp3w-g68c-fv3c",
+      "package": "sprintf-js",
+      "severity": "moderate",
+      "range": "<=1.1.3",
+      "reason": "sprintf-js 1.0.3 is reached by Jest coverage CLI via js-yaml/argparse; format strings are tooling-owned. No patched npm release; runtime maps must exclude it.",
+      "revisitWhen": "A patched release, expiry, changed dependency/affected graph or reviewed build/signing/glob configuration; any runtime-map inclusion blocks Public checks."
+    }
+  ]
+}

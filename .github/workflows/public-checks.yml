@@ -46,7 +46,8 @@ jobs:
       - run: npm run test:tooling
       - run: npm run proof:dependencies
       - run: npm run proof:protocol
-      - run: npm run export:android
+      - run: npm run export:android -- --source-maps
+      - run: npm run check:runtime-dependencies -- dist android
       - name: Check public provenance after exports
         run: npm run check:public-inputs
       - name: Check tracked files remain unchanged

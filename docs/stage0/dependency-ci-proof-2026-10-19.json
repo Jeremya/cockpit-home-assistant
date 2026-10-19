@@ -1,0 +1,344 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "baseRevision": "e05d88ed64186ebb967121f79e0a36cde228f65d",
+  "sourceScope": "Working changes for uuid override, expiring tooling exceptions and paired runtime checks",
+  "userDecision": "Exceptions temporaires strictes (recommand\u00e9)",
+  "priorCI": {
+    "revision": "e05d88ed64186ebb967121f79e0a36cde228f65d",
+    "runs": [
+      {
+        "id": 39286764327,
+        "name": "Dependency audit",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39286764327",
+        "head_sha": "e05d88ed64186ebb967121f79e0a36cde228f65d",
+        "created_at": "2026-10-19T16:36:07Z",
+        "updated_at": "2026-10-19T16:45:58Z"
+      },
+      {
+        "id": 39280755662,
+        "name": "Dependency audit",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39280755662",
+        "head_sha": "e05d88ed64186ebb967121f79e0a36cde228f65d",
+        "created_at": "2026-10-19T15:48:36Z",
+        "updated_at": "2026-10-19T16:13:30Z"
+      },
+      {
+        "id": 39280755699,
+        "name": "Public checks",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39280755699",
+        "head_sha": "e05d88ed64186ebb967121f79e0a36cde228f65d",
+        "created_at": "2026-10-19T15:48:36Z",
+        "updated_at": "2026-10-19T16:21:07Z"
+      }
+    ]
+  },
+  "reviewedPolicy": {
+    "expiresOn": "2026-11-02",
+    "reviewedLatestVersions": {
+      "braces": "3.0.3",
+      "node-forge": "1.4.0",
+      "sprintf-js": "1.1.3"
+    },
+    "affectedGraphSha256": "be25df44053a42786d29b29035e4c26adc19664bf7ea3e4bf8c574f98b117ee8",
+    "reviewedFiles": {
+      "package.json": "b48d37fc84e9c2e354e263593aecbfdf52275977a5a4bd5a9943abed9180e40b",
+      "package-lock.json": "76ef20d916c5f4ad790e1e6f9c737b58bac699004b603ba0b4fd59afe898cb82",
+      "app.json": "da6812f82718c9ed64379f3a4f9d8d296738f634587a4a7473a65de15bd1d71d",
+      "app.config.js": "1b7c522b3bfc6215fb401c977fb387ed179fffb24989c2151fa5eabffdd94e0d",
+      "metro.config.js": null,
+      "babel.config.js": null,
+      "jest.config.js": "b35b333041c57f2a108c5eaa5ca78c0fcf0c2143623f1055bef3042410080811",
+      "eslint.config.js": "2d22744e2d35b71a4523f356f46fbe5ffb03791b4b567947f26f208580657db8",
+      "plugins/withTrialAndroid.js": "ffb551a998d63360620bf3a4f3fdc2c39c8d8c27735d819c53549da67451dea6",
+      "scripts/build-trial-android.mjs": "e76d5d291a1b64086370d1b3ee56e4dff94429fe9cca51c1d39184820c306414",
+      "scripts/check-audit.mjs": "ac8c6d24e29af125fcb50ae62f5ac4d7453d663da0d0f77496118aa270aecd30",
+      "scripts/lib/dependency-audit.mjs": "a85e5fed7c8ad6a368efce911b2be479bcf030fcafee343eefe5a49c7ae89269",
+      "scripts/check-runtime-dependencies.mjs": "f119c69dd8d9d984716bc15cc4acac0bae1cf4c6f0b934adeba3dc17860ccd46",
+      "scripts/lib/runtime-dependencies.mjs": "2df0b4e0a895e9dd3e4a9d435a098fd2b39ab77480362f47d9691b457e981b4c",
+      "scripts/check-ui.mjs": "ddd612dd4142cd94be3ab0dde4ca5ae3bade0227d5dceb04443e974005fed7bd",
+      "scripts/lib/public-build.mjs": "b2e184491043e6d2e184b97776fd6159e5dbfb43a2a00c95ff37bc30a95cd29c",
+      ".github/workflows/public-checks.yml": "d04afbea8fab7229fb570941595c4f488a130eb3b587e58ddf21c278110cad70",
+      ".github/workflows/dependency-audit.yml": "4a39b33cd911a472b710912913f4b31275894ac78085fefdd0edec20dd12a1f8",
+      "patches/query-string+7.1.3.patch": "4243811b237ee15497eabf949651f47db8bfecb01dbc1885b14a2c70c8821282"
+    }
+  },
+  "local": {
+    "jest": {
+      "tests": 608,
+      "suites": 39,
+      "result": "passed"
+    },
+    "tooling": {
+      "tests": 17,
+      "result": "passed"
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "format": "passed",
+    "audit": {
+      "schema": 2,
+      "mode": "reviewed-tooling",
+      "result": "passed-with-exceptions",
+      "npmExitCode": 1,
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 5,
+        "high": 51,
+        "critical": 0,
+        "total": 56
+      },
+      "advisories": [
+        {
+          "id": "GHSA-vfj7-8cjw-p6xm",
+          "package": "braces",
+          "severity": "high",
+          "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+        },
+        {
+          "id": "GHSA-86w9-cpqp-85rv",
+          "package": "node-forge",
+          "severity": "high",
+          "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv"
+        },
+        {
+          "id": "GHSA-hp3w-g68c-fv3c",
+          "package": "sprintf-js",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-hp3w-g68c-fv3c"
+        }
+      ],
+      "expiresOn": "2026-11-02",
+      "exceptions": [
+        {
+          "id": "GHSA-vfj7-8cjw-p6xm",
+          "package": "braces",
+          "severity": "high",
+          "range": "<=3.0.3",
+          "reason": "braces 3.0.3 is used by Jest/file tooling with repository-owned patterns. No patched npm release; must stay outside web/Android runtime maps.",
+          "revisitWhen": "A patched release, expiry, changed dependency/affected graph or reviewed build/signing/glob configuration; any runtime-map inclusion blocks Public checks."
+        },
+        {
+          "id": "GHSA-86w9-cpqp-85rv",
+          "package": "node-forge",
+          "severity": "high",
+          "range": "<=1.4.0",
+          "reason": "node-forge 1.4.0 is Expo CLI/certificate tooling. No EAS project ID or update-signing certificate is configured; trial signing uses JDK/apksigner. No patched npm release; runtime maps must exclude it.",
+          "revisitWhen": "A patched release, expiry, changed dependency/affected graph or reviewed build/signing/glob configuration; any runtime-map inclusion blocks Public checks."
+        },
+        {
+          "id": "GHSA-hp3w-g68c-fv3c",
+          "package": "sprintf-js",
+          "severity": "moderate",
+          "range": "<=1.1.3",
+          "reason": "sprintf-js 1.0.3 is reached by Jest coverage CLI via js-yaml/argparse; format strings are tooling-owned. No patched npm release; runtime maps must exclude it.",
+          "revisitWhen": "A patched release, expiry, changed dependency/affected graph or reviewed build/signing/glob configuration; any runtime-map inclusion blocks Public checks."
+        }
+      ],
+      "scope": "private-household-tooling"
+    },
+    "strictAudit": {
+      "schema": 2,
+      "mode": "strict",
+      "result": "failed",
+      "reason": "strict_audit_findings",
+      "npmExitCode": 1,
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 5,
+        "high": 51,
+        "critical": 0,
+        "total": 56
+      },
+      "advisories": [
+        {
+          "id": "GHSA-vfj7-8cjw-p6xm",
+          "package": "braces",
+          "severity": "high",
+          "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+        },
+        {
+          "id": "GHSA-86w9-cpqp-85rv",
+          "package": "node-forge",
+          "severity": "high",
+          "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv"
+        },
+        {
+          "id": "GHSA-hp3w-g68c-fv3c",
+          "package": "sprintf-js",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-hp3w-g68c-fv3c"
+        }
+      ]
+    },
+    "publicWebUI": {
+      "schema": 1,
+      "publicSampleOnly": true,
+      "realHaRequired": false,
+      "physicalServiceCalls": 0,
+      "widths": [
+        {
+          "width": 320,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true,
+          "markerReturnFocusCycles": 3,
+          "namedRowReturnFocus": true,
+          "hiddenLayoutSettledBeforeReturn": true
+        },
+        {
+          "width": 430,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true,
+          "markerReturnFocusCycles": 3,
+          "namedRowReturnFocus": true,
+          "hiddenLayoutSettledBeforeReturn": true
+        },
+        {
+          "width": 768,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true,
+          "markerReturnFocusCycles": 3,
+          "namedRowReturnFocus": true,
+          "hiddenLayoutSettledBeforeReturn": true
+        }
+      ],
+      "pageErrors": [],
+      "pageErrorCount": 0,
+      "externalRequests": 0,
+      "result": "passed",
+      "plan": {
+        "source": "sample",
+        "sha256": "a5f7f720366291c723e59abfca780cd8e9ffda3d7919595095efdd8d024eff06"
+      },
+      "chromium": "156.0.8078.4",
+      "developerPlanUnchanged": true,
+      "artifacts": [
+        {
+          "file": "home-320.png",
+          "bytes": 69563
+        },
+        {
+          "file": "plan-320.png",
+          "bytes": 37356
+        },
+        {
+          "file": "control-320.png",
+          "bytes": 53451
+        },
+        {
+          "file": "home-430.png",
+          "bytes": 72376
+        },
+        {
+          "file": "plan-430.png",
+          "bytes": 40184
+        },
+        {
+          "file": "control-430.png",
+          "bytes": 55915
+        },
+        {
+          "file": "home-768.png",
+          "bytes": 77023
+        },
+        {
+          "file": "plan-768.png",
+          "bytes": 45445
+        },
+        {
+          "file": "control-768.png",
+          "bytes": 61060
+        }
+      ],
+      "revision": "e05d88ed64186ebb967121f79e0a36cde228f65d",
+      "dirtySource": true,
+      "serverAndBrowserClosed": true
+    },
+    "webRuntimeGuard": {
+      "maps": 1,
+      "sources": 957,
+      "excludedTooling": [
+        "braces",
+        "node-forge",
+        "sprintf-js",
+        "uuid"
+      ],
+      "result": "passed"
+    },
+    "publicAndroid": {
+      "result": "passed",
+      "publicSampleOnly": true,
+      "decoderProof": true,
+      "androidHermesDomExport": true,
+      "runtimeMapGuard": true,
+      "maps": 2,
+      "physicalHaServices": 0
+    },
+    "androidRuntimeGuard": {
+      "maps": 2,
+      "sources": 1623,
+      "excludedTooling": [
+        "braces",
+        "node-forge",
+        "sprintf-js",
+        "uuid"
+      ],
+      "result": "passed"
+    },
+    "installedXcodeConsumer": "uuid 11.1.1; CJS, bounded v5 buffer, 100 unique project IDs and parse/edit/write/parse pass"
+  },
+  "physicalHaServices": 0,
+  "phoneOperated": false,
+  "newApkAcceptance": false,
+  "limits": [
+    "Three upstream tooling advisories remain open; npm audit itself still exits 1",
+    "Policy expires 2026-11-02 00:00 UTC; review required for new releases or changed inputs/scope",
+    "Runtime map guard covers these JS exports, not the entire native supply chain",
+    "Strict audit remains required for public release",
+    "Original native startup incident is not fixed by this change"
+  ]
+}

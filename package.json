@@ -29,7 +29,9 @@
     "test:tooling": "node --test scripts/__tests__/*.test.mjs",
     "check:ui": "node scripts/check-ui.mjs",
     "check:public-inputs": "node scripts/check-public-inputs.mjs",
-    "check:audit": "node scripts/check-audit.mjs"
+    "check:audit": "node scripts/check-audit.mjs",
+    "check:audit:strict": "node scripts/check-audit.mjs --strict",
+    "check:runtime-dependencies": "node scripts/check-runtime-dependencies.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -78,6 +80,9 @@
   "overrides": {
     "query-string@7.1.3": {
       "decode-uri-component": "0.5.0"
+    },
+    "xcode@3.0.1": {
+      "uuid": "11.1.1"
     }
   }
 }

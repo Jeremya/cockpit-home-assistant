@@ -1,5 +1,7 @@
 # R01 dependency maintenance — 2026-10-17
 
+**2026-10-19 follow-up:** [CI policy and uuid correction](dependency-ci-validation.md) supersede this dated four-advisory tooling disposition. The user approved three expiring tooling exceptions until 2026-11-02; uuid is corrected to 11.1.1, raw audit remains nonzero, strict release mode remains blocking, and runtime-map guards enforce the assessed boundary. The native incident remains separate. [Current policy](../design/dependency-policy.md).
+
 The minimum release assessment is delivered: five advisory roots are classified, the installed runtime query decoder is corrected, compatible SDK 57 patches pass verification, and the recorded native startup incident has a controlled reproduction result. **R01 remains open for tooling maintenance and the unexplained native incident.** This permits preparing R03a's standalone candidate; it does not accept that binary or public distribution.
 
 Base: `7aecd05`. Node 24.11.1, npm 11.11.0. The [aggregate proof](dependency-maintenance-proof-2026-10-17.json) records exact counts, versions, hashes and scope. The [earlier review](../reviews/2026-10-17-global-review.md) retains its pre-fix findings.

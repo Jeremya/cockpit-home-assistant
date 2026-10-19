@@ -4,6 +4,10 @@
 
 The [architecture and reproduction guide](../design/public-checks.md) owns the runner, cache/input isolation, artifacts, process cleanup and workflow contracts. The [safe aggregate](public-ci-proof-2026-10-18.json) records exact run/job identities, observed conclusions and artifact metadata. This is source/browser/export acceptance, not a new APK or public-release acceptance.
 
+## R01 policy follow-up — 2026-10-19
+
+[The dependency CI follow-up](dependency-ci-validation.md) fixes uuid and implements the user's approved, expiring exceptions for the three unpatched tooling advisories. Reports preserve all counts and npm exit 1; strict mode still fails. Public checks now enforce source-map exclusion for these tooling packages on web and Android/DOM. See the [policy and maintenance rules](../design/dependency-policy.md); older failing raw-audit observations below retain their original scope.
+
 ## M00 follow-up — 2026-10-19
 
 [M00](return-focus-validation.md) reproduces and corrects the marker-remount race. The extended smoke verifies three marker returns and one named-row return at each width after hidden layout settles; local runs and [CI on 62bd0a5](https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39277773409) pass. Its native exposure follow-up, later source CI and exact-phone scope remain in the M00 ledger. The separate R01 dependency audit still fails.
