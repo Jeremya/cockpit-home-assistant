@@ -4,6 +4,12 @@
 
 The [architecture and reproduction guide](../design/public-checks.md) owns the runner, cache/input isolation, artifacts, process cleanup and workflow contracts. The [safe aggregate](public-ci-proof-2026-10-18.json) records exact run/job identities, observed conclusions and artifact metadata. This is source/browser/export acceptance, not a new APK or public-release acceptance.
 
+## Later follow-up — 2026-10-19
+
+The [household MVP review](../reviews/2026-10-19-household-mvp-review.md) checks `2c496be`: the functional/protocol/Android-export job passes, but the extended UI smoke fails marker return focus at 430 px while the document is active. A fresh local run on that same clean revision passes 320/430/768. M00/U01/R02 keeps this intermittence open; the earlier passing foundation below does not establish current return-focus stability. The [new aggregate](household-mvp-review-proof-2026-10-19.json) preserves both results. The separate dependency audit still fails.
+
+## Original acceptance checkpoint
+
 | Check                     | Evidence                                                                                                                                                                                                                       |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Clean Linux installation  | Fresh `npm ci --include=dev` passes in both public jobs; no personal inputs supplied                                                                                                                                           |
@@ -35,4 +41,4 @@ The fresh local lockfile audit still reports **63 affected entries: 51 high, 12 
 
 No native signing/build/release automation or branch-protection change is included. Fresh offline web loads, TalkBack, large system text, private household captures, large-inventory performance, S02 Pixel, physical controls and the seven-day household observations remain separate. The UI test checks the 2D route, not 3D performance or renderer reliability.
 
-Next bounded work is **U01**: expose honest automatic-retry/terminal diagnostics, improve 2D label readability and validate accessibility on a named phone. Preserve the accepted trial while recording ordinary household observations. R01 maintenance continues independently; R03b still needs its own release decision.
+At this original checkpoint, the next bounded work was **U01**. Its diagnostics/readability implementation and remaining native checks are now recorded in the [U01 ledger](diagnostics-accessibility-validation.md); use the [current delivery order](../README.md#delivery-order) for subsequent work. R01 maintenance continues independently; R03b still needs its own release decision.

@@ -1,0 +1,265 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "scope": "Review and proposed private household Android MVP, confirmed by user",
+  "reviewedRevision": "2c496bea204ebcd34c127b231231eb2d9ed8b882",
+  "applicationSourceChanged": false,
+  "newChecks": {
+    "publicUiLocal": {
+      "schema": 1,
+      "publicSampleOnly": true,
+      "realHaRequired": false,
+      "physicalServiceCalls": 0,
+      "widths": [
+        {
+          "width": 320,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true
+        },
+        {
+          "width": 430,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true
+        },
+        {
+          "width": 768,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true
+        }
+      ],
+      "pageErrors": [],
+      "pageErrorCount": 0,
+      "externalRequests": 0,
+      "result": "passed",
+      "plan": {
+        "source": "sample",
+        "sha256": "a5f7f720366291c723e59abfca780cd8e9ffda3d7919595095efdd8d024eff06"
+      },
+      "chromium": "156.0.8078.4",
+      "developerPlanUnchanged": true,
+      "artifacts": [
+        {
+          "file": "home-320.png",
+          "bytes": 69351
+        },
+        {
+          "file": "plan-320.png",
+          "bytes": 37356
+        },
+        {
+          "file": "control-320.png",
+          "bytes": 53451
+        },
+        {
+          "file": "home-430.png",
+          "bytes": 72157
+        },
+        {
+          "file": "plan-430.png",
+          "bytes": 40184
+        },
+        {
+          "file": "control-430.png",
+          "bytes": 55915
+        },
+        {
+          "file": "home-768.png",
+          "bytes": 76796
+        },
+        {
+          "file": "plan-768.png",
+          "bytes": 45445
+        },
+        {
+          "file": "control-768.png",
+          "bytes": 61060
+        }
+      ],
+      "revision": "2c496bea204ebcd34c127b231231eb2d9ed8b882",
+      "dirtySource": false,
+      "serverAndBrowserClosed": true
+    },
+    "ciRunsRead": {
+      "revision": "2c496bea204ebcd34c127b231231eb2d9ed8b882",
+      "runs": [
+        {
+          "id": 39265244883,
+          "name": "Dependency audit",
+          "status": "completed",
+          "conclusion": "failure",
+          "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39265244883",
+          "head_sha": "2c496bea204ebcd34c127b231231eb2d9ed8b882",
+          "created_at": "2026-10-19T14:01:37Z",
+          "updated_at": "2026-10-19T14:02:02Z"
+        },
+        {
+          "id": 39265244591,
+          "name": "Public checks",
+          "status": "completed",
+          "conclusion": "failure",
+          "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39265244591",
+          "head_sha": "2c496bea204ebcd34c127b231231eb2d9ed8b882",
+          "created_at": "2026-10-19T14:01:37Z",
+          "updated_at": "2026-10-19T14:03:46Z"
+        }
+      ]
+    },
+    "ciJobsRead": [
+      {
+        "id": 118102995564,
+        "name": "Tests, protocol and Android JS",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39265244591/job/118102995564"
+      },
+      {
+        "id": 118102996049,
+        "name": "Public UI 320 / 430 / 768",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39265244591/job/118102996049"
+      }
+    ],
+    "ciBrowserLog": {
+      "schema": 1,
+      "publicSampleOnly": true,
+      "realHaRequired": false,
+      "physicalServiceCalls": 0,
+      "widths": [
+        {
+          "width": 320,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true
+        }
+      ],
+      "pageErrors": [],
+      "pageErrorCount": 0,
+      "externalRequests": 0,
+      "result": "failed",
+      "plan": {
+        "source": "sample",
+        "sha256": "a5f7f720366291c723e59abfca780cd8e9ffda3d7919595095efdd8d024eff06"
+      },
+      "chromium": "156.0.8078.4",
+      "failedStage": "browser",
+      "failure": "expect(locator).toBeFocused() failed\n\nLocator:  getByTestId('house-scroll').getByTestId('plan-marker-demo-switch.living_lamp')\nExpected: focused\nReceived: inactive\nTimeout:  10000ms\n\nCall log:\n  - Expect \"toBeFocused\" getByTestId('house-scroll').getByTestId('plan-marker-demo-switch.living_lamp') with timeout 10000ms\n  - waiting for getByTestId('house-scroll').getByTestId('plan-marker-demo-switch.living_lamp')\n    24 \u00d7 locator resolved to <button tabindex=\"0\" role=\"button\" type=\"button\" aria-label=\"Living room lamp, Off\" class=\"css-g5y9jx r-1loqt21 r-1otgn73\" data-testid=\"plan-marker-demo-switch.living_lamp\">\u2026</button>\n       - unexpected value \"inactive\"\n",
+      "developerPlanUnchanged": true,
+      "artifacts": [
+        {
+          "file": "failure.png",
+          "bytes": 40011
+        },
+        {
+          "file": "home-320.png",
+          "bytes": 62984
+        },
+        {
+          "file": "plan-320.png",
+          "bytes": 36556
+        },
+        {
+          "file": "control-320.png",
+          "bytes": 51141
+        },
+        {
+          "file": "home-430.png",
+          "bytes": 65058
+        },
+        {
+          "file": "plan-430.png",
+          "bytes": 40011
+        },
+        {
+          "file": "control-430.png",
+          "bytes": 54815
+        }
+      ],
+      "revision": "2c496bea204ebcd34c127b231231eb2d9ed8b882",
+      "dirtySource": false,
+      "serverAndBrowserClosed": true
+    },
+    "ciFocusAtFailure": {
+      "width": 430,
+      "targetIsActive": false,
+      "documentFocused": true
+    },
+    "sourceReview": true,
+    "officialReferenceScreenshotsInspected": true,
+    "newNativeTests": false,
+    "newRealHaInventory": false,
+    "physicalServices": 0
+  },
+  "reusedEvidence": {
+    "repository": "596 Jest tests / 39 suites at U01 checkpoint; latest CI test step succeeds",
+    "tooling": "6 Node tests at checkpoint; latest CI tooling step succeeds",
+    "u01": "Build 1005 text/visual checks on Seeker at 1.0/1.5/2.0; TalkBack not accepted",
+    "r03a": "Build 1002 accepted on Seeker and Pixel for scoped 2D/read-only household battery",
+    "s02": "Production integration implemented; separate Seeker proof; not enabled in Trial, Pixel gate retained",
+    "r01": "2026-10-17 assessment of four tooling advisory roots; latest independent audit check still fails"
+  },
+  "reference": {
+    "repository": "https://github.com/0xProbabillity/house-control",
+    "revision": "88c84cca77fc12f9297dc91ba28ce58bc9f316d7",
+    "commitDate": "2026-10-16T10:06:48Z",
+    "changedSincePriorComparison": false,
+    "nativeReferenceAppExecuted": false
+  },
+  "currentLimits": [
+    "Intermittent web marker return focus remains unresolved",
+    "TalkBack supervised acceptance pending",
+    "Real Kasa control not accepted and globally disabled",
+    "No per-device control enrollment",
+    "Household-specific plan/placements not accepted in final Trial evidence",
+    "3D disabled in Trial; exact household candidate acceptance pending",
+    "Seven-day use and HA host availability unmeasured",
+    "Dependency audit remains failing"
+  ]
+}
