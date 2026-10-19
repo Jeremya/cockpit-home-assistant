@@ -8,7 +8,8 @@
       "f698d533bddffa18d0c036b519340ec42e2b710b",
       "10a38417ff2be41d68f6a71401d9d2bfbc89bce0"
     ],
-    "verifiedCi": "173995a6f67d399c73db7bfef63700363aa34c84"
+    "verifiedCi": "f3b3aa1f1d7580a8146b3d8fd799b1546d603bd9",
+    "finalImplementation": "f3b3aa1f1d7580a8146b3d8fd799b1546d603bd9"
   },
   "repository": {
     "jestTests": 596,
@@ -19,42 +20,155 @@
     "format": "passed"
   },
   "ci": {
-    "revision": "173995a6f67d399c73db7bfef63700363aa34c84",
+    "revision": "f3b3aa1f1d7580a8146b3d8fd799b1546d603bd9",
     "runs": [
       {
-        "id": 39261300018,
+        "id": 39262054453,
         "name": "Dependency audit",
         "status": "completed",
         "conclusion": "failure",
-        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39261300018",
-        "head_sha": "173995a6f67d399c73db7bfef63700363aa34c84",
-        "created_at": "2026-10-19T13:34:23Z",
-        "updated_at": "2026-10-19T13:34:42Z"
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39262054453",
+        "head_sha": "f3b3aa1f1d7580a8146b3d8fd799b1546d603bd9",
+        "created_at": "2026-10-19T13:39:46Z",
+        "updated_at": "2026-10-19T13:40:09Z"
       },
       {
-        "id": 39261299560,
+        "id": 39262054448,
         "name": "Public checks",
         "status": "completed",
         "conclusion": "success",
-        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39261299560",
-        "head_sha": "173995a6f67d399c73db7bfef63700363aa34c84",
-        "created_at": "2026-10-19T13:34:22Z",
-        "updated_at": "2026-10-19T13:36:24Z"
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39262054448",
+        "head_sha": "f3b3aa1f1d7580a8146b3d8fd799b1546d603bd9",
+        "created_at": "2026-10-19T13:39:46Z",
+        "updated_at": "2026-10-19T13:41:39Z"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 118091971324,
+        "name": "Public UI 320 / 430 / 768",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39262054448/job/118091971324"
+      },
+      {
+        "id": 118091972075,
+        "name": "Tests, protocol and Android JS",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39262054448/job/118091972075"
       }
     ]
   },
   "browser": {
+    "schema": 1,
+    "publicSampleOnly": true,
+    "realHaRequired": false,
+    "physicalServiceCalls": 0,
     "widths": [
-      320,
-      430,
-      768
+      {
+        "width": 320,
+        "homePlanAndBack": true,
+        "allFloorsAndPolygonSelection": true,
+        "selectedTabsAndRoomList": true,
+        "unknownDimensions": true,
+        "deviceReadingsAndFavoritePersistence": true,
+        "simulatedOnOffAndDismissal": true,
+        "targets48px": true,
+        "loadedRoutesWorkOffline": true,
+        "directHouseRoute": true,
+        "noHorizontalOverflow": true,
+        "roomDetailRevealedAndFocused": true,
+        "placedMarkerAndCaptionAvoidRoomName": true,
+        "marker48pxAndAccessibleList": true,
+        "markerDetailsAndBackKeepFloor": true
+      },
+      {
+        "width": 430,
+        "homePlanAndBack": true,
+        "allFloorsAndPolygonSelection": true,
+        "selectedTabsAndRoomList": true,
+        "unknownDimensions": true,
+        "deviceReadingsAndFavoritePersistence": true,
+        "simulatedOnOffAndDismissal": true,
+        "targets48px": true,
+        "loadedRoutesWorkOffline": true,
+        "directHouseRoute": true,
+        "noHorizontalOverflow": true,
+        "roomDetailRevealedAndFocused": true,
+        "placedMarkerAndCaptionAvoidRoomName": true,
+        "marker48pxAndAccessibleList": true,
+        "markerDetailsAndBackKeepFloor": true
+      },
+      {
+        "width": 768,
+        "homePlanAndBack": true,
+        "allFloorsAndPolygonSelection": true,
+        "selectedTabsAndRoomList": true,
+        "unknownDimensions": true,
+        "deviceReadingsAndFavoritePersistence": true,
+        "simulatedOnOffAndDismissal": true,
+        "targets48px": true,
+        "loadedRoutesWorkOffline": true,
+        "directHouseRoute": true,
+        "noHorizontalOverflow": true,
+        "roomDetailRevealedAndFocused": true,
+        "placedMarkerAndCaptionAvoidRoomName": true,
+        "marker48pxAndAccessibleList": true,
+        "markerDetailsAndBackKeepFloor": true
+      }
     ],
-    "sampleOnly": true,
-    "physicalServices": 0,
-    "pageErrors": 0,
+    "pageErrors": [],
+    "pageErrorCount": 0,
     "externalRequests": 0,
-    "developerPlanUnchanged": true,
     "result": "passed",
+    "plan": {
+      "source": "sample",
+      "sha256": "a5f7f720366291c723e59abfca780cd8e9ffda3d7919595095efdd8d024eff06"
+    },
+    "chromium": "156.0.8078.4",
+    "developerPlanUnchanged": true,
+    "artifacts": [
+      {
+        "file": "home-320.png",
+        "bytes": 61981
+      },
+      {
+        "file": "plan-320.png",
+        "bytes": 36556
+      },
+      {
+        "file": "control-320.png",
+        "bytes": 51141
+      },
+      {
+        "file": "home-430.png",
+        "bytes": 64041
+      },
+      {
+        "file": "plan-430.png",
+        "bytes": 39919
+      },
+      {
+        "file": "control-430.png",
+        "bytes": 54815
+      },
+      {
+        "file": "home-768.png",
+        "bytes": 67969
+      },
+      {
+        "file": "plan-768.png",
+        "bytes": 45226
+      },
+      {
+        "file": "control-768.png",
+        "bytes": 59519
+      }
+    ],
+    "revision": "f3b3aa1f1d7580a8146b3d8fd799b1546d603bd9",
+    "dirtySource": false,
+    "serverAndBrowserClosed": true,
     "artifactContentsDownloaded": false
   },
   "native": {
@@ -62,15 +176,15 @@
       "schema": 1,
       "variant": "internal-trial",
       "package": "com.larrabee.homecockpit.trial",
-      "versionName": "0.1.0-trial.4",
-      "versionCode": 1004,
-      "sourceRevision": "10a38417ff2be41d68f6a71401d9d2bfbc89bce0",
+      "versionName": "0.1.0-trial.5",
+      "versionCode": 1005,
+      "sourceRevision": "f3b3aa1f1d7580a8146b3d8fd799b1546d603bd9",
       "dirtySource": false,
-      "sourceSha256": "e2e611ce2df8daadbb31a3edb72f1450c4072ad397b7a304af713c0e19035944",
+      "sourceSha256": "51b994ef7c3a140ebc6d2e7eb575b8707bb6304f4c6a54c06db0c2661ec9f278",
       "plan": "sample",
       "privateArtifact": false,
       "architecture": "arm64-v8a",
-      "apkSha256": "193552c7d9f9d80c292dd30bd7ee8c62fffcfc5b8d0b3e70ad9ff3b633123cb1",
+      "apkSha256": "7846c7e1c2c7f6356b451aa3a4adbfe6c77ef9ba08e0fd8b725d7cea7aa8a235",
       "signingCertificateSha256": "7191b909f58f9900cbfeb875c8d61ad5261efff9463b53b3e522c6b872261153",
       "checks": {
         "embeddedReleaseBundle": true,
@@ -85,13 +199,35 @@
     },
     "installed": {
       "device": "seeker",
-      "apkSha256": "193552c7d9f9d80c292dd30bd7ee8c62fffcfc5b8d0b3e70ad9ff3b633123cb1",
+      "apkSha256": "7846c7e1c2c7f6356b451aa3a4adbfe6c77ef9ba08e0fd8b725d7cea7aa8a235",
       "trialVersionCode": [
-        "1004"
+        "1005"
       ],
       "updatedWithoutClearingData": true
     },
-    "fonts": {
+    "talkBack": {
+      "result": "not accepted",
+      "automaticAttempt": {
+        "device": "seeker",
+        "apkSha256": "7846c7e1c2c7f6356b451aa3a4adbfe6c77ef9ba08e0fd8b725d7cea7aa8a235",
+        "date": "2026-10-19",
+        "checks": {
+          "selectedFloorExposed": false,
+          "savedHouseholdConnectionRestored": true
+        },
+        "audibleSpeechManuallyVerified": false,
+        "physicalHaServices": 0,
+        "result": "needs-review",
+        "failure": "Expected trial UI target missing: Open placed Living room lamp",
+        "accessibilitySettingsRestored": true,
+        "temporaryDemoPlacementRemoved": true
+      },
+      "limitation": "First-use TalkBack tutorial intercepted app traversal; installed service did not expose the requested node hierarchy",
+      "manualFeedback": "User could not listen; audible announcements and native return focus remain unverified",
+      "serviceVersion": "17.1.0.983118198"
+    },
+    "pixel": "optional extension, not run",
+    "fontChecksBuild1004": {
       "date": "2026-10-19",
       "device": "Seeker",
       "android": "16",
@@ -131,8 +267,48 @@
       "fontScaleRestored": true,
       "newNativeCrash": false
     },
-    "talkBack": "pending",
-    "pixel": "not run"
+    "fontChecksBuild1005": {
+      "date": "2026-10-19",
+      "device": "Seeker",
+      "android": "16",
+      "physicalHaServices": 0,
+      "fontScales": [
+        {
+          "scale": "1.0",
+          "floorSelectionSemantics": true,
+          "floorTargets48dp": true,
+          "roomDetailRevealed": true,
+          "roomSelectionSemantics": true,
+          "unsavedMarkerAtBedroomLabel": true
+        },
+        {
+          "scale": "1.5",
+          "floorSelectionSemantics": true,
+          "floorTargets48dp": true,
+          "roomDetailRevealed": true,
+          "roomSelectionSemantics": true,
+          "unsavedMarkerAtBedroomLabel": true
+        },
+        {
+          "scale": "2.0",
+          "floorSelectionSemantics": true,
+          "floorTargets48dp": true,
+          "roomDetailRevealed": true,
+          "roomSelectionSemantics": true,
+          "unsavedMarkerAtBedroomLabel": true
+        }
+      ],
+      "checks": {
+        "signedUpdateRunsWithoutMetro": true,
+        "publicDemoOnlyForCaptures": true,
+        "savedHouseholdConnectionRestored": true
+      },
+      "result": "passed",
+      "fontScaleRestored": true,
+      "newNativeCrash": false
+    },
+    "referencePhone": "Seeker, explicitly selected by the user",
+    "textAndVisualAcceptance": "passed on exact build 1005, Seeker Android 16, font scales 1.0/1.5/2.0"
   },
   "contrast": [
     {
@@ -173,8 +349,7 @@
     }
   ],
   "remaining": [
-    "Pixel U01 text/accessibility pass",
-    "TalkBack spoken-feedback and native return focus acceptance",
+    "Seeker TalkBack spoken-feedback and native return focus acceptance",
     "R01 independent audit",
     "seven-day observations",
     "S02 Pixel production 3D",
