@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "feature": "M01",
+  "sourceRevision": "220b3031ed152ba2582710bbe5bc7ed8a99cda29",
+  "binary": {
+    "schema": 1,
+    "variant": "internal-trial",
+    "package": "com.larrabee.homecockpit.trial",
+    "versionName": "0.1.0-trial.9",
+    "versionCode": 1009,
+    "sourceRevision": "220b3031ed152ba2582710bbe5bc7ed8a99cda29",
+    "dirtySource": false,
+    "sourceSha256": "04d5c3e0b5cb5738e7fe1462ce4832b1a8b3836da80aa0a057ed9178ad7204a0",
+    "plan": "sample",
+    "privateArtifact": false,
+    "architecture": "arm64-v8a",
+    "apkSha256": "8d9dee521128ad96abc03a1b3906bd4504067131641befaaac30f2300a7cf18e",
+    "signingCertificateSha256": "7191b909f58f9900cbfeb875c8d61ad5261efff9463b53b3e522c6b872261153",
+    "features": {
+      "powerControl": "enrolled-tplink-hs103",
+      "defaultPowerAuthorization": "denied",
+      "spatial3d": false
+    },
+    "checks": {
+      "embeddedReleaseBundle": true,
+      "debuggable": false,
+      "developmentLauncher": false,
+      "backup": false,
+      "localHttp": true,
+      "spatial3d": false
+    },
+    "acceptance": "candidate; installed-device validation required"
+  },
+  "automated": {
+    "jest": {
+      "tests": 633,
+      "suites": 40,
+      "result": "passed"
+    },
+    "tooling": {
+      "tests": 19,
+      "result": "passed"
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "format": "passed",
+    "protocol": "passed; loopback only",
+    "publicWeb": {
+      "widths": [
+        320,
+        430,
+        768
+      ],
+      "primarySummaryPower": true,
+      "focusReturnAssertions": 12,
+      "runtimeMapGuard": "passed",
+      "developerPlanUnchanged": true,
+      "pageErrors": 0,
+      "externalRequests": 0,
+      "result": "passed"
+    }
+  },
+  "ci": [
+    {
+      "id": 39316948836,
+      "name": "Dependency audit",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39316948836",
+      "head_sha": "220b3031ed152ba2582710bbe5bc7ed8a99cda29",
+      "created_at": "2026-10-19T20:09:25Z",
+      "updated_at": "2026-10-19T20:09:47Z"
+    },
+    {
+      "id": 39316948871,
+      "name": "Public checks",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39316948871",
+      "head_sha": "220b3031ed152ba2582710bbe5bc7ed8a99cda29",
+      "created_at": "2026-10-19T20:09:25Z",
+      "updated_at": "2026-10-19T20:11:24Z"
+    }
+  ],
+  "pixel": {
+    "installed": {
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "apkSha256": "8d9dee521128ad96abc03a1b3906bd4504067131641befaaac30f2300a7cf18e",
+      "build": 1009,
+      "sourceRevision": "220b3031ed152ba2582710bbe5bc7ed8a99cda29",
+      "sourceSha256": "04d5c3e0b5cb5738e7fe1462ce4832b1a8b3836da80aa0a057ed9178ad7204a0",
+      "signedUpdatePreservesSavedHouseholdSession": true,
+      "noMetroReverse": true,
+      "physicalHaServices": 0
+    },
+    "migrationScope": "Saved HA connection survives the signed update; real power remains default-denied. Detailed preference-field preservation is covered by migration tests.",
+    "fixture": {
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "build": 1009,
+      "physicalHaServices": 0,
+      "fixtureOnly": true,
+      "checks": {
+        "explicitReviewAndCancelSendNothing": true,
+        "enrollmentSendsNothing": true,
+        "acknowledgementWaitsForObservation": true,
+        "permissionAndReportedStateSurviveProcessRestart": true,
+        "revocationSendsNothingAndDisablesPower": true,
+        "explicitOnOffThroughSummary": true,
+        "unconfirmedShownBeforeForeground": true,
+        "unconfirmedAndForegroundDoNotReplay": true,
+        "offlineRevocationAndRecoveryNeverReplay": true,
+        "refusalIsQualifiedWithoutOptimisticState": true,
+        "fixtureOriginalStateAndDeniedPermissionRestored": true
+      },
+      "fixtureServiceCallsBefore": 2,
+      "result": "passed",
+      "newNativeCrash": false,
+      "fixtureServiceCalls": 4,
+      "fixtureServiceCallsTotal": 6,
+      "harnessAdjustments": [
+        "Android appends busy to accessible button labels; inspect their disabled state in the acknowledgement frame",
+        "A fresh nonmatching foreground observation dismisses the transient unconfirmed message by C02 policy; assert unchanged service count and fresh Off state instead"
+      ]
+    },
+    "fonts": {
+      "device": "Pixel 9 Pro",
+      "build": 1009,
+      "physicalHaServices": 0,
+      "fontScales": [
+        {
+          "scale": "1.0",
+          "namedPowerTargets48dp": true,
+          "horizontalTargetsFit": true,
+          "permissionReviewReachableAndCancelable": true
+        },
+        {
+          "scale": "2.0",
+          "namedPowerTargets48dp": true,
+          "horizontalTargetsFit": true,
+          "permissionReviewReachableAndCancelable": true
+        }
+      ],
+      "result": "passed",
+      "fontScaleRestored": true
+    },
+    "householdPreflight": {
+      "device": "Pixel 9 Pro",
+      "build": 1009,
+      "savedHouseholdSessionRestored": true,
+      "defaultDeniedAfterMigration": true,
+      "uniqueVerifiedHs103": true,
+      "bothPowerActionsDisabledUntilEnrollment": true,
+      "physicalHaServices": 0,
+      "matchesPreviouslyProvidedMac": true
+    },
+    "cleanup": {
+      "fontScaleRestored": true,
+      "stayAwakeRestored": true,
+      "wifiUnchanged": true,
+      "fixtureReverseRemoved": true,
+      "fixtureStopped": true
+    }
+  },
+  "physical": {
+    "device": "Pixel 9 Pro",
+    "build": 1009,
+    "apkSha256": "8d9dee521128ad96abc03a1b3906bd4504067131641befaaac30f2300a7cf18e",
+    "userAuthorizedLampCycle": true,
+    "matchesPreviouslyProvidedMac": true,
+    "originalState": "off",
+    "onRequestedThroughInstalledUi": true,
+    "onReportedByHaAndNativeUi": true,
+    "physicalPowerButtonPresses": 2,
+    "physicalObservationConfirmedByUser": true,
+    "offRequestedThroughInstalledUi": true,
+    "originalReportedStateRestored": true,
+    "permissionSurvivesRealProfileRestart": true,
+    "originalReportedStateAfterRestart": "off",
+    "result": "passed",
+    "userObservation": "User confirmed seeing both the lamp turning on and off"
+  },
+  "limits": [
+    "Pixel acceptance is scoped to this 1009 sample APK; no Seeker M01 or S02/3D acceptance is implied",
+    "A reported HA state is not physical verification or causal proof",
+    "Native TalkBack speech for the new permission flow was not manually listened to",
+    "Three upstream tooling advisories retain the approved private policy; strict public release remains blocked",
+    "The earlier unexplained native incident is not claimed fixed"
+  ]
+}

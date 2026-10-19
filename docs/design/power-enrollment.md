@@ -1,6 +1,6 @@
 # M01 — scoped household power control
 
-Implemented on 2026-10-19. This replaces C07a's model-global Boolean with explicit, default-denied enrollment. Physical household acceptance remains separate from source, public fixture and phone acceptance; see the [validation ledger](../stage0/power-enrollment-validation.md).
+Implemented on 2026-10-19. This replaces C07a's model-global Boolean with explicit, default-denied enrollment. Trial **1009** is accepted on Pixel 9 Pro for the explicitly enrolled household lamp, including user-observed On/Off and restoration of the original Off state. Source, public fixture, phone and physical evidence remain distinct in the [validation ledger](../stage0/power-enrollment-validation.md).
 
 ## User flow
 

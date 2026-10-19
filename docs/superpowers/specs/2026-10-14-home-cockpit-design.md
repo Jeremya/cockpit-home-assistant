@@ -1,12 +1,12 @@
 # Maurice — Functional & Technical Specification
 
 - **Date:** 2026-10-14
-- **Updated:** 2026-10-16
-- **Version:** 15 — reconciled through C07a UI and C04, C03, C02, C01 and S02, U03/U04, P03/P04 and their review corrections, measured S01 acceptance and the [CEO review](2026-10-15-maurice-ceo-review.md). Earlier review dispositions remain in §11.
+- **Updated:** 2026-10-19
+- **Version:** 16 — reconciled through M01 schema-3 power enrollment and scoped Pixel lamp acceptance, R03a standalone delivery, F02/R02 CI and M00 focus, plus the earlier C01–C04/C07a, S01/S02, P03/P04 and U03/U04 contracts. Earlier review dispositions remain in §11.
 - **Status:** Living specification; partially implemented. Requirements below include future features, not a claim they all exist.
 - **Scope:** product boundary, current foundation contracts and future acceptance requirements. [Project status](../../README.md) is the reference for delivery; the [backlog](../../BACKLOG.md) gives the current execution order.
 
-Implemented: Android/HA read-only foundation, native 2D plans, schema-2 profile plans/reset, explicit HA-area links (P03), 2D entity placements (P04), shared attention semantics/coverage (U04), and physical-device summaries (U03). Kasa/Petlibro read-only integration is proven. S01 native feasibility passes on Pixel 9 Pro and Seeker ([report](../../stage0/scene-validation.md)); production 2D/3D integration is implemented in S02 ([runtime scope](../../stage0/spatial-view-validation.md)). C01 semantic commands, C02 outcomes and C03 scheduling/no replay are implemented behind the read-only UI ([facade](../../design/commands.md), [outcomes](../../design/command-outcomes.md), [scheduling](../../design/command-scheduling.md)). C04 adds deterministic offline simulated services and authoritative demo state ([simulation](../../design/demo-commands.md)). C07a adds scoped switch UI; the offline lamp is enabled and real HS103 activation remains gated pending physical acceptance ([control contract](../../design/switch-controls.md)). Proprietary-state verification, other control UI, images and household standalone distribution remain future delivery. iOS is deferred.
+Implemented: Android/HA foundation, native 2D plans, schema-3 preferences with profile plans/reset and default-denied power grants, explicit HA-area links (P03), 2D entity placements (P04), shared attention semantics/coverage (U04), and physical-device summaries (U03). Kasa/Petlibro read-only integration is proven. S01 native feasibility passes on Pixel 9 Pro and Seeker ([report](../../stage0/scene-validation.md)); production 2D/3D integration is implemented in S02 ([runtime scope](../../stage0/spatial-view-validation.md)). C01 semantic commands, C02 outcomes and C03 scheduling/no replay are implemented ([facade](../../design/commands.md), [outcomes](../../design/command-outcomes.md), [scheduling](../../design/command-scheduling.md)). C04 adds deterministic offline simulated services and authoritative demo state ([simulation](../../design/demo-commands.md)). C07a/M01 provide direct summary On/Off, explicit profile/device permission and revocation. Trial **1009** on Pixel accepts the enrolled household lamp after a user-observed authorized On/Off cycle with original Off restored ([M01 evidence](../../stage0/power-enrollment-validation.md)). R03a standalone **1002** is accepted on both phones for its earlier read-only scope; F02/R02 CI and scoped M00 focus acceptance are recorded in [project status](../../README.md). Next is M02 household personalization. Proprietary-state verification, other control UI, images and public distribution remain future delivery. iOS is deferred.
 
 ---
 
@@ -60,7 +60,7 @@ These are acceptance targets for the completed scope. Current delivered capabili
 
 | Device                        | Expected HA path                                                                                                                            | Main entities                                                                                     | Notes / Stage 0 checks                                                                                                                                                                                      |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kasa HS103 plug / lamp        | Official TP-Link Smart Home integration                                                                                                     | `switch.*`                                                                                        | Read-only backend/area proof passes; first safe control target after C01–C04 and C07a                                                                                                                       |
+| Kasa HS103 plug / lamp        | Official TP-Link Smart Home integration                                                                                                     | `switch.*`                                                                                        | Read-only proof and M01 enrolled-lamp On/Off accepted on Pixel Trial 1009; original Off restored and user observed both physical changes                                                                      |
 | Petlibro PLAF103 feeder       | Installed community Petlibro integration, shared account                                                                                    | `sensor.*`, `binary_sensor.*` and other HA domains                                                | 23 supported visible readings grouped by physical device (U03); generic U04 rules implemented; verify proprietary battery/power meaning in H01; feeding/schedule control is outside the first control slice |
 | Nest Learning Thermostat      | Google Nest (official, Google Device Access: Google project setup + US$5 registration fee) **or** Matter, depending on the model generation | `climate.*`, `sensor.*`                                                                           | Confirm model; choose cloud vs Matter; record exposed features (single target vs range, modes, units)                                                                                                       |
 | Schlage Encode Plus (several) | Schlage (official; vendor cloud, 30 s polling)                                                                                              | `lock.*`, `sensor.*` (battery)                                                                    | Measure command-to-confirmed latency; check whether the lock exposes a code requirement                                                                                                                     |
@@ -464,7 +464,7 @@ import type { HousePlan, PlanPoint } from "../spatial/model";
 import type { IdentityMetadata } from "../core/types";
 
 export interface PreferencesFile {
-  schemaVersion: 2;
+  schemaVersion: 3;
   profiles: Record<ProfileId, ProfilePreferences>; // 'demo' | `ha:${origin}`
 }
 export type ProfileId = string;
@@ -476,6 +476,17 @@ export interface ProfilePreferences {
   cameraEventOverrides: Record<string, string[]>; // camera key → event/motion keys
   identities: IdentityMetadata;
   spatial: SpatialPreferences;
+  switchEnrollments: Record<string, SwitchEnrollment>; // exact entity key; never follows aliases
+}
+
+export interface SwitchEnrollment {
+  profileId: string;
+  entityKey: string;
+  deviceId: string;
+  platform: "tplink";
+  manufacturer: "TP-Link";
+  model: string; // validated HS103 / HS103(US) scope
+  capability: "switch";
 }
 
 export interface SpatialPreferences {
@@ -558,7 +569,7 @@ Pull-to-refresh calls `resync()`: a new subscription epoch (§6.2) plus a regist
 
 <a id="command-contract"></a>
 
-### 6.5 Commands (`src/commands/`, C01–C04 and C07a UI implemented; hardware gates remain)
+### 6.5 Commands (`src/commands/`, C01–C04 and C07a/M01 implemented; other hardware gates remain)
 
 C01 implements a typed semantic facade, latest-observation validation and service mapping through SessionManager. It returns `refused`, `no-op` or `started` with a separate service-acknowledgement promise; the latter does not confirm physical success. Capture a manager-issued target before any future confirmation dialog and pass that exact target back for dispatch. Profile/backend generation, stable key→same entity ID, ready/foreground, availability and capabilities are rechecked immediately before sending. C02 registers sending records before transport, tracks local observation revisions and reconciles code-free outcomes, deadlines and late evidence. C03 adds per-entity guards/serialization, 600 ms debounce, immediate cancellation and invalidation of prepared targets after any readiness/background interruption. Continuous methods may return `queued` with a `completion` promise that settles to a dispatch decision or typed cancellation; no sending record exists until actual dispatch. C07a adds explicit On/Off in the entity-detail flow, with separate observed state and command outcomes, a captured target, lifecycle/availability guards and synchronous sending/accepted exclusion. The public demo lamp is enabled. M01 adds direct summary controls and explicit profile/stable-key/device/capability enrollment, enforced at entry and final dispatch; old profiles migrate denied. See [power enrollment](../../design/power-enrollment.md) for the contract and separate physical acceptance. Other categories stay read-only. C04 implements a closed offline service whitelist, persistent simulated session state, independent acknowledgement/effect timers and deterministic scenarios validated through this facade. Locks/climate/fan control UI remains C05/C06/C07b work; see the [facade](../../design/commands.md), [outcomes](../../design/command-outcomes.md) and [scheduling](../../design/command-scheduling.md), plus [simulation/C07a handoff](../../design/demo-commands.md).
 
@@ -699,12 +710,12 @@ The [backlog](../../BACKLOG.md) owns ticket status and execution order; [project
 | -------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **0 — Prove dependencies**       | Scaffold, HA/Hermes protocol/native checks, actual Kasa/Petlibro read-only proofs; S01 prototype exists | Remaining household capabilities, camera path, authorized physical checks; S01 feasibility accepted separately on Pixel/Seeker; gate each family independently        |
 | **1 — Read-only home**           | Native Home/details/settings/diagnostics, identity, profiles, demo, 2D plan, P01/P02 and U03/U04        | Proprietary semantics and accessibility/diagnostics follow-ups                                                                                                        |
-| **2 — Safe controls**            | C01 facade, C02 outcomes, C03 scheduling/no replay and C04 simulation                                   | Kasa switch C07a; locks/climate/fans require their own hardware proof and controls; I01/I02 remain separate camera work                                               |
+| **2 — Safe controls**            | C01–C04, C07a/M01; explicitly enrolled household lamp accepted on Pixel 1009                            | Other targets/phones need their own evidence; locks/climate/fans require hardware proof and controls; I01/I02 remain separate camera work                             |
 | **3 — Spatial cockpit**          | Shared geometry, native 2D, P03/P04, accepted S01 lab and S02 saved-placement 2D/3D integration         | S02 Pixel acceptance, broader accessibility and measured large-home budgets; [runtime ledger](../../stage0/spatial-view-validation.md)                                |
-| **Internal daily trial**         | Development client installed                                                                            | R03a standalone APK with accepted enabled features and documented R01 assessment; proposed seven-day household trial; HA availability required independently of Metro |
+| **Internal daily trial**         | R03a standalone 1002 accepted on both phones; M01 scoped extension accepted on Pixel 1009                  | M02 household personalization, M03 Home polish, M04 spatial acceptance and M05 seven-day trial; HA availability required independently of Metro                        |
 | **Release and later candidates** | Not delivered                                                                                           | R01/R02/R03b public-release gates; later L01–L06 for import/export/editor, iOS, household OAuth, activity, tablet and extra capabilities                              |
 
-Next: close the remaining S02 phone gate and complete C07a installed-app/physical acceptance before enabling real Kasa control. C01–C04 and C07a UI are implemented; R03a can independently build the accepted feature set. S01 is accepted within its [measured scope](../../stage0/scene-validation.md). A read-only R03a build can advance before controls; do not defer all household use until production 3D. Keep stage proof results, package versions and precise limitations in `docs/stage0/`.
+Next: **M02 household personalization** explicitly applies the intended profile plan, links rooms, places the two proven devices and curates readings/favorites while preserving M01 grants. M03 Home polish, M04 exact-binary spatial acceptance and M05 seven-day use follow in the [household plan](../../README.md#delivery-order). S02 Pixel acceptance remains open; S01 retains its separate [measured scope](../../stage0/scene-validation.md). Keep stage proof results, package versions and precise limitations in `docs/stage0/`.
 
 ---
 
