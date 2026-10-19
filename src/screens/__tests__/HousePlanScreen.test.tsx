@@ -5,7 +5,8 @@ import { emptyPreferences } from "../../preferences/types";
 import { sampleHouse } from "../../spatial/plans";
 import { resetSpatial } from "../../spatial/profilePlan";
 import { DemoBackend } from "../../session/demo/DemoBackend";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { AccessibilityInfo } from "react-native";
 import {
   fixtureEntity,
   fixtureSnapshot,
@@ -13,7 +14,10 @@ import {
   location,
 } from "../../spatial/__tests__/placementFixtures";
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+jest.mock("expo-router", () => ({
+  router: { push: jest.fn() },
+  useFocusEffect: jest.fn(),
+}));
 jest.mock("../../web/CockpitScene", () => () => null);
 
 beforeEach(() =>
@@ -81,6 +85,63 @@ test("placed markers and their list share stable navigation and isolate floors",
     params: { floor: "sample-floor-2" },
   });
 });
+
+test.each([false, true])(
+  "return accessibility focus respects a removed placement: %s",
+  async (removed) => {
+    useCockpit.setState({
+      preferencesLoadedFor: "demo",
+      snapshot: fixtureSnapshot(),
+      status: { kind: "ready", haVersion: "Demo", readySince: "" },
+      preferences: fixturePreferences({ stable: location }),
+    });
+    let frame: FrameRequestCallback | undefined;
+    const raf = jest.spyOn(global, "requestAnimationFrame");
+    const enabled = jest
+      .spyOn(AccessibilityInfo, "isScreenReaderEnabled")
+      .mockResolvedValue(true);
+    const focus = jest
+      .spyOn(AccessibilityInfo, "sendAccessibilityEvent")
+      .mockImplementation(() => {});
+    try {
+      const screen = await renderAsync(<HousePlanScreen />);
+      fireEvent(screen.getByTestId("plan-frame"), "layout", {
+        nativeEvent: { layout: { width: 348, height: 360 } },
+      });
+      fireEvent.press(screen.getByTestId("plan-marker-stable"));
+      const effect = jest.mocked(useFocusEffect).mock.calls.at(-1)![0];
+      raf.mockImplementationOnce((cb) => {
+        frame = cb;
+        return 1;
+      });
+      let cleanup: void | (() => void);
+      act(() => {
+        cleanup = effect();
+      });
+      // The profile may reconcile a hidden/removed identity before native focus resolves.
+      if (removed)
+        await act(async () =>
+          useCockpit.setState({
+            preferences: fixturePreferences({}),
+          }),
+        );
+      await act(async () => frame!(0));
+      if (removed) expect(focus).not.toHaveBeenCalled();
+      else {
+        expect(focus).toHaveBeenCalledTimes(1);
+        expect(focus.mock.calls[0]![1]).toBe("focus");
+      }
+      act(() => {
+        cleanup?.();
+      });
+      await screen.unmountAsync();
+    } finally {
+      raf.mockRestore();
+      enabled.mockRestore();
+      focus.mockRestore();
+    }
+  },
+);
 
 test("marker state becomes cached or unavailable and hidden entities keep only their saved metadata", async () => {
   const preferences = fixturePreferences({ stable: location });

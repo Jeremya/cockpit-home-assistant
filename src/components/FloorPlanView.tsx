@@ -102,6 +102,7 @@ export function FloorPlanView({
   showLabels = true,
   markers = [],
   onMarkerPress,
+  onMarkerRef,
   onPickPoint,
 }: {
   floor: PlanFloor;
@@ -111,6 +112,7 @@ export function FloorPlanView({
   showLabels?: boolean;
   markers?: FloorPlanMarker[];
   onMarkerPress?: (key: string) => void;
+  onMarkerRef?: (key: string, node: View | null) => void;
   onPickPoint?: (point: PlanPoint | null) => void;
 }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -297,6 +299,7 @@ export function FloorPlanView({
         return onMarkerPress && !onPickPoint ? (
           <Pressable
             key={marker.key}
+            ref={(node) => onMarkerRef?.(marker.key, node)}
             testID={`plan-marker-${marker.key}`}
             style={style}
             accessibilityRole="button"

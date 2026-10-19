@@ -7,6 +7,7 @@ import { Redirect } from "expo-router";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn() },
+  useFocusEffect: jest.fn(),
   Redirect: jest.fn(() => null),
 }));
 jest.mock("../../config/build", () => ({

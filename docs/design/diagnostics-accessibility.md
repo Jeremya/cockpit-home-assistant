@@ -16,7 +16,7 @@ U01 keeps recovery in the backend and improves how existing session and spatial 
 
 ## Navigation and focus
 
-Selecting a room from the named list reveals its detail and focuses the heading on web. With a native screen reader enabled, the screen requests accessibility focus on that heading. Deferred native focus checks mounted state, current profile/plan identity, floor, room and view before acting. Polygon selection keeps its existing behavior. Selected floor/room semantics, named marker rows and 48 dp important targets remain exposed.
+Selecting a room from the named list reveals its detail and focuses the heading on web. With a native screen reader enabled, the screen requests accessibility focus on that heading. Deferred native focus checks mounted state, current profile/plan identity, floor, room and view before acting. Polygon selection keeps its existing behavior. Returning from a placed reading restores focus to the originating 2D marker or named list row after route focus; cancellation and current placement/identity/floor/view checks prevent stale focus. Selected floor/room semantics, named marker rows and 48 dp important targets remain exposed.
 
 Browser smoke checks room-list reveal/focus, selected semantics, a saved marker at the public Floor 2 Bedroom label, non-overlap with its icon/caption, marker navigation, return focus and retained floor. Unit tests cover error privacy, terminal actions, automatic recovery, cached diagnostics, dense/concave plan layouts and text scales through 2.5. Browser focus/ARIA checks are not TalkBack acceptance.
 

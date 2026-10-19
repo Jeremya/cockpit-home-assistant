@@ -21,7 +21,10 @@ jest.mock("../../components/EntityIcon", () => ({
   ...jest.requireActual("../../components/EntityIcon"),
   Icon: () => null,
 }));
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+jest.mock("expo-router", () => ({
+  router: { push: jest.fn() },
+  useFocusEffect: jest.fn(),
+}));
 const scene = () => mockScenes[mockScenes.length - 1]!;
 
 beforeEach(() => {

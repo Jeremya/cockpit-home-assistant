@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Platform,
@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCockpit } from "../core/store";
 import { housePlanFor, useHousePlan } from "../spatial/plans";
 import { savedPlacements } from "../spatial/placements";
@@ -70,6 +70,14 @@ function HousePlanContent({
   const roomHeading = useRef<View>(null);
   const detailY = useRef<number | null>(null);
   const revealRequested = useRef<string | null>(null);
+  const readingTargets = useRef(new Map<string, View>());
+  const returnTarget = useRef<{
+    id: string;
+    key: string;
+    floorId: string;
+    view: "2d" | "3d";
+  } | null>(null);
+  const routeFocused = useRef(true);
   const [view, setView] = useState<"2d" | "3d">("2d");
   const [resetKey, setResetKey] = useState(0);
   const profileId = useCockpit((state) => state.profileId);
@@ -86,8 +94,62 @@ function HousePlanContent({
     },
     [],
   );
+  useFocusEffect(
+    useCallback(() => {
+      routeFocused.current = true;
+      const pending = returnTarget.current;
+      if (!pending)
+        return () => {
+          routeFocused.current = false;
+        };
+      returnTarget.current = null;
+      let cancelled = false;
+      const target = () => {
+        const latest = useCockpit.getState();
+        const currentPlan = housePlanFor(latest);
+        if (
+          cancelled ||
+          !routeFocused.current ||
+          !current.current.mounted ||
+          currentPlan.identity !== identity ||
+          current.current.floorId !== pending.floorId ||
+          current.current.view !== pending.view ||
+          !savedPlacements(
+            latest.snapshot,
+            latest.preferences,
+            currentPlan.plan,
+            latest.status.kind === "ready",
+          ).some(
+            (entry) =>
+              entry.key === pending.key &&
+              entry.placement.floorId === pending.floorId &&
+              !entry.issues.length,
+          )
+        )
+          return undefined;
+        return readingTargets.current.get(pending.id);
+      };
+      // Wait for the focused route to become visible; cancel on another navigation.
+      const frame = requestAnimationFrame(() => {
+        if (Platform.OS === "web") target()?.focus();
+        else
+          void AccessibilityInfo.isScreenReaderEnabled()
+            .then((enabled) => {
+              const node = enabled ? target() : undefined;
+              if (node) AccessibilityInfo.sendAccessibilityEvent(node, "focus");
+            })
+            .catch(() => undefined);
+      });
+      return () => {
+        routeFocused.current = false;
+        cancelled = true;
+        cancelAnimationFrame(frame);
+      };
+    }, [identity]),
+  );
   const currentFloor = () =>
     current.current.mounted &&
+    routeFocused.current &&
     current.current.floorId === floor.id &&
     housePlanFor(useCockpit.getState()).identity === identity;
   const revealDetails = (id: string) => {
@@ -164,8 +226,20 @@ function HousePlanContent({
     ...entityAppearance(entry.entity!, ready),
     stateLabel: `${primaryValue(entry.entity!, snapshot!.config)}${ready ? "" : " · Cached"}`,
   }));
-  const open = (key: string) => {
-    if (currentFloor()) openPlacement(profileId, identity, floor.id, key);
+  const readingRef = (id: string, node: View | null) => {
+    if (node) readingTargets.current.set(id, node);
+    else readingTargets.current.delete(id);
+  };
+  const open = (key: string, origin = "list") => {
+    if (currentFloor()) {
+      returnTarget.current = {
+        id: `${origin}:${key}`,
+        key,
+        floorId: floor.id,
+        view,
+      };
+      openPlacement(profileId, identity, floor.id, key);
+    }
   };
   const links = preferences.spatial.areaLinks;
   const byRoom = snapshot
@@ -326,7 +400,8 @@ function HousePlanContent({
                 selectedRoom={room?.id ?? null}
                 onSelectRoom={selectRoom}
                 markers={markers}
-                onMarkerPress={open}
+                onMarkerPress={(key) => open(key, "marker")}
+                onMarkerRef={(key, node) => readingRef(`marker:${key}`, node)}
               />
             )}
           </View>
@@ -456,6 +531,7 @@ function HousePlanContent({
           {onFloor.map((entry) => (
             <View key={entry.key} style={styles.row}>
               <Pressable
+                ref={(node) => readingRef(`list:${entry.key}`, node)}
                 accessibilityRole="button"
                 accessibilityLabel={`Open placed ${entry.entity!.name}`}
                 onPress={() => open(entry.key)}
