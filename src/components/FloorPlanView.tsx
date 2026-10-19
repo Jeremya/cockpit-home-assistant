@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import Svg, {
-  Ellipse,
-  G,
-  Line,
-  Polygon,
-  Rect,
-  Text as SvgText,
-} from "react-native-svg";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import Svg, { Ellipse, G, Line, Polygon, Rect } from "react-native-svg";
 import type {
   FurnitureKind,
   PlanFloor,
@@ -18,11 +17,11 @@ import type {
 import type { Condition } from "../core/types";
 import {
   floorViewBox,
-  planToScreen,
   planToSvg,
   pressLocation,
   screenToPlan,
 } from "../spatial/viewport";
+import { layoutPlanLabels } from "../spatial/planLabels";
 import { Icon, type IconName } from "./EntityIcon";
 import { colors } from "./ui";
 
@@ -115,6 +114,8 @@ export function FloorPlanView({
   onPickPoint?: (point: PlanPoint | null) => void;
 }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const { fontScale } = useWindowDimensions();
+  const labels = layoutPlanLabels(floor, markers, size, fontScale);
   const box = floorViewBox(floor);
   const { unit, width, height } = box;
   const x = (point: PlanPoint) => planToSvg(point, box).x;
@@ -219,63 +220,79 @@ export function FloorPlanView({
               strokeLinecap="round"
             />
           ))}
-          {showLabels &&
-            floor.rooms.map((room) => (
-              <SvgText
-                key={room.id}
-                x={x(room.label)}
-                y={y(room.label)}
-                fill={selectedRoom === room.id ? colors.text : "#c8d0df"}
-                fontSize={
-                  room.kind === "storage" || room.kind === "bathroom" ? 8 : 10
-                }
-                textAnchor="middle"
-                alignmentBaseline="middle"
-                fontWeight="500"
-                fontFamily="sans-serif"
-              >
-                {room.shortName}
-              </SvgText>
-            ))}
         </G>
       </Svg>
+      {showLabels &&
+        labels.rooms.map(({ id, rect }) => (
+          <View
+            key={id}
+            testID={`plan-room-label-${id}`}
+            pointerEvents="none"
+            accessible={false}
+            aria-hidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              position: "absolute",
+              left: rect.x,
+              top: rect.y,
+              width: rect.width,
+              height: rect.height,
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              numberOfLines={2}
+              style={{
+                textAlign: "center",
+                fontSize: 12,
+                lineHeight: 16,
+                fontWeight: "500",
+                color: selectedRoom === id ? colors.text : "#c8d0df",
+              }}
+            >
+              {floor.rooms.find((room) => room.id === id)!.shortName}
+            </Text>
+          </View>
+        ))}
       {markers.map((marker) => {
-        const point = planToScreen(marker.position, box, size);
-        if (!point) return null;
-        const labelX = Math.max(
-          0,
-          Math.min(Math.max(0, size.width - 116), point.x - 58),
-        );
+        const layout = labels.markers.get(marker.key);
+        if (!layout) return null;
+        const { target, caption } = layout;
         const content = (
           <>
             <View style={[markerStyles.dot, { borderColor: marker.tint }]}>
               <Icon name={marker.icon} color={marker.tint} size={20} />
             </View>
-            <View
-              testID={`plan-marker-label-${marker.key}`}
-              style={[
-                markerStyles.label,
-                {
-                  left: labelX - (point.x - 22),
-                  top: point.y > size.height - 65 ? -34 : 44,
-                },
-              ]}
-            >
-              <Text numberOfLines={1} style={markerStyles.labelText}>
-                {marker.name}
-              </Text>
-              <Text numberOfLines={1} style={markerStyles.labelText}>
-                {marker.stateLabel}
-              </Text>
-            </View>
+            {caption && (
+              <View
+                testID={`plan-marker-label-${marker.key}`}
+                pointerEvents="none"
+                style={[
+                  markerStyles.label,
+                  {
+                    left: caption.x - target.x,
+                    top: caption.y - target.y,
+                    width: caption.width,
+                    height: caption.height,
+                  },
+                ]}
+              >
+                <Text numberOfLines={1} style={markerStyles.labelText}>
+                  {marker.name}
+                </Text>
+                <Text numberOfLines={1} style={markerStyles.labelText}>
+                  {marker.stateLabel}
+                </Text>
+              </View>
+            )}
           </>
         );
         const style = {
           position: "absolute" as const,
-          left: point.x - 22,
-          top: point.y - 22,
-          width: 44,
-          height: 44,
+          left: target.x,
+          top: target.y,
+          width: target.width,
+          height: target.height,
         };
         return onMarkerPress && !onPickPoint ? (
           <Pressable
@@ -316,6 +333,7 @@ const markerStyles = StyleSheet.create({
   dot: {
     width: 44,
     height: 44,
+    margin: 2,
     borderRadius: 22,
     borderWidth: 2,
     backgroundColor: colors.background,
@@ -324,10 +342,10 @@ const markerStyles = StyleSheet.create({
   },
   label: {
     position: "absolute",
-    width: 116,
     backgroundColor: colors.background,
     borderRadius: 5,
     paddingHorizontal: 3,
+    justifyContent: "center",
   },
   labelText: {
     fontSize: 11,

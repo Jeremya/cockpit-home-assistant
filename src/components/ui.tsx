@@ -14,7 +14,11 @@ export function Label({ children }: PropsWithChildren) {
   return <Text style={styles.label}>{children}</Text>;
 }
 export function Title({ children }: PropsWithChildren) {
-  return <Text style={styles.title}>{children}</Text>;
+  return (
+    <Text accessibilityRole="header" style={styles.title}>
+      {children}
+    </Text>
+  );
 }
 export function Body({ children }: PropsWithChildren) {
   return <Text style={styles.body}>{children}</Text>;
@@ -30,15 +34,23 @@ export function Button({
   onPress,
   disabled,
   secondary = false,
+  accessibilityExpanded,
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
   secondary?: boolean;
+  accessibilityExpanded?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={
+        accessibilityExpanded === undefined
+          ? undefined
+          : { expanded: accessibilityExpanded }
+      }
+      aria-expanded={accessibilityExpanded}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [

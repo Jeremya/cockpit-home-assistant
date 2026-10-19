@@ -17,6 +17,7 @@ import type {
   UnreachableCause,
 } from "../../core/types";
 import { emptyIdentity } from "../../preferences/types";
+import { minimumHomeAssistantVersion } from "../../config/homeAssistant";
 import {
   BackendEvents,
   type HomeBackend,
@@ -122,8 +123,9 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     const version = connection.haVersion.match(/^(\d+)\.(\d+)/);
     if (
       !version ||
-      Number(version[1]) < 2026 ||
-      (Number(version[1]) === 2026 && Number(version[2]) < 10)
+      Number(version[1]) < minimumHomeAssistantVersion.year ||
+      (Number(version[1]) === minimumHomeAssistantVersion.year &&
+        Number(version[2]) < minimumHomeAssistantVersion.month)
     )
       throw {
         code: "ha_version_unsupported",

@@ -205,6 +205,11 @@ try {
             exact: true,
           }),
         ).toHaveAttribute("aria-pressed", "false");
+        const heading = page
+          .getByTestId("house-scroll")
+          .getByRole("heading", { name: other.name, exact: true });
+        await expect(heading).toBeInViewport();
+        await expect(heading).toBeFocused();
         await noOverflow(page);
       }
       await page.getByRole("tab", { name: "Floor 1", exact: true }).click();
@@ -335,6 +340,72 @@ try {
           exact: true,
         }),
       ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Place device", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Place Living room lamp", exact: true })
+        .click();
+      const editor = page.getByTestId("placement-scroll");
+      const roomLabelId = `plan-room-label-${plan.floors[1].rooms[0].id}`;
+      const editorLabel = editor.getByTestId(roomLabelId);
+      await editorLabel.scrollIntoViewIfNeeded();
+      const beforePick = await editorLabel.boundingBox();
+      const surface = editor.getByTestId("plan-placement-surface");
+      const bounds = await surface.boundingBox();
+      await surface.click({
+        position: {
+          x: beforePick.x + beforePick.width / 2 - bounds.x,
+          y: beforePick.y + beforePick.height / 2 - bounds.y,
+        },
+      });
+      await page
+        .getByRole("button", { name: "Save position", exact: true })
+        .click();
+      const house = page.getByTestId("house-scroll");
+      const marker = house.getByTestId("plan-marker-demo-switch.living_lamp");
+      const label = house.getByTestId(roomLabelId);
+      await marker.scrollIntoViewIfNeeded();
+      await expect(label).toBeVisible();
+      const markerBox = await marker.boundingBox();
+      assert(
+        markerBox.width >= 48 && markerBox.height >= 48,
+        "Plan marker needs a 48px target",
+      );
+      const overlaps = (a, b) =>
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      assert(
+        !overlaps(markerBox, await label.boundingBox()),
+        "Room label must avoid the physical marker",
+      );
+      const caption = house.getByTestId(
+        "plan-marker-label-demo-switch.living_lamp",
+      );
+      if (await caption.count())
+        assert(
+          !overlaps(await caption.boundingBox(), await label.boundingBox()),
+          "Room label must avoid device caption",
+        );
+      await house.getByTestId("plan-frame").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: join(output, `plan-${width}.png`) });
+      await expect(
+        page.getByRole("button", {
+          name: "Open placed Living room lamp",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await marker.click();
+      await expect(
+        page.getByText("Observation details", { exact: true }),
+      ).toBeVisible();
+      await page.goBack();
+      await expect(marker).toBeFocused();
+      await expect(
+        page.getByRole("tab", { name: "Floor 2", exact: true }),
+      ).toHaveAttribute("aria-selected", "true");
       await context.setOffline(false);
       // A full direct route load uses the SPA fallback, not a fresh offline claim.
       await page.goto(server.origin + "/house", { waitUntil: "networkidle" });
@@ -353,6 +424,10 @@ try {
         loadedRoutesWorkOffline: true,
         directHouseRoute: true,
         noHorizontalOverflow: true,
+        roomDetailRevealedAndFocused: true,
+        placedMarkerAndCaptionAvoidRoomName: true,
+        marker48pxAndAccessibleList: true,
+        markerDetailsAndBackKeepFloor: true,
       });
     } catch (error) {
       if (page && !page.isClosed())

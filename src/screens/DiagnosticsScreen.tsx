@@ -7,6 +7,7 @@ import { areaLinkStatus } from "../spatial/selectors";
 import { savedPlacements, placementIssueLabel } from "../spatial/placements";
 import { Body, Button, Label, Panel, Title, styles } from "../components/ui";
 import { buildInfo } from "../config/build";
+import { SessionBanner } from "../components/SessionBanner";
 export function DiagnosticsScreen() {
   const {
     snapshot,
@@ -50,6 +51,7 @@ export function DiagnosticsScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Label>Connection & data health</Label>
       <Title>Diagnostics</Title>
+      <SessionBanner />
       {buildInfo.trial && (
         <Panel>
           <Label>Internal trial</Label>
@@ -69,6 +71,13 @@ export function DiagnosticsScreen() {
           Mode: {mode ?? "None"}
           {"\n"}Session: {status.kind}
           {"\n"}Home Assistant: {snapshot?.config.haVersion ?? "Not connected"}
+          {snapshot && status.kind !== "ready" ? " (last synchronized)" : ""}
+          {"\n"}Snapshot:{" "}
+          {snapshot
+            ? status.kind === "ready"
+              ? "synchronized"
+              : "cached; awaiting synchronization"
+            : "not loaded"}
           {"\n"}Snapshot epoch: {snapshot?.syncEpoch ?? "—"}
           {"\n"}Entities: {Object.keys(snapshot?.entities ?? {}).length}
           {"\n"}Unresolved preferences: {missing.length}
@@ -81,7 +90,9 @@ export function DiagnosticsScreen() {
             Plan: {plan.name} (revision {plan.revision}){"\n"}Saved for this
             profile: {spatial.plan ? "yes" : "not yet"}
             {"\n"}Room links: {Object.keys(spatial.areaLinks).length}
-            {brokenLinks ? ` (${brokenLinks} to removed HA areas)` : ""}
+            {brokenLinks
+              ? ` (${brokenLinks} ${status.kind === "ready" ? "to removed HA areas" : "absent from cached HA areas"})`
+              : ""}
             {orphanLinks ? ` (${orphanLinks} to rooms not in this plan)` : ""}
             {"\n"}Device placements: {Object.keys(spatial.placements).length}
             {placementProblems.length
@@ -154,7 +165,11 @@ export function DiagnosticsScreen() {
       )}
       {!!missing.length && (
         <Panel>
-          <Label>Missing identities</Label>
+          <Label>
+            {status.kind === "ready"
+              ? "Missing identities"
+              : "Unverified identities"}
+          </Label>
           {missing.map((key) => (
             <Body key={key}>{key}</Body>
           ))}

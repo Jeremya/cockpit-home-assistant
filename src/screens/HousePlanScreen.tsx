@@ -1,5 +1,13 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  AccessibilityInfo,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { router } from "expo-router";
 import { useCockpit } from "../core/store";
 import { housePlanFor, useHousePlan } from "../spatial/plans";
@@ -58,15 +66,19 @@ function HousePlanContent({
 }) {
   const [floorId, setFloorId] = useState(plan.floors[0]!.id);
   const [roomId, setRoomId] = useState<string | null>(null);
+  const scroll = useRef<ScrollView>(null);
+  const roomHeading = useRef<View>(null);
+  const detailY = useRef<number | null>(null);
+  const revealRequested = useRef<string | null>(null);
   const [view, setView] = useState<"2d" | "3d">("2d");
   const [resetKey, setResetKey] = useState(0);
   const profileId = useCockpit((state) => state.profileId);
   const floor =
     plan.floors.find((item) => item.id === floorId) ?? plan.floors[0]!;
   const room = floor.rooms.find((item) => item.id === roomId);
-  const current = useRef({ floorId: floor.id, view, mounted: true });
+  const current = useRef({ floorId: floor.id, roomId, view, mounted: true });
   useLayoutEffect(() => {
-    current.current = { floorId: floor.id, view, mounted: true };
+    current.current = { floorId: floor.id, roomId, view, mounted: true };
   });
   useLayoutEffect(
     () => () => {
@@ -78,9 +90,42 @@ function HousePlanContent({
     current.current.mounted &&
     current.current.floorId === floor.id &&
     housePlanFor(useCockpit.getState()).identity === identity;
-  const selectRoom = (id: string) => {
-    if (currentFloor() && floor.rooms.some((item) => item.id === id))
+  const revealDetails = (id: string) => {
+    if (
+      revealRequested.current !== id ||
+      detailY.current === null ||
+      !currentFloor()
+    )
+      return;
+    revealRequested.current = null;
+    scroll.current?.scrollTo({
+      y: Math.max(0, detailY.current - 12),
+      animated: false,
+    });
+    if (Platform.OS === "web") roomHeading.current?.focus();
+    else
+      void AccessibilityInfo.isScreenReaderEnabled()
+        .then((enabled) => {
+          if (
+            enabled &&
+            currentFloor() &&
+            current.current.view === view &&
+            current.current.roomId === id &&
+            roomHeading.current
+          )
+            AccessibilityInfo.sendAccessibilityEvent(
+              roomHeading.current,
+              "focus",
+            );
+        })
+        .catch(() => undefined);
+  };
+  const selectRoom = (id: string, fromList = false) => {
+    if (currentFloor() && floor.rooms.some((item) => item.id === id)) {
+      if (fromList) revealRequested.current = id;
       setRoomId(id);
+      if (fromList && roomId === id) revealDetails(id);
+    }
   };
   // Track viewport intersection, updating React only when visibility changes.
   const viewport = useRef({
@@ -135,6 +180,7 @@ function HousePlanContent({
     .sort((a, b) => a.name.localeCompare(b.name));
   return (
     <ScrollView
+      ref={scroll}
       style={styles.screen}
       contentContainerStyle={[styles.content, planStyles.content]}
       testID="house-scroll"
@@ -179,6 +225,8 @@ function HousePlanContent({
               accessibilityState={{ selected }}
               aria-selected={selected}
               onPress={() => {
+                revealRequested.current = null;
+                detailY.current = null;
                 setFloorId(item.id);
                 setRoomId(null);
               }}
@@ -285,7 +333,7 @@ function HousePlanContent({
           <Text style={planStyles.hint}>
             {view === "3d"
               ? "Drag to orbit · Pinch to zoom · Tap a room or marker"
-              : "Tap a room to explore"}
+              : "Tap a room to explore. Room and device names are also listed below."}
           </Text>
           {(view === "3d" || room) && (
             <Button
@@ -320,63 +368,87 @@ function HousePlanContent({
         }
       />
       {room && (
-        <Panel style={{ borderColor: "#638bb9" }}>
-          <View style={styles.row}>
-            <View style={{ flex: 1, gap: 8 }}>
-              <Label>{floor.name}</Label>
-              <Text accessibilityRole="header" style={planStyles.roomName}>
-                {room.name}
-              </Text>
+        <View
+          key={room.id}
+          testID="plan-room-detail"
+          onLayout={({ nativeEvent }) => {
+            if (!currentFloor() || current.current.roomId !== room.id) return;
+            detailY.current = nativeEvent.layout.y;
+            revealDetails(room.id);
+          }}
+        >
+          <Panel style={{ borderColor: "#638bb9" }}>
+            <View style={styles.row}>
+              <View style={{ flex: 1, gap: 8 }}>
+                <Label>{floor.name}</Label>
+                <View
+                  ref={roomHeading}
+                  accessible
+                  accessibilityRole="header"
+                  accessibilityLabel={room.name}
+                  tabIndex={-1}
+                >
+                  <Text style={planStyles.roomName}>{room.name}</Text>
+                </View>
+              </View>
+              <Icon
+                name={roomIcons[room.kind]}
+                color={colors.accent}
+                size={25}
+              />
             </View>
-            <Icon name={roomIcons[room.kind]} color={colors.accent} size={25} />
-          </View>
-          {room.dimensions && (
-            <Text style={planStyles.dimensions}>{room.dimensions}</Text>
-          )}
-          <Body>
-            {room.dimensions
-              ? "Dimensions shown on the supplied plan."
-              : "No dimensions supplied for this space."}
-          </Body>
-          {status?.kind === "linked" ? (
-            <View style={{ gap: 8 }}>
-              <Text style={planStyles.caption}>
-                Home Assistant area: {status.area.name}
-                {status.verified ? "" : " (cached, not verified)"}. Markers
-                follow saved positions; this list follows HA room assignments.
-              </Text>
-              {roomEntities.length ? (
-                roomEntities.map((entity) => (
-                  <Pressable
-                    key={entity.key}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open ${entity.name}`}
-                    onPress={() => {
-                      if (currentFloor() && profileId)
-                        openReading(profileId, entity.key);
-                    }}
-                    style={planStyles.deviceRow}
-                  >
-                    <Text style={planStyles.roomLabel}>{entity.name}</Text>
-                    <Icon name="chevron-right" size={16} color={colors.muted} />
-                  </Pressable>
-                ))
-              ) : (
+            {room.dimensions && (
+              <Text style={planStyles.dimensions}>{room.dimensions}</Text>
+            )}
+            <Body>
+              {room.dimensions
+                ? "Dimensions shown on the supplied plan."
+                : "No dimensions supplied for this space."}
+            </Body>
+            {status?.kind === "linked" ? (
+              <View style={{ gap: 8 }}>
                 <Text style={planStyles.caption}>
-                  No visible entities in this area.
+                  Home Assistant area: {status.area.name}
+                  {status.verified ? "" : " (cached, not verified)"}. Markers
+                  follow saved positions; this list follows HA room assignments.
                 </Text>
-              )}
-            </View>
-          ) : (
-            <Text style={planStyles.caption}>
-              {status?.kind === "missing"
-                ? "Its Home Assistant area was removed. Choose another in Link rooms."
-                : status?.kind === "unverified"
-                  ? "Linked to a Home Assistant area that cannot be verified right now."
-                  : "Not linked to a Home Assistant area."}
-            </Text>
-          )}
-        </Panel>
+                {roomEntities.length ? (
+                  roomEntities.map((entity) => (
+                    <Pressable
+                      key={entity.key}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${entity.name}`}
+                      onPress={() => {
+                        if (currentFloor() && profileId)
+                          openReading(profileId, entity.key);
+                      }}
+                      style={planStyles.deviceRow}
+                    >
+                      <Text style={planStyles.roomLabel}>{entity.name}</Text>
+                      <Icon
+                        name="chevron-right"
+                        size={16}
+                        color={colors.muted}
+                      />
+                    </Pressable>
+                  ))
+                ) : (
+                  <Text style={planStyles.caption}>
+                    No visible entities in this area.
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <Text style={planStyles.caption}>
+                {status?.kind === "missing"
+                  ? "Its Home Assistant area was removed. Choose another in Link rooms."
+                  : status?.kind === "unverified"
+                    ? "Linked to a Home Assistant area that cannot be verified right now."
+                    : "Not linked to a Home Assistant area."}
+              </Text>
+            )}
+          </Panel>
+        </View>
       )}
       {!!onFloor.length && (
         <Panel>
@@ -449,7 +521,7 @@ function HousePlanContent({
               accessibilityLabel={`Explore ${item.name}`}
               accessibilityState={{ selected }}
               aria-pressed={selected}
-              onPress={() => selectRoom(item.id)}
+              onPress={() => selectRoom(item.id, true)}
               style={[planStyles.roomRow, selected && planStyles.selectedRow]}
             >
               <Icon

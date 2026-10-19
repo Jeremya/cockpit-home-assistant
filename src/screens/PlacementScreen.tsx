@@ -126,6 +126,7 @@ function PlacementEditor({
   };
   return (
     <ScrollView
+      testID="placement-scroll"
       style={styles.screen}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
