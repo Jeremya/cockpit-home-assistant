@@ -31,8 +31,31 @@ The [Public checks run](https://github.com/Jeremya/cockpit-home-assistant/action
 
 Maurice Trial **1006**, package `com.larrabee.homecockpit.trial`, is built from that same clean revision and installed as a signed update on Seeker / Android 16. APK SHA-256: `0d820e196383572e287bdda8c9ad294ba84b9dab2d903118d9dcf2db8f16e56b`. Certificate SHA-256: `7191b909f58f9900cbfeb875c8d61ad5261efff9463b53b3e522c6b872261153`. The embedded sample/Hermes release, disabled development launcher/backup and disabled real controls/3D pass the build checks. Installation preserves app data and verifies the installed APK hash.
 
-The user confirmed availability to listen. The first M00 native attempt again encountered TalkBack onboarding and did not establish app-level focus. Its accessibility settings, temporary demo placement and saved ready HA connection were restored. The subsequent supervised attempt avoids UiAutomator while TalkBack is active. Acceptance is pending until that actual route and feedback are recorded. A browser result does not close spoken-feedback acceptance. S02 and physical-control gates are unchanged.
+The user confirmed availability to listen. The first M00 native attempt again encountered TalkBack onboarding and did not establish app-level focus. Its accessibility settings, temporary demo placement and saved ready HA connection were restored. The subsequent supervised attempt avoids UiAutomator while TalkBack is active. At that intermediate checkpoint acceptance was pending; the final 1007 route and feedback are recorded below. A browser result does not close spoken-feedback acceptance. S02 and physical-control gates are unchanged.
 
 The live 1006 attempt opened the demo lamp from both the marker and named row, returned to the plan, and selected Study. Captures show the selected Study row and accessibility focus on its revealed heading, but the return captures still show the header Back button outlined rather than the originating reading. Spoken feedback remains awaiting the user's response. Accessibility settings, the temporary placement and saved ready HA connection were restored. No physical services were sent.
 
 The native follow-up waits for incoming native-stack `transitionEnd` before scheduling accessibility focus. In the installed Expo Router source this event is emitted by `onAppear`; route focus happens earlier. This is a lifecycle correction to validate on the next exact candidate, not a claim that build 1006 has passed native return-focus acceptance. Unit tests keep all origin guards and verify cancellation before screen exposure. Browser assertions remain unchanged.
+
+
+## Final Seeker route — build 1007
+
+The native exposure correction is in **`12b04e8f8f39b4deb10ff341f2d3381a57ecb962`**. `83a8c73a9eaa0dee6d61528c8806eec4a7db1e02` only formats its test; application source is unchanged. The final local full suite is **608 tests / 39 suites**, with 26 tests in the two focus-related suites. TypeScript and lint pass, and final formatting passes. The six tooling tests and protocol proof recorded earlier are reused. A fresh complete public smoke on clean `12b04e8` passes all three widths and twelve focus returns, with no page errors/external requests, unchanged developer plan and closed server/browser.
+
+Maurice Trial **1007** is built from clean `12b04e8`, with the same package, sample plan, signing certificate and disabled real-control/3D scope as 1006. APK SHA-256: **`5305583369951830812821676fc65720d3a2cb58307b046f0c585cc73524d5ac`**. Installation is a signed update without clearing data; the installed APK hash is verified. This is a standalone embedded-Hermes release, without Metro.
+
+On Seeker / Android 16, with TalkBack active, the final captures show:
+
+| Route | Observed result |
+| --- | --- |
+| Marker → lamp detail → Android Back | Accessibility outline returns to the originating lamp marker |
+| Named placed row → lamp detail → Android Back | Accessibility outline returns to that named lamp row |
+| Explore Study | Selected row retained; detail revealed; accessibility outline on Study heading |
+
+The user confirms **“Oui, les annonces sont claires sur cette dernière passe.”** This closes the spoken-feedback check for this supervised route. Their later positive feedback on 1006 is also retained, but its header-outline captures were not substituted for the final visual acceptance.
+
+The active-service setting is verified without UiAutomator during listening. Focus is assessed from screenshots, not a claimed TalkBack node dump. Android input injection drives the scripted route; this does not constitute an exhaustive touch-exploration/traversal audit. TalkBack's system guidance overlay remains visible in the captures. No screenshots or private geometry are published; their hashes are in the [aggregate](return-focus-proof-2026-10-19.json).
+
+Accessibility settings are restored to their prior values, the temporary demo placement is removed and zero demo placements verified, and the saved household HA session returns ready. No physical HA service is called. Earlier build 1005's 100/150/200% text checks retain their own source/binary; they are not relabeled as a new 1007 font battery. Pixel, terminal-action TalkBack traversal, complete reading order and other enabled-feature acceptances remain separate U01/phone scope.
+
+The [latest source CI](https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39279840689) is queued when this acceptance is recorded; it is not counted as a pass. The earlier web-fix CI is green. R01's independent dependency audit remains open. The intermediate `12b04e8` test-formatting issue is corrected by `83a8c73`; no application code changes between them.

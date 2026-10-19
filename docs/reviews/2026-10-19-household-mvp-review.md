@@ -2,6 +2,10 @@
 
 Périmètre confirmé par l’utilisateur : **usage quotidien dans sa maison**, sur Android. Cette revue évalue `2c496bea204ebcd34c127b231231eb2d9ed8b882`. Elle propose une séquence produit ; les lots ci-dessous ne sont pas des fonctionnalités déjà livrées. Le [statut](../README.md) et le [backlog](../BACKLOG.md) restent les points d’entrée.
 
+## Suite de la revue
+
+Le [suivi M00](../stage0/return-focus-validation.md) reproduit puis corrige la perte de focus web décrite ci-dessous ; le CI de cette correction passe. Il distingue aussi le correctif natif de fin de transition, ses candidats exacts et l’écoute TalkBack confirmée sur le parcours Seeker 1007. La dernière passe CI reste distincte. Cette revue conserve son constat sur `2c496be` ; le [statut courant](../README.md) indique les suites livrées.
+
 ## Verdict
 
 Maurice dispose d’une alpha technique avancée : connexion HA, récupération, identités stables, préférences, plans, regroupement des appareils, commandes sémantiques, simulation et APK autonome. Le prochain investissement doit transformer ces fondations en **trois parcours quotidiens courts** : consulter l’essentiel, agir sur la lampe du salon et comprendre les informations du distributeur.

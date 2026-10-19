@@ -2,7 +2,11 @@
 
 **Diagnostics, 2D readability and focus behavior are implemented. Native accessibility acceptance remains partial.** The [architecture guide](../design/diagnostics-accessibility.md) owns the contracts; the [safe aggregate](diagnostics-accessibility-proof-2026-10-19.json) separates source/browser checks from exact phone binaries.
 
-## Later review follow-up
+## M00 follow-up
+
+The [M00 ledger](return-focus-validation.md) supersedes the unresolved web finding below. It reproduces the missing-marker layout race, records the correction and passing extended browser/CI checks, and tracks the additional native transition-exposure correction. Trial 1007 now passes the scoped Seeker marker/list return and Study reveal, with user-confirmed clear speech. Preserve the distinct scope of U01 build 1005 text checks, M00 exact candidates and the broader accessibility flows still untested.
+
+## Earlier review follow-up
 
 The [2026-10-19 household review](../reviews/2026-10-19-household-mvp-review.md) checked the later documentation-only commit `2c496be`. Its functional/export CI job passes, but marker return focus fails at 430 px with the browser document active; a fresh local three-width run passes. The earlier passing runs below remain valid observations, but web return-focus stability is **not accepted**. M00/U01/R02 must reproduce and correct the intermittence; its exact cause remains unproven. No new native check was performed during that review.
 

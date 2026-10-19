@@ -4,7 +4,11 @@
 
 The [architecture and reproduction guide](../design/public-checks.md) owns the runner, cache/input isolation, artifacts, process cleanup and workflow contracts. The [safe aggregate](public-ci-proof-2026-10-18.json) records exact run/job identities, observed conclusions and artifact metadata. This is source/browser/export acceptance, not a new APK or public-release acceptance.
 
-## Later follow-up — 2026-10-19
+## M00 follow-up — 2026-10-19
+
+[M00](return-focus-validation.md) reproduces and corrects the marker-remount race. The extended smoke verifies three marker returns and one named-row return at each width after hidden layout settles; local runs and [CI on 62bd0a5](https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39277773409) pass. Its native exposure follow-up, later source CI and exact-phone scope remain in the M00 ledger. The separate R01 dependency audit still fails.
+
+## Earlier review follow-up — 2026-10-19
 
 The [household MVP review](../reviews/2026-10-19-household-mvp-review.md) checks `2c496be`: the functional/protocol/Android-export job passes, but the extended UI smoke fails marker return focus at 430 px while the document is active. A fresh local run on that same clean revision passes 320/430/768. M00/U01/R02 keeps this intermittence open; the earlier passing foundation below does not establish current return-focus stability. The [new aggregate](household-mvp-review-proof-2026-10-19.json) preserves both results. The separate dependency audit still fails.
 
