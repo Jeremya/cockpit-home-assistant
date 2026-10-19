@@ -8,6 +8,7 @@ src/spatial/current-plan.json
 dist/
 dist-web/
 coverage/
+artifacts/
 android/
 ios/
 expo-env.d.ts

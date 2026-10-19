@@ -293,6 +293,7 @@ function HomeContent({ profileId }: { profileId: string | null }) {
                       key={room.id ?? "all"}
                       accessibilityRole="tab"
                       accessibilityState={{ selected }}
+                      aria-selected={selected}
                       onPress={() => setSelectedRoom(room.id)}
                       style={[home.chip, selected && home.selectedChip]}
                     >

@@ -21,11 +21,15 @@
     "export:android": "expo export --platform android",
     "proof:protocol": "tsx scripts/prove-protocol.ts",
     "proof:ha": "tsx scripts/prove-ha.ts",
-    "format:check": "prettier --check app src scripts plugins app.config.js app.json package.json tsconfig.json eslint.config.js jest.config.js compose.yaml",
+    "format:check": "prettier --check app src scripts plugins app.config.js app.json package.json tsconfig.json eslint.config.js jest.config.js compose.yaml .github",
     "ha:up": "node scripts/setup-ha.mjs && docker compose up -d",
     "ha:logs": "docker compose logs --tail=100 homeassistant",
     "proof:dependencies": "tsx scripts/prove-dependencies.ts",
-    "build:trial:android": "node scripts/build-trial-android.mjs"
+    "build:trial:android": "node scripts/build-trial-android.mjs",
+    "test:tooling": "node --test scripts/__tests__/*.test.mjs",
+    "check:ui": "node scripts/check-ui.mjs",
+    "check:public-inputs": "node scripts/check-public-inputs.mjs",
+    "check:audit": "node scripts/check-audit.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -54,6 +58,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.4",
