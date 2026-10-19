@@ -411,7 +411,7 @@ try {
           })),
         }),
       );
-      // Browser-history traversal can deactivate the headless Linux window.
+      // Require an active headless window after browser-history traversal.
       // Activating the page does not choose a DOM target or restore its focus.
       await page.bringToFront();
       await expect(marker).toBeFocused();

@@ -19,6 +19,7 @@ import { placementSceneMarkers } from "../spatial/scene";
 import { areaLinkStatus, entitiesByPlanRoom, own } from "../spatial/selectors";
 import type { HousePlan, RoomKind } from "../spatial/model";
 import { FloorPlanView } from "../components/FloorPlanView";
+import { restoreReadingFocus } from "../components/readingFocus";
 import { CockpitSceneView } from "../components/CockpitSceneView";
 import { buildFeatures } from "../config/build";
 import {
@@ -129,21 +130,11 @@ function HousePlanContent({
           return undefined;
         return readingTargets.current.get(pending.id);
       };
-      // Wait for the focused route to become visible; cancel on another navigation.
-      const frame = requestAnimationFrame(() => {
-        if (Platform.OS === "web") target()?.focus();
-        else
-          void AccessibilityInfo.isScreenReaderEnabled()
-            .then((enabled) => {
-              const node = enabled ? target() : undefined;
-              if (node) AccessibilityInfo.sendAccessibilityEvent(node, "focus");
-            })
-            .catch(() => undefined);
-      });
+      const cancelFocus = restoreReadingFocus(target);
       return () => {
         routeFocused.current = false;
         cancelled = true;
-        cancelAnimationFrame(frame);
+        cancelFocus();
       };
     }, [identity]),
   );

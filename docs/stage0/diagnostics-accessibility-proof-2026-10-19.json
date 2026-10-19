@@ -1,0 +1,185 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "timezone": "America/Chicago",
+  "scope": "U01 implementation; native acceptance partial",
+  "source": {
+    "implementation": [
+      "f698d533bddffa18d0c036b519340ec42e2b710b",
+      "10a38417ff2be41d68f6a71401d9d2bfbc89bce0"
+    ],
+    "verifiedCi": "173995a6f67d399c73db7bfef63700363aa34c84"
+  },
+  "repository": {
+    "jestTests": 596,
+    "jestSuites": 39,
+    "toolingTests": 6,
+    "typecheck": "passed",
+    "lint": "passed",
+    "format": "passed"
+  },
+  "ci": {
+    "revision": "173995a6f67d399c73db7bfef63700363aa34c84",
+    "runs": [
+      {
+        "id": 39261300018,
+        "name": "Dependency audit",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39261300018",
+        "head_sha": "173995a6f67d399c73db7bfef63700363aa34c84",
+        "created_at": "2026-10-19T13:34:23Z",
+        "updated_at": "2026-10-19T13:34:42Z"
+      },
+      {
+        "id": 39261299560,
+        "name": "Public checks",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39261299560",
+        "head_sha": "173995a6f67d399c73db7bfef63700363aa34c84",
+        "created_at": "2026-10-19T13:34:22Z",
+        "updated_at": "2026-10-19T13:36:24Z"
+      }
+    ]
+  },
+  "browser": {
+    "widths": [
+      320,
+      430,
+      768
+    ],
+    "sampleOnly": true,
+    "physicalServices": 0,
+    "pageErrors": 0,
+    "externalRequests": 0,
+    "developerPlanUnchanged": true,
+    "result": "passed",
+    "artifactContentsDownloaded": false
+  },
+  "native": {
+    "artifact": {
+      "schema": 1,
+      "variant": "internal-trial",
+      "package": "com.larrabee.homecockpit.trial",
+      "versionName": "0.1.0-trial.4",
+      "versionCode": 1004,
+      "sourceRevision": "10a38417ff2be41d68f6a71401d9d2bfbc89bce0",
+      "dirtySource": false,
+      "sourceSha256": "e2e611ce2df8daadbb31a3edb72f1450c4072ad397b7a304af713c0e19035944",
+      "plan": "sample",
+      "privateArtifact": false,
+      "architecture": "arm64-v8a",
+      "apkSha256": "193552c7d9f9d80c292dd30bd7ee8c62fffcfc5b8d0b3e70ad9ff3b633123cb1",
+      "signingCertificateSha256": "7191b909f58f9900cbfeb875c8d61ad5261efff9463b53b3e522c6b872261153",
+      "checks": {
+        "embeddedReleaseBundle": true,
+        "debuggable": false,
+        "developmentLauncher": false,
+        "backup": false,
+        "localHttp": true,
+        "realControls": false,
+        "spatial3d": false
+      },
+      "acceptance": "candidate; installed-device validation required"
+    },
+    "installed": {
+      "device": "seeker",
+      "apkSha256": "193552c7d9f9d80c292dd30bd7ee8c62fffcfc5b8d0b3e70ad9ff3b633123cb1",
+      "trialVersionCode": [
+        "1004"
+      ],
+      "updatedWithoutClearingData": true
+    },
+    "fonts": {
+      "date": "2026-10-19",
+      "device": "Seeker",
+      "android": "16",
+      "physicalHaServices": 0,
+      "fontScales": [
+        {
+          "scale": "1.0",
+          "floorSelectionSemantics": true,
+          "floorTargets48dp": true,
+          "roomDetailRevealed": true,
+          "roomSelectionSemantics": true,
+          "unsavedMarkerAtBedroomLabel": true
+        },
+        {
+          "scale": "1.5",
+          "floorSelectionSemantics": true,
+          "floorTargets48dp": true,
+          "roomDetailRevealed": true,
+          "roomSelectionSemantics": true,
+          "unsavedMarkerAtBedroomLabel": true
+        },
+        {
+          "scale": "2.0",
+          "floorSelectionSemantics": true,
+          "floorTargets48dp": true,
+          "roomDetailRevealed": true,
+          "roomSelectionSemantics": true,
+          "unsavedMarkerAtBedroomLabel": true
+        }
+      ],
+      "checks": {
+        "signedUpdateRunsWithoutMetro": true,
+        "publicDemoOnlyForCaptures": true,
+        "savedHouseholdConnectionRestored": true
+      },
+      "result": "passed",
+      "fontScaleRestored": true,
+      "newNativeCrash": false
+    },
+    "talkBack": "pending",
+    "pixel": "not run"
+  },
+  "contrast": [
+    {
+      "pair": "body on panel",
+      "foreground": "#a5afc2",
+      "background": "#171d2a",
+      "ratio": 7.64
+    },
+    {
+      "pair": "title on panel",
+      "foreground": "#f3f5fb",
+      "background": "#171d2a",
+      "ratio": 15.47
+    },
+    {
+      "pair": "warning on panel",
+      "foreground": "#ffc083",
+      "background": "#171d2a",
+      "ratio": 10.53
+    },
+    {
+      "pair": "action on accent",
+      "foreground": "#0b0f19",
+      "background": "#98c2ff",
+      "ratio": 10.48
+    },
+    {
+      "pair": "room label on kitchen",
+      "foreground": "#c8d0df",
+      "background": "#3e3430",
+      "ratio": 7.79
+    },
+    {
+      "pair": "selected room label",
+      "foreground": "#f3f5fb",
+      "background": "#34547a",
+      "ratio": 7.15
+    }
+  ],
+  "remaining": [
+    "Pixel U01 text/accessibility pass",
+    "TalkBack spoken-feedback and native return focus acceptance",
+    "R01 independent audit",
+    "seven-day observations",
+    "S02 Pixel production 3D",
+    "physical Kasa activation",
+    "U02 measured large inventory",
+    "R03b release"
+  ]
+}
