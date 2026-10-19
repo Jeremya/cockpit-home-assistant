@@ -397,27 +397,32 @@ try {
           exact: true,
         }),
       ).toBeVisible();
-      await marker.click();
-      await expect(
-        page.getByText("Observation details", { exact: true }),
-      ).toBeVisible();
-      await page.goBack();
-      console.log(
-        JSON.stringify({
-          width,
-          returnFocus: await marker.evaluate((node) => ({
-            targetIsActive: document.activeElement === node,
-            documentFocused: document.hasFocus(),
-          })),
-        }),
-      );
-      // Require an active headless window after browser-history traversal.
-      // Activating the page does not choose a DOM target or restore its focus.
-      await page.bringToFront();
-      await expect(marker).toBeFocused();
-      await expect(
-        page.getByRole("tab", { name: "Floor 2", exact: true }),
-      ).toHaveAttribute("aria-selected", "true");
+      const placedRow = page.getByRole("button", {
+        name: "Open placed Living room lamp",
+        exact: true,
+      });
+      // Exercise repeated returns and both origins. Settling hidden layout lets
+      // RN Web report zero-size geometry and detach/remount projected markers.
+      const origins = [marker, marker, marker, placedRow];
+      for (const origin of origins) {
+        await origin.click();
+        await expect(
+          page.getByText("Observation details", { exact: true }),
+        ).toBeVisible();
+        await page.evaluate(
+          () =>
+            new Promise((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(resolve)),
+            ),
+        );
+        await page.goBack();
+        // Activate the headless window without choosing the DOM focus target.
+        await page.bringToFront();
+        await expect(origin).toBeFocused();
+        await expect(
+          page.getByRole("tab", { name: "Floor 2", exact: true }),
+        ).toHaveAttribute("aria-selected", "true");
+      }
       await context.setOffline(false);
       // A full direct route load uses the SPA fallback, not a fresh offline claim.
       await page.goto(server.origin + "/house", { waitUntil: "networkidle" });
@@ -440,6 +445,9 @@ try {
         placedMarkerAndCaptionAvoidRoomName: true,
         marker48pxAndAccessibleList: true,
         markerDetailsAndBackKeepFloor: true,
+        markerReturnFocusCycles: 3,
+        namedRowReturnFocus: true,
+        hiddenLayoutSettledBeforeReturn: true,
       });
     } catch (error) {
       if (page && !page.isClosed())

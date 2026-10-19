@@ -1,7 +1,10 @@
 import { AccessibilityInfo, type View } from "react-native";
 
+/** null is valid but not mounted; undefined permanently invalidates the origin. */
+export type ReadingFocusTarget = () => View | null | undefined;
+
 /** The caller revalidates the route, identity and placement on every lookup. */
-export function restoreReadingFocus(target: () => View | undefined) {
+export function restoreReadingFocus(target: ReadingFocusTarget) {
   let cancelled = false;
   const frame = requestAnimationFrame(() => {
     void AccessibilityInfo.isScreenReaderEnabled()

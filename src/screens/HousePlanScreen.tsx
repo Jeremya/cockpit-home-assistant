@@ -128,7 +128,8 @@ function HousePlanContent({
           )
         )
           return undefined;
-        return readingTargets.current.get(pending.id);
+        // A valid origin may be awaiting the visible floor's layout/ref commit.
+        return readingTargets.current.get(pending.id) ?? null;
       };
       const cancelFocus = restoreReadingFocus(target);
       return () => {
