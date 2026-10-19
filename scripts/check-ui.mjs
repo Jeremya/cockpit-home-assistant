@@ -402,6 +402,18 @@ try {
         page.getByText("Observation details", { exact: true }),
       ).toBeVisible();
       await page.goBack();
+      console.log(
+        JSON.stringify({
+          width,
+          returnFocus: await marker.evaluate((node) => ({
+            targetIsActive: document.activeElement === node,
+            documentFocused: document.hasFocus(),
+          })),
+        }),
+      );
+      // Browser-history traversal can deactivate the headless Linux window.
+      // Activating the page does not choose a DOM target or restore its focus.
+      await page.bringToFront();
       await expect(marker).toBeFocused();
       await expect(
         page.getByRole("tab", { name: "Floor 2", exact: true }),
