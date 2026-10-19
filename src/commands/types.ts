@@ -41,6 +41,7 @@ export type RefusalReason =
   | "in_flight"
   | "fresh_observation_required"
   | "capability_changed"
+  | "not_authorized"
   | "dispatch_failed";
 export interface CommandRefusal {
   kind: "refused";

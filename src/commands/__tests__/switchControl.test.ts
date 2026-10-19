@@ -1,7 +1,27 @@
-import { switchControlRestriction, switchOutcomeText } from "../switchControl";
+import {
+  switchControlRestriction,
+  switchOutcomeText,
+  switchBinding,
+  primarySwitch,
+} from "../switchControl";
+import { emptyPreferences } from "../../preferences/types";
 import { entity, snapshot } from "./fixtures";
 import type { CommandRecord } from "../types";
 
+function authorization(
+  value: ReturnType<typeof entity>,
+  home: ReturnType<typeof snapshot>,
+) {
+  return {
+    profileId: "public-home",
+    preferences: {
+      ...emptyPreferences(),
+      switchEnrollments: {
+        [value.key]: switchBinding(value, home, "public-home"),
+      },
+    },
+  };
+}
 function fixture() {
   const value = entity({ deviceId: "plug" });
   const home = snapshot([value]);
@@ -28,13 +48,18 @@ function fixture() {
   ];
   return { value, home };
 }
-test("a physical HS103 stays gated until hardware acceptance", () => {
+test("a physical HS103 requires exact profile and device enrollment", () => {
   const { value, home } = fixture();
-  expect(switchControlRestriction(value, home, "homeAssistant", false)).toMatch(
-    /pending physical validation/,
+  expect(switchControlRestriction(value, home, "homeAssistant")).toMatch(
+    /Allow power control/,
   );
   expect(
-    switchControlRestriction(value, home, "homeAssistant", true),
+    switchControlRestriction(
+      value,
+      home,
+      "homeAssistant",
+      authorization(value, home),
+    ),
   ).toBeNull();
 });
 test.each([
@@ -78,13 +103,13 @@ test.each([
       value,
       home,
       change === "mode" ? null : "homeAssistant",
-      true,
+      authorization(value, home),
     ),
   ).not.toBeNull();
 });
 test("demo scope enables only the public lamp and cannot enable hardware", () => {
   const { value, home } = fixture();
-  expect(switchControlRestriction(value, home, "demo", true)).not.toBeNull();
+  expect(switchControlRestriction(value, home, "demo")).not.toBeNull();
   value.key = "demo-switch.living_lamp";
   value.deviceId = "demo-plug";
   home.devices["demo-plug"] = { ...home.devices.plug!, id: "demo-plug" };
@@ -93,7 +118,41 @@ test("demo scope enables only the public lamp and cannot enable hardware", () =>
     id: value.key,
     device_id: value.deviceId,
   };
-  expect(switchControlRestriction(value, home, "demo", false)).toBeNull();
+  expect(switchControlRestriction(value, home, "demo")).toBeNull();
+});
+test.each(["profile", "device", "registry", "model", "capability"])(
+  "enrollment cannot transfer after %s changes",
+  (change) => {
+    const { value, home } = fixture();
+    const auth = authorization(value, home);
+    if (change === "profile") auth.profileId = "other-home";
+    if (change === "device")
+      auth.preferences.switchEnrollments[value.key]!.deviceId = "other-plug";
+    if (change === "registry")
+      value.key = home.registryEntries[0]!.id = "recreated";
+    if (change === "model") home.devices.plug!.model = "HS103(US)";
+    if (change === "capability")
+      auth.preferences.switchEnrollments[value.key]!.capability =
+        "fan" as "switch";
+    expect(
+      switchControlRestriction(value, home, "homeAssistant", auth),
+    ).not.toBeNull();
+  },
+);
+test("primary action is unique, explicit and never selected from names or a hidden sibling", () => {
+  const { value, home } = fixture();
+  const prefs = emptyPreferences();
+  expect(primarySwitch("plug", home, prefs, "homeAssistant")).toBe(value);
+  const sibling = {
+    ...value,
+    key: "other",
+    entityId: "switch.other",
+    name: "Primary switch",
+  };
+  home.entities[sibling.entityId] = sibling;
+  expect(primarySwitch("plug", home, prefs, "homeAssistant")).toBeNull();
+  prefs.visibility[sibling.key] = "hidden";
+  expect(primarySwitch("plug", home, prefs, "homeAssistant")).toBeNull();
 });
 test.each([
   "sending",

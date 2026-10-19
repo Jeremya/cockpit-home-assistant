@@ -25,7 +25,7 @@
     "scripts/lib/dependency-audit.mjs": "a85e5fed7c8ad6a368efce911b2be479bcf030fcafee343eefe5a49c7ae89269",
     "scripts/check-runtime-dependencies.mjs": "f119c69dd8d9d984716bc15cc4acac0bae1cf4c6f0b934adeba3dc17860ccd46",
     "scripts/lib/runtime-dependencies.mjs": "2df0b4e0a895e9dd3e4a9d435a098fd2b39ab77480362f47d9691b457e981b4c",
-    "scripts/check-ui.mjs": "ddd612dd4142cd94be3ab0dde4ca5ae3bade0227d5dceb04443e974005fed7bd",
+    "scripts/check-ui.mjs": "ec15636862869548bf219ca4cdcf0deb6942bddec85eb8d4e6207053e6c6f752",
     "scripts/lib/public-build.mjs": "b2e184491043e6d2e184b97776fd6159e5dbfb43a2a00c95ff37bc30a95cd29c",
     ".github/workflows/public-checks.yml": "d04afbea8fab7229fb570941595c4f488a130eb3b587e58ddf21c278110cad70",
     ".github/workflows/dependency-audit.yml": "4a39b33cd911a472b710912913f4b31275894ac78085fefdd0edec20dd12a1f8",

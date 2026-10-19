@@ -12,6 +12,7 @@ import {
   reconcilePreferences,
   resolveAlias,
   type ProfilePreferences,
+  type SwitchEnrollment,
 } from "../preferences/types";
 import { DemoBackend } from "./demo/DemoBackend";
 import { HomeAssistantBackend } from "./homeAssistant/HomeAssistantBackend";
@@ -24,6 +25,12 @@ import { CommandTracker } from "../commands/CommandTracker";
 import { CommandScheduler, isContinuous } from "../commands/CommandScheduler";
 import { refuse, validateIntent } from "../commands/validation";
 import { toServiceCall } from "../commands/serviceCalls";
+import {
+  switchBinding,
+  sameSwitchBinding,
+  switchControlRestriction,
+  switchIdentityRestriction,
+} from "../commands/switchControl";
 import type {
   CaptureResult,
   CommandIntent,
@@ -54,6 +61,7 @@ export class SessionManager {
   private commandReady = false;
   private commandSnapshot?: HomeSnapshot;
   private commandTracker = new CommandTracker();
+  private pendingSwitchEnrollments = new Set<SwitchEnrollment>();
   private commandScheduler = new CommandScheduler((key) =>
     resolveAlias(key, this.commandSnapshot?.identities.aliases ?? {}),
   );
@@ -65,6 +73,7 @@ export class SessionManager {
       backend: HomeBackend;
       eligibility: number;
       temperatureUnit: HomeConfig["temperatureUnit"];
+      switchBinding?: SwitchEnrollment;
     }
   >();
   readonly commands = createCommandFacade(
@@ -104,6 +113,10 @@ export class SessionManager {
       backend: this.backend,
       eligibility: this.commandEligibility,
       temperatureUnit: snapshot.config.temperatureUnit,
+      ...(useCockpit.getState().mode === "homeAssistant" &&
+      !switchIdentityRestriction(matches[0]!, snapshot, "homeAssistant")
+        ? { switchBinding: switchBinding(matches[0]!, snapshot, profileId) }
+        : {}),
     });
     return { kind: "captured", target };
   }
@@ -185,6 +198,28 @@ export class SessionManager {
     )
       return refuse("capability_changed");
   }
+  private switchPolicy(
+    eligible: EligibleCommand,
+    intent: CommandIntent,
+  ): CommandRefusal | undefined {
+    if (intent.kind !== "setSwitch") return;
+    const state = useCockpit.getState();
+    const grant = state.preferences.switchEnrollments[eligible.entity.key];
+    if (
+      state.preferencesLoadedFor !== eligible.target.profileId ||
+      (grant && this.pendingSwitchEnrollments.has(grant)) ||
+      switchControlRestriction(
+        eligible.entity,
+        this.commandSnapshot!,
+        state.mode,
+        {
+          profileId: eligible.target.profileId,
+          preferences: state.preferences,
+        },
+      )
+    )
+      return refuse("not_authorized");
+  }
   private dispatchCommand(
     reference: CommandReference,
     intent: CommandIntent,
@@ -197,6 +232,8 @@ export class SessionManager {
     // ready; do not enqueue work after that transition already canceled it.
     const eligible = this.resolveCommand(initial.target);
     if (eligible.kind === "refused") return eligible;
+    const authorization = this.switchPolicy(eligible, intent);
+    if (authorization) return authorization;
     const validation = validateIntent(intent, eligible.entity, eligible.config);
     if (validation.kind === "refused") return validation;
     const key = eligible.entity.key;
@@ -235,6 +272,8 @@ export class SessionManager {
   ): DispatchResult {
     const eligible = this.resolveCommand(target);
     if (eligible.kind === "refused") return eligible;
+    const authorization = this.switchPolicy(eligible, intent);
+    if (authorization) return authorization;
     const { backend, entity, config } = eligible;
     if (
       intent.kind === "setClimateTarget" &&
@@ -257,7 +296,8 @@ export class SessionManager {
     if (
       recheck.kind === "refused" ||
       recheck.entity !== entity ||
-      recheck.config.temperatureUnit !== config.temperatureUnit
+      recheck.config.temperatureUnit !== config.temperatureUnit ||
+      this.switchPolicy(recheck, intent)
     ) {
       this.commandTracker.cancelUnsent(tracked.commandId);
       return recheck.kind === "refused"
@@ -326,6 +366,7 @@ export class SessionManager {
     this.commandReady = false;
     this.commandSnapshot = undefined;
     this.commandEligibility++;
+    this.pendingSwitchEnrollments.clear();
     this.commandScheduler.reset();
     this.commandTracker.end(clear && !preserveCommandOutcomes);
     this.listeners.forEach((unsubscribe) => unsubscribe());
@@ -435,29 +476,32 @@ export class SessionManager {
         this.commandTracker.observe(snapshot);
         const previous = useCockpit.getState().preferences;
         const preferences = reconcilePreferences(previous, snapshot.identities);
-        useCockpit.setState({ snapshot, preferences });
         const identitiesChanged =
           JSON.stringify(previous.identities) !==
           JSON.stringify(snapshot.identities);
         const retrySeed = seedPending && !seedSaving;
-        if (!identitiesChanged && !retrySeed) return;
-        if (retrySeed) seedSaving = true;
-        void this.preferences
-          .saveProfile(profileId, preferences)
-          .then(() => {
-            seedPending = false;
-          })
-          .catch(() => {
-            if (generation === this.generation)
-              this.notice(
-                identitiesChanged
-                  ? "Identity metadata could not be saved."
-                  : "The floor plan could not be saved yet; it will be retried.",
-              );
-          })
-          .finally(() => {
-            if (retrySeed) seedSaving = false;
-          });
+        if (identitiesChanged || retrySeed) {
+          if (retrySeed) seedSaving = true;
+          void this.preferences
+            .saveProfile(profileId, preferences)
+            .then(() => {
+              seedPending = false;
+            })
+            .catch(() => {
+              if (generation === this.generation)
+                this.notice(
+                  identitiesChanged
+                    ? "Identity metadata could not be saved."
+                    : "The floor plan could not be saved yet; it will be retried.",
+                );
+            })
+            .finally(() => {
+              if (retrySeed) seedSaving = false;
+            });
+        }
+        // Persist before publishing so a subscriber's later permission
+        // revocation cannot be overwritten by this snapshot's older copy.
+        useCockpit.setState({ snapshot, preferences });
       }),
     ];
     await backend.setForeground(this.foreground);
@@ -497,12 +541,111 @@ export class SessionManager {
     const { profileId, preferences, preferencesLoadedFor } =
       useCockpit.getState();
     if (!profileId || preferencesLoadedFor !== profileId) return false;
-    const next = update(preferences);
+    // Ordinary favorites/placement edits cannot grant or remove actuator rights.
+    const next = {
+      ...update(preferences),
+      switchEnrollments: preferences.switchEnrollments,
+    };
+    // Queue before publishing: a synchronous subscriber's later edit must win.
+    const saved = this.preferences.saveProfile(profileId, next);
     useCockpit.setState({ preferences: next });
-    void this.preferences
-      .saveProfile(profileId, next)
-      .catch(() => this.notice("Preferences could not be saved."));
+    void saved.catch(() => this.notice("Preferences could not be saved."));
     return true;
+  }
+  /** Call only after explicit UI confirmation; this grants permission, sends no service. */
+  async allowSwitch(target: CommandTarget): Promise<boolean> {
+    const eligible = this.resolveCommand(target);
+    const state = useCockpit.getState();
+    if (
+      eligible.kind === "refused" ||
+      state.mode !== "homeAssistant" ||
+      state.preferencesLoadedFor !== target.profileId ||
+      switchIdentityRestriction(
+        eligible.entity,
+        this.commandSnapshot!,
+        state.mode,
+      ) ||
+      !["on", "off"].includes(eligible.entity.state)
+    )
+      return false;
+    const grant = switchBinding(
+      eligible.entity,
+      this.commandSnapshot!,
+      target.profileId,
+    );
+    if (
+      !sameSwitchBinding(this.commandTargets.get(target)?.switchBinding, grant)
+    )
+      return false;
+    this.pendingSwitchEnrollments.add(grant);
+    this.invalidateCommands("session_changed");
+    const next = {
+      ...state.preferences,
+      switchEnrollments: {
+        ...state.preferences.switchEnrollments,
+        [target.entityKey]: grant,
+      },
+    };
+    const saved = this.preferences.saveProfile(target.profileId, next);
+    useCockpit.setState({ preferences: next });
+    let persisted = false;
+    try {
+      await saved;
+      persisted = true;
+    } catch {
+      const current = useCockpit.getState();
+      if (
+        current.profileId === target.profileId &&
+        current.preferences.switchEnrollments[target.entityKey] === grant
+      )
+        await this.revokeSwitch(target.profileId, target.entityKey);
+      this.notice(
+        "Power permission could not be saved. Control remains disabled; try allowing it again.",
+      );
+    } finally {
+      this.pendingSwitchEnrollments.delete(grant);
+      const current = useCockpit.getState();
+      if (current.profileId === target.profileId)
+        useCockpit.setState({
+          preferences: {
+            ...current.preferences,
+            switchEnrollments: { ...current.preferences.switchEnrollments },
+          },
+        });
+    }
+    const current = useCockpit.getState();
+    return (
+      persisted &&
+      current.profileId === target.profileId &&
+      current.preferences.switchEnrollments[target.entityKey] === grant
+    );
+  }
+  /** Revocation also works offline and invalidates prepared actions before publication. */
+  async revokeSwitch(profileId: string, entityKey: string): Promise<boolean> {
+    const state = useCockpit.getState();
+    if (
+      state.profileId !== profileId ||
+      state.preferencesLoadedFor !== profileId
+    )
+      return false;
+    const grants = Object.fromEntries(
+      Object.entries(state.preferences.switchEnrollments).filter(
+        ([key]) => key !== entityKey,
+      ),
+    );
+    this.invalidateCommands("session_changed");
+    const next = { ...state.preferences, switchEnrollments: grants };
+    const saved = this.preferences.saveProfile(profileId, next);
+    useCockpit.setState({ preferences: next });
+    try {
+      await saved;
+      return true;
+    } catch {
+      this.notice(
+        "Power permission is disabled for this session, but could not be saved. Revoke it again before restarting.",
+      );
+      return false;
+    }
   }
   /** Replaces only the plan, area links and placements; other preferences are kept. */
   resetSpatial(): boolean {

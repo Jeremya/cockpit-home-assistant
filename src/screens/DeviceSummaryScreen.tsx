@@ -15,6 +15,9 @@ import {
   styles,
 } from "../components/ui";
 import type { HomeSnapshot } from "../core/types";
+import { primarySwitch } from "../commands/switchControl";
+import { SwitchControl } from "../components/controls/SwitchControl";
+import { primaryValue } from "../core/presentation";
 
 export function DeviceSummaryScreen() {
   const { id, profile } = useLocalSearchParams<{
@@ -64,6 +67,8 @@ function SummaryContent({
 }) {
   const [expanded, setExpanded] = useState(false);
   const display = presentDevice(summary, snapshot, ready);
+  const { preferences, mode } = useCockpit();
+  const primary = primarySwitch(summary.deviceId, snapshot, preferences, mode);
   return (
     <ScrollView
       testID="device-summary"
@@ -85,8 +90,16 @@ function SummaryContent({
               ? "Simulated observations"
               : "Reported by Home Assistant"}
         </Label>
-        {display.rows.map((row) => (
-          <View key={row.label} style={{ gap: 4 }}>
+        {primary && (
+          <Text
+            accessibilityLiveRegion="polite"
+            style={{ color: colors.text, fontSize: 40 }}
+          >
+            {primaryValue(primary, snapshot.config)}
+          </Text>
+        )}
+        {display.rows.map((row, index) => (
+          <View key={`${index}:${row.label}`} style={{ gap: 4 }}>
             <Text style={{ color: colors.muted, fontSize: 13 }}>
               {row.label}
             </Text>
@@ -109,10 +122,24 @@ function SummaryContent({
           </Body>
         )}
         <Body>
-          Read-only observations. A fresh HA connection does not confirm a
-          recent device poll.
+          A fresh HA connection does not confirm a recent device poll.
         </Body>
       </Panel>
+      {primary && (
+        <SwitchControl
+          key={JSON.stringify([
+            summary.profileId,
+            snapshot.sessionId,
+            primary.key,
+            primary.entityId,
+          ])}
+          entity={primary}
+          snapshot={snapshot}
+          profileId={summary.profileId}
+          mode={mode}
+          ready={ready}
+        />
+      )}
       <Panel>
         <Label>Reading coverage</Label>
         <Body>

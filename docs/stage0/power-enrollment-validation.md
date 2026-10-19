@@ -1,0 +1,9 @@
+# M01 power enrollment — 2026-10-19
+
+Source implementation and [architecture](../design/power-enrollment.md) replace the model-global gate with profile/device-bound permission. The Pixel 9 Pro is detected unlocked on Android 17, with earlier Trial 1002 installed. New exact-binary and physical acceptance are pending at this source checkpoint.
+
+Local checks: **633 Jest tests / 40 suites**, including the new enrollment UI/integration and persistence/race cases; **19 Node tooling tests**, including the closed simulated HA power fixture. TypeScript, lint and the existing loopback protocol proof pass. The raw dependency audit retains 56 affected entries/three upstream advisories; the reviewed gate passes under the unchanged expiry and scope. The isolated public web export, runtime-map guard and smoke pass at 320/430/768, including direct summary power, offline use and twelve focus-return assertions; no page errors/external requests, developer plan unchanged.
+
+The first browser attempt found duplicate outcome text in the retained summary and reading-detail routes. The smoke now exercises the intended two-press summary path and scopes outcome assertions to that summary. This changes neither outcome tracking nor the sample/privacy guards. No physical HA service has been called at this checkpoint.
+
+Candidate: build the public sample with `npm run build:trial:android -- --build-number 1008`, update the Pixel without clearing its data, validate the ordinary permission flow against the loopback fixture and restore the saved household session. Keep personal screenshots, serials, HA identifiers and tokens in ignored local evidence. Record the exact revision, APK hash, installed version, migration/persistence and no-replay observations before claiming acceptance. Authorized physical switching remains a distinct final step.

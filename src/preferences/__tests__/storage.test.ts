@@ -89,7 +89,7 @@ const spatial = () => ({
   },
 });
 
-test("a valid v1 file migrates to v2 with every profile and field preserved", async () => {
+test("a valid v1 file migrates to v3 with every profile and field preserved", async () => {
   const v1 = {
     schemaVersion: 1,
     profiles: {
@@ -102,9 +102,13 @@ test("a valid v1 file migrates to v2 with every profile and field preserved", as
   const { file, notice } = await new PreferencesStorage(storage).load();
   expect(notice).toBeUndefined();
   expect(backups(values)).toEqual([]);
-  expect(file.schemaVersion).toBe(2);
+  expect(file.schemaVersion).toBe(3);
   for (const [id, profile] of Object.entries(v1.profiles))
-    expect(file.profiles[id]).toEqual({ ...profile, spatial: emptySpatial() });
+    expect(file.profiles[id]).toEqual({
+      ...profile,
+      spatial: emptySpatial(),
+      switchEnrollments: {},
+    });
 });
 
 test("v2 spatial preferences round-trip, keeping unresolved references", async () => {
@@ -112,7 +116,7 @@ test("v2 spatial preferences round-trip, keeping unresolved references", async (
   const preferences = new PreferencesStorage(storage);
   const profile = { ...emptyPreferences(), spatial: spatial() };
   await preferences.saveProfile("demo", profile);
-  expect(JSON.parse(values.get("prefs")!).schemaVersion).toBe(2);
+  expect(JSON.parse(values.get("prefs")!).schemaVersion).toBe(3);
   const { file, notice } = await new PreferencesStorage(storage).load();
   expect(notice).toBeUndefined();
   expect(file.profiles.demo).toEqual(profile);
@@ -143,7 +147,7 @@ test.each([
   });
   const { storage, values } = memory({ prefs: raw });
   const { file, notice } = await new PreferencesStorage(storage).load();
-  expect(file).toEqual({ schemaVersion: 2, profiles: {} });
+  expect(file).toEqual({ schemaVersion: 3, profiles: {} });
   expect(notice).toBeTruthy();
   expect(backups(values).map((key) => values.get(key))).toEqual([raw]);
 });
@@ -174,15 +178,15 @@ test("an invalid stored plan, area link or v1 profile is not migrated as valid",
 });
 
 test("an unknown future version is backed up instead of being overwritten silently", async () => {
-  const raw = JSON.stringify({ schemaVersion: 3, profiles: { demo: {} } });
+  const raw = JSON.stringify({ schemaVersion: 4, profiles: { demo: {} } });
   const { storage, values } = memory({ prefs: raw });
   const { file, notice } = await new PreferencesStorage(storage).load();
-  expect(file).toEqual({ schemaVersion: 2, profiles: {} });
+  expect(file).toEqual({ schemaVersion: 3, profiles: {} });
   expect(notice).toMatch(/newer version/i);
   expect(backups(values).map((key) => values.get(key))).toEqual([raw]);
 });
 
-test("queued writes from several profiles all persist as v2", async () => {
+test("queued writes from several profiles all persist as v3", async () => {
   const { storage, values } = memory({
     prefs: JSON.stringify({
       schemaVersion: 1,
@@ -197,7 +201,7 @@ test("queued writes from several profiles all persist as v2", async () => {
     preferences.saveProfile("ha:b", b),
   ]);
   const stored = JSON.parse(values.get("prefs")!);
-  expect(stored.schemaVersion).toBe(2);
+  expect(stored.schemaVersion).toBe(3);
   expect(stored.profiles["ha:a"]).toEqual(a);
   expect(stored.profiles["ha:b"]).toEqual(b);
   expect(stored.profiles.demo.favorites).toEqual(["d"]);
@@ -264,4 +268,59 @@ test("unknown fields nested inside a stored plan are never persisted", async () 
     (await new PreferencesStorage(storage).load()).file.profiles.demo!.spatial
       .plan,
   ).toEqual(expected);
+});
+test("v2 migration never inherits an undeclared power permission", async () => {
+  const profile = {
+    ...emptyPreferences(),
+    favorites: ["lamp"],
+    spatial: spatial(),
+    switchEnrollments: { lamp: { arbitrary: true } },
+  };
+  const { storage } = memory({
+    prefs: JSON.stringify({ schemaVersion: 2, profiles: { home: profile } }),
+  });
+  const loaded = await new PreferencesStorage(storage).load();
+  expect(loaded.notice).toBeUndefined();
+  expect(loaded.file.profiles.home!.switchEnrollments).toEqual({});
+  expect(loaded.file.profiles.home!.favorites).toEqual(["lamp"]);
+  expect(loaded.file.profiles.home!.spatial).toEqual(profile.spatial);
+});
+test("v3 validates and allowlists exact power permissions without alias promotion", async () => {
+  const grant = {
+    profileId: "home",
+    entityKey: "lamp",
+    deviceId: "plug",
+    platform: "tplink" as const,
+    manufacturer: "TP-Link" as const,
+    model: "HS103",
+    capability: "switch" as const,
+    token: "must-not-persist",
+  };
+  const profile = { ...emptyPreferences(), switchEnrollments: { lamp: grant } };
+  const { storage, values } = memory();
+  const store = new PreferencesStorage(storage);
+  await store.saveProfile("home", profile);
+  expect(values.get("prefs")).not.toContain("must-not-persist");
+  const loaded = (await store.load()).file.profiles.home!;
+  const reconciled = reconcilePreferences(loaded, {
+    ...emptyIdentity(),
+    aliases: { lamp: "new-uuid" },
+  });
+  expect(reconciled.switchEnrollments).toEqual(loaded.switchEnrollments);
+  for (const field of [
+    "entityKey",
+    "deviceId",
+    "platform",
+    "model",
+    "capability",
+  ]) {
+    const bad = {
+      ...profile,
+      switchEnrollments: { lamp: { ...grant, [field]: "invalid" } },
+    };
+    if (field === "deviceId") bad.switchEnrollments.lamp.deviceId = "";
+    await expect(store.saveProfile("home", bad)).rejects.toThrow(
+      /invalid preferences/,
+    );
+  }
 });

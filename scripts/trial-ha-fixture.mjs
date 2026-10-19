@@ -4,14 +4,41 @@ import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
 
 const port = Number(process.argv[2] ?? 0);
+const powerProof = process.argv[3] === "--power-proof";
+if (process.argv.length > 4 || (process.argv[3] && !powerProof))
+  throw new Error("Usage: trial-ha-fixture [port] [--power-proof]");
 const state = {
   online: true,
   auth: true,
   version: "2026.10.1",
   temperature: "21.5",
+  ...(powerProof
+    ? { powerOn: false, powerObserve: true, powerAccept: true }
+    : {}),
 };
 const counters = { authentications: 0, snapshots: 0, serviceCalls: 0 };
 const feeds = new Map();
+function powerUpdate() {
+  for (const [socket, ids] of feeds)
+    for (const id of ids)
+      if (socket.readyState === 1)
+        socket.send(
+          JSON.stringify({
+            id,
+            type: "event",
+            event: {
+              c: {
+                "switch.trial_plug": {
+                  "+": {
+                    s: state.powerOn ? "on" : "off",
+                    lc: Date.now() / 1000,
+                  },
+                },
+              },
+            },
+          }),
+        );
+}
 const server = createServer(async (request, response) => {
   response.setHeader("Content-Type", "application/json");
   if (request.url === "/_proof/status") {
@@ -37,6 +64,7 @@ const server = createServer(async (request, response) => {
       (key) => key in update && update[key] !== state[key],
     );
     Object.assign(state, update);
+    if (powerProof && "powerOn" in update) powerUpdate();
     if (reconnect) for (const socket of wss.clients) socket.terminate();
     else
       for (const [socket, ids] of feeds)
@@ -161,7 +189,7 @@ wss.on("connection", (socket) => {
           event: {
             a: {
               "switch.trial_plug": {
-                s: "off",
+                s: powerProof && state.powerOn ? "on" : "off",
                 a: { friendly_name: "Trial plug" },
                 lc: Date.now() / 1000,
               },
@@ -184,6 +212,22 @@ wss.on("connection", (socket) => {
       result(null);
     } else if (message.type === "call_service") {
       counters.serviceCalls++;
+      if (
+        powerProof &&
+        state.powerAccept &&
+        message.domain === "switch" &&
+        ["turn_on", "turn_off"].includes(message.service) &&
+        message.target?.entity_id === "switch.trial_plug" &&
+        Object.keys(message.target).length === 1 &&
+        Object.keys(message.service_data ?? {}).length === 0
+      ) {
+        result(null);
+        if (state.powerObserve) {
+          state.powerOn = message.service === "turn_on";
+          powerUpdate();
+        }
+        return;
+      }
       socket.send(
         JSON.stringify({
           id: message.id,
@@ -200,7 +244,11 @@ wss.on("connection", (socket) => {
 });
 server.listen(port, "127.0.0.1", () =>
   console.log(
-    JSON.stringify({ port: server.address().port, fixtureOnly: true }),
+    JSON.stringify({
+      port: server.address().port,
+      fixtureOnly: true,
+      powerProof,
+    }),
   ),
 );
 for (const signal of ["SIGINT", "SIGTERM"])

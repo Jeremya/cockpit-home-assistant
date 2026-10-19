@@ -22,10 +22,25 @@ export interface ProfilePreferences {
   cameraEventOverrides: Record<string, string[]>;
   identities: IdentityMetadata;
   spatial: SpatialPreferences;
+  /** Explicit power permission; never follows identity aliases. */
+  switchEnrollments: Record<string, SwitchEnrollment>;
 }
-export type ProfilePreferencesV1 = Omit<ProfilePreferences, "spatial">;
+export interface SwitchEnrollment {
+  profileId: string;
+  entityKey: string;
+  deviceId: string;
+  platform: "tplink";
+  manufacturer: "TP-Link";
+  model: string;
+  capability: "switch";
+}
+export type ProfilePreferencesV2 = Omit<
+  ProfilePreferences,
+  "switchEnrollments"
+>;
+export type ProfilePreferencesV1 = Omit<ProfilePreferencesV2, "spatial">;
 export interface PreferencesFile {
-  schemaVersion: 2;
+  schemaVersion: 3;
   profiles: Record<string, ProfilePreferences>;
 }
 export const emptySpatial = (): SpatialPreferences => ({
@@ -46,6 +61,7 @@ export const emptyPreferences = (): ProfilePreferences => ({
   cameraEventOverrides: {},
   identities: emptyIdentity(),
   spatial: emptySpatial(),
+  switchEnrollments: {},
 });
 export function resolveAlias(
   key: string,

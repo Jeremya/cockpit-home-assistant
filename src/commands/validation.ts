@@ -27,6 +27,8 @@ const messages: Record<RefusalReason, string> = {
     "The control's unit or capabilities changed. Review the device and try again.",
   dispatch_failed:
     "The request could not be started. Review the current connection.",
+  not_authorized:
+    "Power control is not authorized for this device in this home. Review its permission and metadata.",
 };
 export function refuse(reason: RefusalReason): CommandRefusal {
   return { kind: "refused", reason, message: messages[reason] };

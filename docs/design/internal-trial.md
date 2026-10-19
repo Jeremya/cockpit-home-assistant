@@ -2,7 +2,7 @@
 
 The trial uses the actual Android `release` variant with embedded Hermes JavaScript, a dedicated local signing key and the isolated application ID `com.larrabee.homecockpit.trial`. Its name is **Maurice Trial**, scheme `mauricetrial`. It installs alongside the development client; credentials/preferences are separate and are entered through ordinary onboarding. This is an internal trial, not public-release acceptance.
 
-The first candidate exposes HA observations, summaries, favorites, room links/placements, the 2D plan and simulated demo commands. Real Kasa activation remains false. 3D and the scene lab are gated out of this variant so S02's Pixel acceptance remains separate. Diagnostics identifies version/build, source and bundled-plan provenance. The [R01 assessment](../stage0/dependency-maintenance.md) carries the four tooling advisories and unexplained Fabric incident into exact-binary acceptance.
+The first candidate exposes HA observations, summaries, favorites, room links/placements, the 2D plan and simulated demo commands. That accepted 1002 binary keeps real Kasa disabled. Newer M01 source adds explicit per-device enrollment; its [named-binary and physical acceptance](../stage0/power-enrollment-validation.md) is separate. 3D and the scene lab are gated out of this variant so S02's Pixel acceptance remains separate. Diagnostics identifies version/build, source and bundled-plan provenance. The [R01 assessment](../stage0/dependency-maintenance.md) carries the dated tooling findings and unexplained Fabric incident into exact-binary acceptance.
 
 ## Reproducible local build
 

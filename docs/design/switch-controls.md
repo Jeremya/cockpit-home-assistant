@@ -1,14 +1,14 @@
 # Switch control — C07a
 
-Implemented in the working tree on 2026-10-17. The entity-detail screen now provides explicit On/Off actions through the existing semantic facade. The offline demo lamp is enabled. Real HS103 control remains behind `KASA_SWITCH_CONTROL_ACCEPTED` in `src/commands/switchControl.ts` until installed-app and authorized physical acceptance. Other actuators stay outside this slice.
+C07a was implemented on 2026-10-17. The 2026-10-19 [M01 extension](power-enrollment.md) adds direct summary controls and replaces the model-global Boolean with explicit profile/device-bound enrollment, enforced in SessionManager. Default remains denied; physical household acceptance is recorded separately in the [M01 ledger](../stage0/power-enrollment-validation.md). The offline demo lamp is enabled. Other actuators stay outside this slice.
 
-The [global review](../reviews/2026-10-17-global-review.md#3-c07as-activation-switch-is-global-to-a-model) reproduced that this Boolean enables all matching HS103 identities, not just the tested household plug. Keep it false while defining explicit scoped enrollment and completing physical acceptance; testing one plug alone is not a per-device rollout policy.
+The [global review](../reviews/2026-10-17-global-review.md#3-c07as-activation-switch-is-global-to-a-model) reproduced that this Boolean enables all matching HS103 identities, not just the tested household plug. M01 replaces that gate; testing one plug alone still does not authorize other devices.
 
 ## Architecture and scope
 
 `DeviceDetailScreen` mounts `components/controls/SwitchControl.tsx`, keyed by profile, session, stable key and resolved entity ID. Existing observed-value presentation stays authoritative. The component imports only runtime `commands`, `commandStore` and `session`; there is no backend import, service JSON, optimistic switch state or promise-based success inference.
 
-`commands/switchControl.ts` owns the first-release scope and sanitized outcome wording. Demo eligibility is limited to the public lamp's exact registry/device identity. Hardware eligibility requires a TP-Link HS103/HS103(US), the `tplink` integration, matching stable registry/entity/device bindings, a main visible/enabled entity, fresh entity/device registries and the hardware acceptance gate. A manufacturer or display name alone does not enable a control. The demo fridge's Power cool, HA's built-in demo entities and Petlibro switches remain disabled. Locks, climate, fans, feeding, images and scene controls are not added.
+`commands/switchControl.ts` owns the first-release scope and sanitized outcome wording. Demo eligibility is limited to the public lamp's exact registry/device identity. Hardware eligibility requires a TP-Link HS103/HS103(US), the `tplink` integration, matching stable registry/entity/device bindings, a main visible/enabled entity, fresh entity/device registries and an exact profile/device enrollment. A manufacturer or display name alone does not enable a control. The demo fridge's Power cool, HA's built-in demo entities and Petlibro switches remain disabled. Locks, climate, fans, feeding, images and scene controls are not added.
 
 `getCapability` and `assessEntity` are reused. Both buttons are disabled for cached/non-ready/background, unavailable, unknown, disabled or out-of-scope readings. The action matching the current observed On/Off state is disabled as well. Each button has an explicit accessible device/action name, disabled/busy state and a minimum 48-point touch target; status updates use a polite live region.
 
@@ -20,7 +20,7 @@ The component handles `refused` and `no-op` as local feedback. A `started` reque
 
 Requested On/Off and command status are presented separately from the observed value. Accepted means waiting for a report. Confirmed describes a later observation, preserving late-reconciliation and assumed-state qualifiers; it does not claim causality or a recent physical poll. Failure warns that the device may still have changed. Unknown/deadline results ask for verification and have no automatic retry. Every demo status explicitly says simulated and never exposes the tracker's generic HA error or raw backend messages. Dismissal hides the latest result without falling back to an older one; dispatch guards remain independent of visibility.
 
-## Verification and remaining gates
+## Earlier C07a verification and remaining gates
 
 - **561 tests / 32 suites** pass. C07a adds 20 scope/presentation cases and 15 component tests through the actual SessionManager, scheduler, tracker and injected DemoBackend. Coverage includes On/Off, both acknowledgement/observation orders, same-render repeated presses, accepted-but-unobserved exclusion, rejection with a later effect, timeout/late reconciliation, deadlines, missing/unknown interpretation, cached/background, stale session/target, immediate refresh invalidation, a new external observation producing no-op feedback without transport, dismissal and excluded actuators.
 - TypeScript, ESLint and configured Prettier checks pass. Existing C01–C04 and UI/spatial regressions remain passing.
@@ -31,4 +31,4 @@ Requested On/Off and command status are presented separately from the observed v
 
 ## Next implementation
 
-Complete the specifically authorized lamp Off/On check with the original state restored and the user's physical observation recorded. Keep the gate false if either acceptance is incomplete; record the exact remaining limitation. Once accepted, R03a is the next useful slice: a standalone internal-trial APK for the currently accepted feature set, following the documented R01 assessment. Locks/climate/fans need their own verified-hardware work and deliberate UI; they are not automatically next merely because switch code exists.
+Complete the specifically authorized lamp Off/On check with the original state restored and the user's physical observation recorded. Use M01's default-denied per-device permission; record exact remaining acceptance rather than enabling a model-global gate. Once accepted, R03a is the next useful slice: a standalone internal-trial APK for the currently accepted feature set, following the documented R01 assessment. Locks/climate/fans need their own verified-hardware work and deliberate UI; they are not automatically next merely because switch code exists.

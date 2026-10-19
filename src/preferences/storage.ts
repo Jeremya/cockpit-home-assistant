@@ -7,10 +7,12 @@ import {
   type PreferencesFile,
   type ProfilePreferences,
   type ProfilePreferencesV1,
+  type ProfilePreferencesV2,
+  type SwitchEnrollment,
   type SpatialPreferences,
 } from "./types";
 
-const CURRENT_VERSION = 2;
+const CURRENT_VERSION = 3;
 const record = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown): v is string => typeof v === "string" && v.length > 0;
@@ -92,10 +94,51 @@ function parseSpatial(value: unknown): SpatialPreferences | null {
     ),
   };
 }
-function parseProfile(value: unknown): ProfilePreferences | null {
+function parseV2Profile(value: unknown): ProfilePreferencesV2 | null {
   const base = parseV1Profile(value);
   const spatial = record(value) ? parseSpatial(value.spatial) : null;
   return base && spatial ? { ...base, spatial } : null;
+}
+function parseProfile(value: unknown): ProfilePreferences | null {
+  const base = parseV2Profile(value);
+  if (!base || !record(value) || !record(value.switchEnrollments)) return null;
+  const entries = Object.entries(value.switchEnrollments);
+  if (
+    entries.some(
+      ([key, e]) =>
+        !record(e) ||
+        !text(e.profileId) ||
+        e.entityKey !== key ||
+        !text(key) ||
+        !text(e.deviceId) ||
+        e.platform !== "tplink" ||
+        e.manufacturer !== "TP-Link" ||
+        typeof e.model !== "string" ||
+        !/^HS103(?:\(US\))?$/i.test(e.model) ||
+        e.capability !== "switch",
+    )
+  )
+    return null;
+  return {
+    ...base,
+    switchEnrollments: Object.fromEntries(
+      entries.map(([key, e]) => {
+        const grant = e as unknown as SwitchEnrollment;
+        return [
+          key,
+          {
+            profileId: grant.profileId,
+            entityKey: grant.entityKey,
+            deviceId: grant.deviceId,
+            platform: grant.platform,
+            manufacturer: grant.manufacturer,
+            model: grant.model,
+            capability: grant.capability,
+          },
+        ];
+      }),
+    ),
+  };
 }
 
 type Profiles<T> = Record<string, T>;
@@ -122,6 +165,18 @@ const migrations: Record<number, (profiles: unknown) => unknown> = {
         id,
         { ...p, spatial: emptySpatial() },
       ]),
+    );
+  },
+  2: (profiles) => {
+    const v2 = parseProfiles(profiles, parseV2Profile);
+    return (
+      v2 &&
+      Object.fromEntries(
+        Object.entries(v2).map(([id, p]) => [
+          id,
+          { ...p, switchEnrollments: {} },
+        ]),
+      )
     );
   },
 };

@@ -18,7 +18,7 @@ import {
   entity,
   fan,
   lock,
-  snapshot,
+  snapshot as basicSnapshot,
 } from "../../commands/__tests__/fixtures";
 import type {
   CommandTarget,
@@ -245,7 +245,7 @@ test("existing v1 preferences migrate on connect and spatial data stays per prof
   expect(useCockpit.getState().preferences.favorites).toEqual(["demo-fan"]);
   expect(useCockpit.getState().preferences.spatial.placements).toEqual({});
   const stored = JSON.parse(prefStore.values.get("prefs")!);
-  expect(stored.schemaVersion).toBe(2);
+  expect(stored.schemaVersion).toBe(3);
   expect(
     Object.keys(stored.profiles[profileIdFor(a.url)].spatial.placements),
   ).toEqual(["device:lamp"]);
@@ -472,6 +472,41 @@ test("metric placements survive restart, reposition and removal without changing
   expect(saved.favorites).toEqual(["stable"]);
 });
 
+function snapshot(values = [entity()]): HomeSnapshot {
+  const home = basicSnapshot(
+    values.map((e) =>
+      e.domain === "switch"
+        ? { ...e, deviceId: e.deviceId ?? "public-plug" }
+        : e,
+    ),
+  );
+  for (const e of Object.values(home.entities).filter(
+    (e) => e.domain === "switch",
+  )) {
+    const id = e.deviceId!;
+    home.devices[id] ??= {
+      id,
+      name: "Public lamp",
+      manufacturer: "TP-Link",
+      model: "HS103",
+      areaId: null,
+      entityIds: [],
+    };
+    home.devices[id]!.entityIds.push(e.entityId);
+    home.registryEntries.push({
+      id: e.key,
+      entity_id: e.entityId,
+      device_id: id,
+      area_id: null,
+      entity_category: null,
+      hidden_by: null,
+      disabled_by: null,
+      name: null,
+      platform: "tplink",
+    });
+  }
+  return home;
+}
 function capture(key = "stable-lamp") {
   const result = manager.commands.capture(key);
   if (result.kind !== "captured") throw new Error(result.reason);
@@ -482,6 +517,7 @@ async function connected() {
   await manager.connect(a);
   const backend = setupResult.backends[0]!;
   backend.snapshot(snapshot());
+  expect(await manager.allowSwitch(capture())).toBe(true);
   return { ...setupResult, backend };
 }
 test("semantic facade dispatches synchronously, returns acknowledgement separately and never changes observed state", async () => {
@@ -633,22 +669,18 @@ test("a copied or foreign target cannot authorize another entity", async () => {
   ).toBe("refused");
   expect(backend.callService).not.toHaveBeenCalled();
 });
-test("identity aliases may promote a stable key only while the entity ID remains the same", async () => {
+test("identity aliases do not transfer power permissions to a new registry identity", async () => {
   const { backend } = await connected();
   const target = capture();
   const promoted = snapshot([entity({ key: "registry-uuid" })]);
   promoted.identities.aliases["stable-lamp"] = "registry-uuid";
   backend.snapshot(promoted);
-  const first = manager.commands.setSwitch(target, true);
-  expect(first.kind).toBe("started");
-  expect(manager.commands.setSwitch("stable-lamp", true)).toMatchObject({
+  expect(manager.commands.setSwitch(target, true)).toMatchObject({
     kind: "refused",
-    reason: "in_flight",
+    reason: "not_authorized",
   });
-  if (first.kind !== "started") throw new Error("Expected dispatch");
-  await first.result;
-  expect(manager.commands.setSwitch("stable-lamp", true).kind).toBe("started");
-  expect(backend.callService).toHaveBeenCalledTimes(2);
+  expect(manager.commands.setSwitch("stable-lamp", true).kind).toBe("refused");
+  expect(backend.callService).not.toHaveBeenCalled();
 });
 test("ambiguous stable identities fail closed", async () => {
   const { backend } = await connected();
@@ -1388,5 +1420,185 @@ describe("C03 command policy", () => {
       reason: "unavailable",
     });
     expect(backend.callService).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("M01 scoped power authorization", () => {
+  test("a snapshot identity save cannot overwrite a revocation made by its subscriber", async () => {
+    const { backend, preferences } = await connected();
+    let revoked = false;
+    const stop = useCockpit.subscribe((state) => {
+      if (!revoked && state.snapshot?.identities.entityKeys.new === "new-key") {
+        revoked = true;
+        void manager.revokeSwitch(profileIdFor(a.url), "stable-lamp");
+      }
+    });
+    const changed = snapshot();
+    changed.identities.entityKeys.new = "new-key";
+    backend.snapshot(changed);
+    stop();
+    await flush();
+    expect(
+      (await preferences.load()).file.profiles[profileIdFor(a.url)]!
+        .switchEnrollments,
+    ).toEqual({});
+    expect(manager.commands.setSwitch("stable-lamp", true).kind).toBe(
+      "refused",
+    );
+  });
+  test("a second HS103 and another home cannot use the enrolled plug's permission", async () => {
+    const { backend, backends } = await connected();
+    backend.snapshot(
+      snapshot([
+        entity(),
+        entity({
+          key: "other-uuid",
+          entityId: "switch.other",
+          deviceId: "other-plug",
+        }),
+      ]),
+    );
+    expect(manager.commands.setSwitch("other-uuid", true)).toMatchObject({
+      kind: "refused",
+      reason: "not_authorized",
+    });
+    expect(manager.commands.setSwitch("stable-lamp", true).kind).toBe(
+      "started",
+    );
+    await manager.connect(b);
+    backends[1]!.snapshot(snapshot());
+    expect(manager.commands.setSwitch("stable-lamp", true)).toMatchObject({
+      kind: "refused",
+      reason: "not_authorized",
+    });
+    expect(backends[1]!.callService).not.toHaveBeenCalled();
+  });
+  test.each(["entities", "devices", "platform", "device", "model", "hidden"])(
+    "dispatch refuses changed %s metadata",
+    async (change) => {
+      const { backend } = await connected();
+      const target = capture();
+      const changed = snapshot();
+      if (change === "entities" || change === "devices")
+        changed.metadata[change] = {
+          kind: "stale",
+          lastLoadedAt: null,
+          reason: "timeout",
+        };
+      if (change === "platform") changed.registryEntries[0]!.platform = "demo";
+      if (change === "device") changed.devices["public-plug"]!.entityIds = [];
+      if (change === "model") changed.devices["public-plug"]!.model = "HS105";
+      if (change === "hidden") changed.registryEntries[0]!.hidden_by = "user";
+      backend.snapshot(changed);
+      expect(manager.commands.setSwitch(target, true)).toMatchObject({
+        kind: "refused",
+        reason: "not_authorized",
+      });
+      expect(backend.callService).not.toHaveBeenCalled();
+    },
+  );
+  test("a delayed permission review cannot authorize a replacement physical binding", async () => {
+    const { backend } = await connected();
+    await manager.revokeSwitch(profileIdFor(a.url), "stable-lamp");
+    const target = capture();
+    backend.snapshot(snapshot([entity({ deviceId: "replacement-plug" })]));
+    expect(await manager.allowSwitch(target)).toBe(false);
+    expect(useCockpit.getState().preferences.switchEnrollments).toEqual({});
+    expect(backend.callService).not.toHaveBeenCalled();
+  });
+  test("a synchronous revocation while publishing sending stops the final transport call", async () => {
+    const { backend, preferences } = await connected();
+    let revoked = false;
+    const stop = manager.commandStore.subscribe((state) => {
+      if (!revoked && state.records.some((r) => r.status === "sending")) {
+        revoked = true;
+        void manager.revokeSwitch(profileIdFor(a.url), "stable-lamp");
+      }
+    });
+    const result = manager.commands.setSwitch("stable-lamp", true);
+    stop();
+    expect(result.kind).toBe("refused");
+    expect(backend.callService).not.toHaveBeenCalled();
+    expect(manager.commandStore.getState().records).toEqual([]);
+    await flush();
+    expect(
+      (await preferences.load()).file.profiles[profileIdFor(a.url)]!
+        .switchEnrollments,
+    ).toEqual({});
+  });
+  test("revocation during grant publication wins both in memory and in serialized storage", async () => {
+    const { preferences, backend } = await connected();
+    await manager.revokeSwitch(profileIdFor(a.url), "stable-lamp");
+    const target = capture();
+    let revoked = false;
+    const stop = useCockpit.subscribe((state) => {
+      if (!revoked && state.preferences.switchEnrollments["stable-lamp"]) {
+        revoked = true;
+        void manager.revokeSwitch(profileIdFor(a.url), "stable-lamp");
+      }
+    });
+    expect(await manager.allowSwitch(target)).toBe(false);
+    stop();
+    await flush();
+    expect(useCockpit.getState().preferences.switchEnrollments).toEqual({});
+    expect(
+      (await preferences.load()).file.profiles[profileIdFor(a.url)]!
+        .switchEnrollments,
+    ).toEqual({});
+    expect(backend.callService).not.toHaveBeenCalled();
+  });
+  test("permission remains unusable until its write completes; a failed write stays denied", async () => {
+    const { preferences, backend } = await connected();
+    await manager.revokeSwitch(profileIdFor(a.url), "stable-lamp");
+    let done!: () => void;
+    jest.spyOn(preferences, "saveProfile").mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          done = resolve;
+        }),
+    );
+    const allowing = manager.allowSwitch(capture());
+    expect(manager.commands.setSwitch("stable-lamp", true)).toMatchObject({
+      kind: "refused",
+      reason: "not_authorized",
+    });
+    done();
+    expect(await allowing).toBe(true);
+    await manager.revokeSwitch(profileIdFor(a.url), "stable-lamp");
+    jest
+      .spyOn(preferences, "saveProfile")
+      .mockRejectedValueOnce(new Error("disk full"));
+    expect(await manager.allowSwitch(capture())).toBe(false);
+    expect(manager.commands.setSwitch("stable-lamp", true).kind).toBe(
+      "refused",
+    );
+    expect(useCockpit.getState().preferences.switchEnrollments).toEqual({});
+    expect(backend.callService).not.toHaveBeenCalled();
+  });
+  test("permission survives restart, but an offline revocation survives the next restart", async () => {
+    const { credentials, preferences, backends } = await connected();
+    manager.disconnect();
+    manager = new SessionManager(credentials, preferences);
+    await manager.connect(a);
+    backends.at(-1)!.snapshot(snapshot());
+    expect(manager.commands.setSwitch("stable-lamp", false).kind).toBe("no-op");
+    backends.at(-1)!.changeStatus({ kind: "reconnecting", lastReadyAt: null });
+    expect(await manager.revokeSwitch(profileIdFor(a.url), "stable-lamp")).toBe(
+      true,
+    );
+    manager.disconnect();
+    manager = new SessionManager(credentials, preferences);
+    await manager.connect(a);
+    backends.at(-1)!.snapshot(snapshot());
+    expect(manager.commands.setSwitch("stable-lamp", true).kind).toBe(
+      "refused",
+    );
+    expect(backends.at(-1)!.callService).not.toHaveBeenCalled();
+  });
+  test("ordinary preference edits cannot forge power permissions", async () => {
+    await connected();
+    const grants = useCockpit.getState().preferences.switchEnrollments;
+    manager.updatePreferences((p) => ({ ...p, switchEnrollments: {} }));
+    expect(useCockpit.getState().preferences.switchEnrollments).toBe(grants);
   });
 });

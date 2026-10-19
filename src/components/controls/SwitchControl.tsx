@@ -5,8 +5,10 @@ import { latestCommand, visibleCommand } from "../../commands/store";
 import {
   switchCommandBusy,
   switchControlRestriction,
+  switchIdentityRestriction,
   switchOutcomeText,
 } from "../../commands/switchControl";
+import type { CommandTarget } from "../../commands/types";
 import { assessEntity } from "../../core/policy";
 import { useCockpit } from "../../core/store";
 import type { EntityRecord, HomeSnapshot } from "../../core/types";
@@ -28,6 +30,12 @@ export function SwitchControl({
 }) {
   const [active, setActive] = useState(AppState.currentState === "active");
   const [notice, setNotice] = useState<string | null>(null);
+  const [review, setReview] = useState<CommandTarget | null>(null);
+  const [saving, setSaving] = useState(false);
+  const preferences = useCockpit((state) => state.preferences);
+  const grant = Object.hasOwn(preferences.switchEnrollments, entity.key)
+    ? preferences.switchEnrollments[entity.key]
+    : undefined;
   useEffect(() => {
     const listener = AppState.addEventListener("change", (state) => {
       setActive(state === "active");
@@ -46,9 +54,14 @@ export function SwitchControl({
   });
   const outcome = visibleCommand(latest);
   const busy = switchCommandBusy(latest);
-  const restriction = switchControlRestriction(entity, snapshot, mode);
+  const restriction = switchControlRestriction(entity, snapshot, mode, {
+    profileId,
+    preferences,
+  });
+  const identityRestriction = switchIdentityRestriction(entity, snapshot, mode);
   const condition = assessEntity(entity, ready).condition;
   const blocked =
+    (saving ? "Saving power permission…" : null) ??
     restriction ??
     (!active
       ? "Return to the app to use power control."
@@ -64,6 +77,7 @@ export function SwitchControl({
     if (
       blocked ||
       current.profileId !== profileId ||
+      current.preferences.switchEnrollments !== preferences.switchEnrollments ||
       current.snapshot?.sessionId !== snapshot.sessionId ||
       current.snapshot.syncEpoch !== snapshot.syncEpoch ||
       current.snapshot.entities[entity.entityId]?.key !== entity.key
@@ -77,6 +91,7 @@ export function SwitchControl({
     profileId,
     snapshot.sessionId,
     snapshot.syncEpoch,
+    preferences.switchEnrollments,
   ]);
   function send(on: boolean) {
     const current = useCockpit.getState();
@@ -89,7 +104,10 @@ export function SwitchControl({
       currentEntity?.key !== entity.key ||
       current.status.kind !== "ready" ||
       !current.snapshot ||
-      switchControlRestriction(currentEntity, current.snapshot, current.mode) ||
+      switchControlRestriction(currentEntity, current.snapshot, current.mode, {
+        profileId,
+        preferences: current.preferences,
+      }) ||
       ["unknown", "unavailable", "stale"].includes(
         assessEntity(currentEntity, true).condition,
       )
@@ -122,6 +140,37 @@ export function SwitchControl({
     );
     // The manager owns the result promise. Only observed snapshots update state.
   }
+  function beginPermission() {
+    const current = useCockpit.getState();
+    if (
+      AppState.currentState !== "active" ||
+      current.profileId !== profileId ||
+      current.snapshot?.sessionId !== snapshot.sessionId ||
+      current.snapshot.syncEpoch !== snapshot.syncEpoch ||
+      current.snapshot.entities[entity.entityId] !== entity ||
+      current.status.kind !== "ready"
+    )
+      return;
+    const result = commands.capture(entity.key);
+    if (result.kind === "captured") setReview(result.target);
+    else setNotice(result.message);
+  }
+  async function savePermission(allow: boolean) {
+    if (saving || (allow && !review)) return;
+    setSaving(true);
+    const saved = allow
+      ? await session.allowSwitch(review!)
+      : await session.revokeSwitch(profileId, entity.key);
+    setReview(null);
+    setSaving(false);
+    setNotice(
+      saved
+        ? allow
+          ? "Power control allowed for this device in this home."
+          : "Power control revoked. Already-sent requests may still take effect."
+        : "Permission could not be saved. Review the current device and try again.",
+    );
+  }
   return (
     <Panel>
       <Label>
@@ -132,6 +181,50 @@ export function SwitchControl({
           ? "This changes the offline demo lamp only."
           : "Sends an On or Off request through Home Assistant."}
       </Body>
+      {mode === "homeAssistant" && (
+        <View style={{ gap: 12 }}>
+          {review ? (
+            <>
+              <Label>Allow {entity.name}?</Label>
+              <Body>
+                Only allow a lamp or a load you can safely switch. This
+                permission applies to this device in this home. Allowing it
+                sends no power request.
+              </Body>
+              <Button
+                title="Allow this device"
+                disabled={saving || !active || !ready}
+                onPress={() => void savePermission(true)}
+              />
+              <Button
+                title="Cancel permission"
+                secondary
+                disabled={saving}
+                onPress={() => setReview(null)}
+              />
+            </>
+          ) : grant ? (
+            <Button
+              title="Revoke power control"
+              secondary
+              disabled={saving}
+              onPress={() => void savePermission(false)}
+            />
+          ) : !identityRestriction ? (
+            <Button
+              title="Allow power control"
+              secondary
+              disabled={
+                saving ||
+                !active ||
+                !ready ||
+                !["on", "off"].includes(entity.state)
+              }
+              onPress={beginPermission}
+            />
+          ) : null}
+        </View>
+      )}
       <View style={{ flexDirection: "row", gap: 12 }}>
         {[true, false].map((on) => {
           const selected = entity.state === (on ? "on" : "off");

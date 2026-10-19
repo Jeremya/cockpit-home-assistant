@@ -280,15 +280,13 @@ try {
           exact: true,
         })
         .click();
-      await page
-        .getByRole("button", { name: "Show all 1 readings", exact: true })
-        .click();
-      await page.getByRole("button", { name: /^Living room lamp,/ }).click();
-      const on = page.getByRole("button", {
+      // M01: Home -> device summary -> power, without expanding readings.
+      const powerSummary = page.getByTestId("device-summary");
+      const on = powerSummary.getByRole("button", {
         name: "Turn Living room lamp on",
         exact: true,
       });
-      const off = page.getByRole("button", {
+      const off = powerSummary.getByRole("button", {
         name: "Turn Living room lamp off",
         exact: true,
       });
@@ -310,26 +308,25 @@ try {
       await context.setOffline(true);
       await on.click();
       await expect(
-        page.getByText("Simulated state observed after the request.", {
+        powerSummary.getByText("Simulated state observed after the request.", {
           exact: true,
         }),
       ).toBeVisible();
       await expect(on).toBeDisabled();
       await expect(off).toBeEnabled();
-      await page
+      await powerSummary
         .getByRole("button", { name: "Dismiss result", exact: true })
         .click();
-      await expect(page.getByTestId("switch-outcome")).toHaveCount(0);
+      await expect(powerSummary.getByTestId("switch-outcome")).toHaveCount(0);
       await off.click();
       await expect(
-        page.getByText("Simulated state observed after the request.", {
+        powerSummary.getByText("Simulated state observed after the request.", {
           exact: true,
         }),
       ).toBeVisible();
       await expect(off).toBeDisabled();
       await expect(on).toBeEnabled();
       await page.screenshot({ path: join(output, `control-${width}.png`) });
-      await page.goBack();
       await page.goBack();
       await page
         .getByRole("button", {
@@ -443,6 +440,7 @@ try {
         unknownDimensions: true,
         deviceReadingsAndFavoritePersistence: true,
         simulatedOnOffAndDismissal: true,
+        primaryPowerInSummary: true,
         targets48px: true,
         loadedRoutesWorkOffline: true,
         directHouseRoute: true,
