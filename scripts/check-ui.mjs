@@ -19,10 +19,11 @@ import {
   run,
 } from "./lib/public-build.mjs";
 import { previewServer } from "./lib/preview-server.mjs";
+import { checkBrowserConnection } from "./lib/browser-connection-check.mjs";
 
 const root = process.cwd();
 const output = join(root, "artifacts/ui");
-const widths = [320, 430, 768];
+const widths = [320, 430, 768, 1440];
 const pictures = widths.flatMap((width) =>
   ["home", "plan", "control"].map((name) => `${name}-${width}.png`),
 );
@@ -150,8 +151,75 @@ try {
         if (report.pageErrors.length < 10)
           report.pageErrors.push(error.message.slice(0, 1500));
       });
-      await home(page);
+      if (width === 1440) {
+        await page.goto(server.origin, { waitUntil: "networkidle" });
+        const skip = page.getByRole("link", {
+          name: "Skip to content",
+          exact: true,
+        });
+        await page.keyboard.press("Tab");
+        await expect(skip).toBeFocused();
+        await page.keyboard.press("Enter");
+        await expect(page.getByRole("main")).toBeFocused();
+        await demo(page);
+      } else await home(page);
       await noOverflow(page);
+      if (width === 1440) {
+        const nav = page.getByRole("navigation", { name: "Main navigation" });
+        await expect(
+          nav.getByRole("link", { name: "Overview", exact: true }),
+        ).toHaveAttribute("aria-current", "page");
+        const floorLink = nav.getByRole("link", {
+          name: "Floor plan",
+          exact: true,
+        });
+        await floorLink.focus();
+        await page.keyboard.press("Enter");
+        await expect(floorLink).toHaveAttribute("aria-current", "page");
+        await nav.getByRole("link", { name: "Overview", exact: true }).click();
+        await page.getByRole("tab", { name: "Kitchen", exact: true }).click();
+        for (const viewport of [1024, 1280, 1920, 800, 1440]) {
+          await page.setViewportSize({ width: viewport, height: 932 });
+          await expect(page.getByTestId("desktop-sidebar")).toHaveCount(
+            viewport >= 1024 ? 1 : 0,
+          );
+          await expect(
+            page.getByRole("tab", { name: "Kitchen", exact: true }),
+          ).toHaveAttribute("aria-selected", "true");
+          await expect(
+            page.getByRole("button", {
+              name: "Open device: Cat feeder",
+              exact: true,
+            }),
+          ).toBeVisible();
+          await noOverflow(page);
+        }
+        await page.getByRole("tab", { name: "All rooms", exact: true }).click();
+        await expect(
+          page.getByTestId("desktop-overview").filter({ visible: true }),
+        ).toBeVisible();
+        const grids = page.getByTestId("device-grid").filter({ visible: true });
+        let sharedRow = false;
+        for (const grid of await grids.all()) {
+          const cells = grid.getByTestId("device-grid-cell");
+          if ((await cells.count()) < 2) continue;
+          const a = await cells.nth(0).boundingBox();
+          const b = await cells.nth(1).boundingBox();
+          if (Math.abs(a.y - b.y) < 2 && b.x > a.x + a.width) sharedRow = true;
+        }
+        assert(
+          sharedRow,
+          "Desktop must lay common device cards out in columns",
+        );
+        report.desktopLayout = {
+          widths: [1024, 1280, 1440, 1920],
+          compactWidth: 800,
+          keyboardNavigation: true,
+          skipToContent: true,
+          resizePreservesRoom: true,
+          sharedCardsInColumns: true,
+        };
+      }
       await page.screenshot({ path: join(output, `home-${width}.png`) });
       await page
         .getByRole("button", {
@@ -470,6 +538,13 @@ try {
     "Demo must not request external services",
   );
   assert.deepEqual(report.pageErrors, [], "Browser errors must fail the smoke");
+  report.browserConnection = await checkBrowserConnection({
+    browser,
+    origin: server.origin,
+    workspace,
+    env,
+    signal: controller.signal,
+  });
   report.result = "passed";
 } catch (error) {
   report.failedStage = stage;

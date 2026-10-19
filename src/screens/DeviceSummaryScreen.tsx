@@ -18,6 +18,7 @@ import type { HomeSnapshot } from "../core/types";
 import { primarySwitch } from "../commands/switchControl";
 import { SwitchControl } from "../components/controls/SwitchControl";
 import { primaryValue } from "../core/presentation";
+import { useResponsiveLayout } from "../components/layout";
 
 export function DeviceSummaryScreen() {
   const { id, profile } = useLocalSearchParams<{
@@ -66,6 +67,7 @@ function SummaryContent({
   demo: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { desktop } = useResponsiveLayout();
   const display = presentDevice(summary, snapshot, ready);
   const { preferences, mode } = useCockpit();
   const primary = primarySwitch(summary.deviceId, snapshot, preferences, mode);
@@ -82,64 +84,70 @@ function SummaryContent({
           .filter(Boolean)
           .join(" · ") || "Device metadata unavailable"}
       </Body>
-      <Panel>
-        <Label>
-          {!ready
-            ? "Cached observations"
-            : demo
-              ? "Simulated observations"
-              : "Reported by Home Assistant"}
-        </Label>
+      <View style={{ flexDirection: desktop ? "row" : "column", gap: 20 }}>
+        <View style={{ flex: desktop ? 1 : undefined, minWidth: 0 }}>
+          <Panel>
+            <Label>
+              {!ready
+                ? "Cached observations"
+                : demo
+                  ? "Simulated observations"
+                  : "Reported by Home Assistant"}
+            </Label>
+            {primary && (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={{ color: colors.text, fontSize: 40 }}
+              >
+                {primaryValue(primary, snapshot.config)}
+              </Text>
+            )}
+            {display.rows.map((row, index) => (
+              <View key={`${index}:${row.label}`} style={{ gap: 4 }}>
+                <Text style={{ color: colors.muted, fontSize: 13 }}>
+                  {row.label}
+                </Text>
+                <Text style={{ color: colors.text, fontSize: 20 }}>
+                  {row.value}
+                </Text>
+                {row.note && <Body>{row.note}</Body>}
+              </View>
+            ))}
+            {display.qualifiers.map((qualifier) => (
+              <Text key={qualifier} style={{ color: colors.warning }}>
+                {qualifier}
+              </Text>
+            ))}
+            {display.feeder && (
+              <Body>
+                Distributions and quantities are manufacturer reports. They do
+                not confirm the pet ate. Battery and power meaning may require
+                verification.
+              </Body>
+            )}
+            <Body>
+              A fresh HA connection does not confirm a recent device poll.
+            </Body>
+          </Panel>
+        </View>
         {primary && (
-          <Text
-            accessibilityLiveRegion="polite"
-            style={{ color: colors.text, fontSize: 40 }}
-          >
-            {primaryValue(primary, snapshot.config)}
-          </Text>
-        )}
-        {display.rows.map((row, index) => (
-          <View key={`${index}:${row.label}`} style={{ gap: 4 }}>
-            <Text style={{ color: colors.muted, fontSize: 13 }}>
-              {row.label}
-            </Text>
-            <Text style={{ color: colors.text, fontSize: 20 }}>
-              {row.value}
-            </Text>
-            {row.note && <Body>{row.note}</Body>}
+          <View style={{ flex: desktop ? 1 : undefined, minWidth: 0 }}>
+            <SwitchControl
+              key={JSON.stringify([
+                summary.profileId,
+                snapshot.sessionId,
+                primary.key,
+                primary.entityId,
+              ])}
+              entity={primary}
+              snapshot={snapshot}
+              profileId={summary.profileId}
+              mode={mode}
+              ready={ready}
+            />
           </View>
-        ))}
-        {display.qualifiers.map((qualifier) => (
-          <Text key={qualifier} style={{ color: colors.warning }}>
-            {qualifier}
-          </Text>
-        ))}
-        {display.feeder && (
-          <Body>
-            Distributions and quantities are manufacturer reports. They do not
-            confirm the pet ate. Battery and power meaning may require
-            verification.
-          </Body>
         )}
-        <Body>
-          A fresh HA connection does not confirm a recent device poll.
-        </Body>
-      </Panel>
-      {primary && (
-        <SwitchControl
-          key={JSON.stringify([
-            summary.profileId,
-            snapshot.sessionId,
-            primary.key,
-            primary.entityId,
-          ])}
-          entity={primary}
-          snapshot={snapshot}
-          profileId={summary.profileId}
-          mode={mode}
-          ready={ready}
-        />
-      )}
+      </View>
       <Panel>
         <Label>Reading coverage</Label>
         <Body>

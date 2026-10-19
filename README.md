@@ -27,7 +27,7 @@ Meet Maurice: a 1970s French butler with a moustache, a three-piece suit, a Gita
 
 <br />
 
-**Current scope:** Android-first, with scoped On/Off controls in device summaries and entity details. Demo lamp control is enabled. [M01](docs/design/power-enrollment.md) adds explicit household power permissions; **Trial 1009** is accepted on Pixel 9 Pro for the enrolled Kasa lamp, including user-observed On/Off and restoration of the initial Off state. Kasa HS103 and Petlibro PLAF103 have physical-device summaries, verified read-only against real HA and on Seeker. Profile plans and 2D/3D switching use saved placements; [S02 validation](docs/stage0/spatial-view-validation.md) records target-phone acceptance. Earlier standalone **Maurice Trial 1002** is accepted on Seeker and Pixel 9 Pro with a 2D/read-only scope and the public sample; [trial guide and evidence](docs/stage0/internal-trial-validation.md). See [current status, evidence and next steps](docs/README.md).
+**Current scope:** Android and Chrome desktop, sharing screens, device cards, plans and session/command logic. [D01](docs/design/desktop.md) adds wide-screen navigation, card grids, keyboard access and a working browser HA connection. Scoped On/Off controls are available in device summaries and entity details. Demo lamp control is enabled. [M01](docs/design/power-enrollment.md) adds explicit household power permissions; **Trial 1009** is accepted on Pixel 9 Pro for the enrolled Kasa lamp, including user-observed On/Off and restoration of the initial Off state. Kasa HS103 and Petlibro PLAF103 have physical-device summaries, verified read-only against real HA and on Seeker. Profile plans and 2D/3D switching use saved placements; [S02 validation](docs/stage0/spatial-view-validation.md) records target-phone acceptance. Earlier standalone **Maurice Trial 1002** is accepted on Seeker and Pixel 9 Pro with a 2D/read-only scope and the public sample; [trial guide and evidence](docs/stage0/internal-trial-validation.md). See [current status, evidence and next steps](docs/README.md).
 
 <table>
   <tr>
@@ -67,7 +67,11 @@ npm ci
 npm run web        # interface preview in the browser
 ```
 
-Open **Settings → Explore demo home**. The demo runs entirely on simulated data inside the app. The browser preview is for the interface only; token storage needs native SecureStore.
+Open **Settings → Explore demo home**. The demo runs entirely on simulated data inside the app.
+
+For desktop Chrome, run `npm run web -- --host localhost --port 8082` and open **http://localhost:8082**. Wide windows show a navigation rail, device grids and an expanded plan preview using the same components as Android. Connect through **Connection**; the token stays in memory until page reload, while preferences persist in this browser independently of the phone. [Desktop setup, architecture and roadmap](docs/design/desktop.md).
+
+![Desktop overview using public demo data](docs/design/screenshots/desktop-demo.png)
 
 <details>
 <summary><b>📱 Run on Android</b></summary>
@@ -154,7 +158,7 @@ flowchart LR
   DEMO[DemoBackend] -.->|simulated| SM
   HAB --> SM[SessionManager]
   SM --> STORE[(Zustand store)]
-  CRED[Credentials<br/>SecureStore] --- SM
+  CRED[Credentials<br/>native SecureStore / browser memory] --- SM
   PREFS[Preferences v3<br/>AsyncStorage] --- SM
   PLAN[Bundled plan<br/>sample or .local] -->|seeds once| PREFS
   STORE --> HOME[Home & devices]
@@ -180,6 +184,7 @@ flowchart LR
 | Household integrations      | H01 partial                         | Kasa/Petlibro read-only summaries pass on Seeker; proprietary meanings and remaining hardware stay open                                   |
 | Useful device overview      | U03 delivered                       | [Grouping, related readings and verified feeder roles](docs/design/device-summaries.md), preserving U04 uncertainty/coverage              |
 | 3D scene                    | S02 implemented                     | [Production spatial view and phone-acceptance ledger](docs/stage0/spatial-view-validation.md); S01 evidence remains a separate checkpoint |
+| Chrome desktop              | D01 delivered                       | Shared screens/components, keyboard navigation and browser HA connection; persistent browser sign-in is D02 |
 | Controls                    | M01 accepted on Pixel 1009          | One explicitly enrolled Kasa lamp, user-observed On/Off; next M02 personalizes the household profile                                        |
 | Camera images               | Planned                             | **I01** image-path/transport isolation proof, then **I02** display and polling                                                            |
 | Internal daily trial        | R03a accepted on Seeker and Pixel   | **Maurice Trial build 1002** runs without Metro, with the public sample and HA observations; [acceptance and trial plan](docs/stage0/internal-trial-validation.md) |
@@ -220,7 +225,7 @@ Maurice's portrait lives in [`assets/source/maurice.png`](assets/source/maurice.
 - U03 physical-device summaries pass real-backend and Seeker navigation/restart checks: one card for the feeder’s 23 visible readings and one for Kasa. Public browser checks cover all readings, favorite persistence, room filtering and responsive widths. See [scope and limits](docs/stage0/device-summary-validation.md).
 - P03 links were checked with real HA areas on a Seeker. P04 native demo acceptance covers touch/save, marker detail, persistence after restart, moving between floors and removing; Chrome also checks responsive alignment and offline use after loading.
 
-Details: [Stage 0 results](docs/stage0/results.md) · [HA proof report](docs/stage0/ha-proof-2026-10-15.json) · [Android validation](docs/stage0/android-validation.md) · [Floor-plan validation](docs/stage0/floor-plan-validation.md). [R01 maintenance](docs/stage0/dependency-maintenance.md) records 564 tests, SDK-compatible patches, the decoder correction and twenty passing controlled development starts. [R03a standalone acceptance](docs/stage0/internal-trial-validation.md) records the same signed build 1002 on Seeker and Pixel 9 Pro, including native update, recovery, reinstall and household Wi-Fi checks. The [Pixel report](docs/stage0/internal-trial-pixel-validation.md) keeps its evidence separate. [F02/R02 CI acceptance](docs/stage0/public-ci-validation.md) records the initial clean Linux functional/Android-export and public UI jobs. [U01](docs/stage0/diagnostics-accessibility-validation.md) and [M00](docs/stage0/return-focus-validation.md) add diagnostics, readability and focus recovery. The earlier [dependency CI follow-up](docs/stage0/dependency-ci-validation.md) records **608 Jest tests / 39 suites and 17 tooling tests**, the corrected UUID dependency, and passing web/Android runtime checks. Three upstream tooling advisories remain under approved, expiring private-MVP exceptions; the raw and strict audits still fail. The earlier native incident and public-release gates remain open. The latest [M01 ledger](docs/stage0/power-enrollment-validation.md) records **633 Jest tests / 40 suites and 19 tooling tests**, green source CI, and scoped Pixel **1009** acceptance including the user-observed lamp cycle with its original Off state restored.
+Details: [Stage 0 results](docs/stage0/results.md) · [HA proof report](docs/stage0/ha-proof-2026-10-15.json) · [Android validation](docs/stage0/android-validation.md) · [Floor-plan validation](docs/stage0/floor-plan-validation.md). [R01 maintenance](docs/stage0/dependency-maintenance.md) records 564 tests, SDK-compatible patches, the decoder correction and twenty passing controlled development starts. [R03a standalone acceptance](docs/stage0/internal-trial-validation.md) records the same signed build 1002 on Seeker and Pixel 9 Pro, including native update, recovery, reinstall and household Wi-Fi checks. The [Pixel report](docs/stage0/internal-trial-pixel-validation.md) keeps its evidence separate. [F02/R02 CI acceptance](docs/stage0/public-ci-validation.md) records the initial clean Linux functional/Android-export and public UI jobs. [U01](docs/stage0/diagnostics-accessibility-validation.md) and [M00](docs/stage0/return-focus-validation.md) add diagnostics, readability and focus recovery. The earlier [dependency CI follow-up](docs/stage0/dependency-ci-validation.md) records **608 Jest tests / 39 suites and 17 tooling tests**, the corrected UUID dependency, and passing web/Android runtime checks. Three upstream tooling advisories remain under approved, expiring private-MVP exceptions; the raw and strict audits still fail. The earlier native incident and public-release gates remain open. The [M01 ledger](docs/stage0/power-enrollment-validation.md) records **633 Jest tests / 40 suites and 19 tooling tests**, green source CI, and scoped Pixel **1009** acceptance including the user-observed lamp cycle with its original Off state restored. The latest [D01 validation](docs/stage0/desktop-validation.md) records **634 Jest tests / 41 suites and 19 tooling tests**, four-width public smoke, desktop keyboard/resize, browser HA fixture recovery and actual Chrome read-only household validation.
 
 </details>
 

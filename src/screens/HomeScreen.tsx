@@ -20,12 +20,15 @@ import { EntityCard } from "../components/EntityCard";
 import { DeviceSummaryCard } from "../components/DeviceSummaryCard";
 import { SessionBanner } from "../components/SessionBanner";
 import { HousePlanCard } from "../components/HousePlanCard";
+import { CardGrid } from "../components/CardGrid";
+import { useResponsiveLayout } from "../components/layout";
 
 export function HomeScreen() {
   const profileId = useCockpit((state) => state.profileId);
   return <HomeContent key={profileId ?? "welcome"} profileId={profileId} />;
 }
 function HomeContent({ profileId }: { profileId: string | null }) {
+  const { desktop } = useResponsiveLayout();
   const { snapshot, status, preferences, mode, initialized } = useCockpit();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
@@ -92,7 +95,7 @@ function HomeContent({ profileId }: { profileId: string | null }) {
   };
   const renderGroups = (groups: DeviceSummary[]) =>
     snapshot && (
-      <View style={{ gap: 12 }}>
+      <CardGrid>
         {groups.map((group) =>
           group.deviceId ? (
             <DeviceSummaryCard
@@ -110,12 +113,94 @@ function HomeContent({ profileId }: { profileId: string | null }) {
             />
           ),
         )}
-      </View>
+      </CardGrid>
     );
+  const attentionSection = snapshot && (
+    <View style={{ gap: 10 }}>
+      <View style={styles.row}>
+        <View style={home.heading}>
+          <Icon
+            name={ready && !attention.length ? "info" : "alert-circle"}
+            size={18}
+            color={ready && !attention.length ? colors.muted : colors.warning}
+          />
+          <Text style={home.attentionTitle}>Needs attention</Text>
+        </View>
+        {ready && !!attention.length && (
+          <Text style={home.count}>{attention.length}</Text>
+        )}
+      </View>
+      {!ready ? (
+        <Body>Status unknown while disconnected.</Body>
+      ) : attention.length ? (
+        <>
+          {(expandedAttention ? attention : attention.slice(0, 2)).map(
+            (entity) => (
+              <EntityCard
+                key={entity.key}
+                entityId={entity.entityId}
+                now={now}
+                layout="compact"
+              />
+            ),
+          )}
+          {attention.length > 2 && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: expandedAttention }}
+              onPress={() => setExpandedAttention((value) => !value)}
+              style={home.expand}
+            >
+              <Text style={home.link}>
+                {expandedAttention
+                  ? "Show less"
+                  : `Show all ${attention.length} attention items`}
+              </Text>
+            </Pressable>
+          )}
+        </>
+      ) : (
+        <Body>
+          {count
+            ? "No issue detected by the available attention rules."
+            : "No visible entities to assess yet."}
+        </Body>
+      )}
+      {ready && count > 0 && coverage && (
+        <>
+          <Text style={home.caption}>
+            Attention rules assessed {coverage.assessedCount} of{" "}
+            {coverage.visibleCount} visible entities.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: expandedCoverage }}
+            onPress={() => setExpandedCoverage((value) => !value)}
+            style={home.expand}
+          >
+            <Text style={home.link}>
+              {expandedCoverage ? "Hide explanation" : "About these readings"}
+            </Text>
+          </Pressable>
+          {expandedCoverage && (
+            <Body>
+              Other readings are not a device health check. Hidden entities are
+              excluded. A fresh HA connection does not confirm a recent device
+              poll.
+            </Body>
+          )}
+        </>
+      )}
+    </View>
+  );
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <ScrollView
-        contentContainerStyle={[styles.content, home.content]}
+        contentContainerStyle={[
+          styles.content,
+          home.content,
+          desktop && home.desktopContent,
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -148,17 +233,28 @@ function HomeContent({ profileId }: { profileId: string | null }) {
               </Text>
             </View>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            onPress={() => router.push("/settings")}
-            style={({ pressed }) => [
-              home.settings,
-              pressed && { opacity: 0.6 },
-            ]}
-          >
-            <Icon name="sliders" color={colors.text} />
-          </Pressable>
+          {desktop ? (
+            <Button
+              title={refreshing ? "Refreshing…" : "Refresh"}
+              secondary
+              disabled={refreshing || !snapshot}
+              onPress={() => {
+                void refresh();
+              }}
+            />
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+              onPress={() => router.push("/settings")}
+              style={({ pressed }) => [
+                home.settings,
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <Icon name="sliders" color={colors.text} />
+            </Pressable>
+          )}
         </View>
         {!initialized ? (
           <Body>Opening your home…</Body>
@@ -189,86 +285,16 @@ function HomeContent({ profileId }: { profileId: string | null }) {
         )}
         {snapshot && (
           <>
-            <View style={{ gap: 10 }}>
-              <View style={styles.row}>
-                <View style={home.heading}>
-                  <Icon
-                    name={ready && !attention.length ? "info" : "alert-circle"}
-                    size={18}
-                    color={
-                      ready && !attention.length ? colors.muted : colors.warning
-                    }
-                  />
-                  <Text style={home.attentionTitle}>Needs attention</Text>
+            {desktop ? (
+              <View testID="desktop-overview" style={home.overview}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <HousePlanCard expanded />
                 </View>
-                {ready && !!attention.length && (
-                  <Text style={home.count}>{attention.length}</Text>
-                )}
+                <Panel style={{ width: 330 }}>{attentionSection}</Panel>
               </View>
-              {!ready ? (
-                <Body>Status unknown while disconnected.</Body>
-              ) : attention.length ? (
-                <>
-                  {(expandedAttention ? attention : attention.slice(0, 2)).map(
-                    (entity) => (
-                      <EntityCard
-                        key={entity.key}
-                        entityId={entity.entityId}
-                        now={now}
-                        layout="compact"
-                      />
-                    ),
-                  )}
-                  {attention.length > 2 && (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ expanded: expandedAttention }}
-                      onPress={() => setExpandedAttention((value) => !value)}
-                      style={home.expand}
-                    >
-                      <Text style={home.link}>
-                        {expandedAttention
-                          ? "Show less"
-                          : `Show all ${attention.length} attention items`}
-                      </Text>
-                    </Pressable>
-                  )}
-                </>
-              ) : (
-                <Body>
-                  {count
-                    ? "No issue detected by the available attention rules."
-                    : "No visible entities to assess yet."}
-                </Body>
-              )}
-              {ready && count > 0 && coverage && (
-                <>
-                  <Text style={home.caption}>
-                    Attention rules assessed {coverage.assessedCount} of{" "}
-                    {coverage.visibleCount} visible entities.
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: expandedCoverage }}
-                    onPress={() => setExpandedCoverage((value) => !value)}
-                    style={home.expand}
-                  >
-                    <Text style={home.link}>
-                      {expandedCoverage
-                        ? "Hide explanation"
-                        : "About these readings"}
-                    </Text>
-                  </Pressable>
-                  {expandedCoverage && (
-                    <Body>
-                      Other readings are not a device health check. Hidden
-                      entities are excluded. A fresh HA connection does not
-                      confirm a recent device poll.
-                    </Body>
-                  )}
-                </>
-              )}
-            </View>
+            ) : (
+              attentionSection
+            )}
             <View style={{ gap: 14 }}>
               <Text style={home.sectionTitle}>Around your home</Text>
               <Text style={home.caption}>
@@ -333,13 +359,16 @@ function HomeContent({ profileId }: { profileId: string | null }) {
             )}
           </>
         )}
-        {initialized && <HousePlanCard />}
+        {initialized && (!desktop || !snapshot) && (
+          <HousePlanCard expanded={desktop} />
+        )}
         {snapshot && (
           <Text style={home.footer}>
             {mode === "demo"
               ? "Demo home · simulated observations"
               : "Observations from Home Assistant"}
-            {"\n"}Pull down to refresh
+            {"\n"}
+            {desktop ? "Refresh for a fresh snapshot" : "Pull down to refresh"}
           </Text>
         )}
       </ScrollView>
@@ -347,6 +376,8 @@ function HomeContent({ profileId }: { profileId: string | null }) {
   );
 }
 const home = StyleSheet.create({
+  desktopContent: { maxWidth: 1440, padding: 32, gap: 28 },
+  overview: { flexDirection: "row", gap: 22, alignItems: "flex-start" },
   content: {
     paddingTop: 16,
     gap: 26,

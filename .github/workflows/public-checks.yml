@@ -54,7 +54,7 @@ jobs:
         run: git diff --exit-code
 
   ui:
-    name: Public UI 320 / 430 / 768
+    name: Public UI mobile + desktop
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -82,12 +82,15 @@ jobs:
             artifacts/ui/home-320.png
             artifacts/ui/home-430.png
             artifacts/ui/home-768.png
+            artifacts/ui/home-1440.png
             artifacts/ui/plan-320.png
             artifacts/ui/plan-430.png
             artifacts/ui/plan-768.png
+            artifacts/ui/plan-1440.png
             artifacts/ui/control-320.png
             artifacts/ui/control-430.png
             artifacts/ui/control-768.png
+            artifacts/ui/control-1440.png
             artifacts/ui/failure.png
           retention-days: 7
           if-no-files-found: warn

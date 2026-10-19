@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "feature": "D01",
+  "sourceCheckpoint": {
+    "baseRevision": "aff22c4ce8c7d32cdcccd15f9b7770b3850e1c82",
+    "dirtySource": true,
+    "note": "Local working tree before the D01 commit; source CI is checked separately."
+  },
+  "jest": {
+    "tests": 634,
+    "suites": 41,
+    "result": "passed"
+  },
+  "tooling": {
+    "tests": 19,
+    "result": "passed",
+    "loopbackRequiresUnsandboxedExecution": true
+  },
+  "typecheck": "passed",
+  "lint": "passed",
+  "format": "passed",
+  "publicUi": {
+    "plan": {
+      "source": "sample",
+      "sha256": "a5f7f720366291c723e59abfca780cd8e9ffda3d7919595095efdd8d024eff06"
+    },
+    "chromium": "156.0.8078.4",
+    "widths": [
+      {
+        "width": 320,
+        "homePlanAndBack": true,
+        "allFloorsAndPolygonSelection": true,
+        "selectedTabsAndRoomList": true,
+        "unknownDimensions": true,
+        "deviceReadingsAndFavoritePersistence": true,
+        "simulatedOnOffAndDismissal": true,
+        "primaryPowerInSummary": true,
+        "targets48px": true,
+        "loadedRoutesWorkOffline": true,
+        "directHouseRoute": true,
+        "noHorizontalOverflow": true,
+        "roomDetailRevealedAndFocused": true,
+        "placedMarkerAndCaptionAvoidRoomName": true,
+        "marker48pxAndAccessibleList": true,
+        "markerDetailsAndBackKeepFloor": true,
+        "markerReturnFocusCycles": 3,
+        "namedRowReturnFocus": true,
+        "hiddenLayoutSettledBeforeReturn": true
+      },
+      {
+        "width": 430,
+        "homePlanAndBack": true,
+        "allFloorsAndPolygonSelection": true,
+        "selectedTabsAndRoomList": true,
+        "unknownDimensions": true,
+        "deviceReadingsAndFavoritePersistence": true,
+        "simulatedOnOffAndDismissal": true,
+        "primaryPowerInSummary": true,
+        "targets48px": true,
+        "loadedRoutesWorkOffline": true,
+        "directHouseRoute": true,
+        "noHorizontalOverflow": true,
+        "roomDetailRevealedAndFocused": true,
+        "placedMarkerAndCaptionAvoidRoomName": true,
+        "marker48pxAndAccessibleList": true,
+        "markerDetailsAndBackKeepFloor": true,
+        "markerReturnFocusCycles": 3,
+        "namedRowReturnFocus": true,
+        "hiddenLayoutSettledBeforeReturn": true
+      },
+      {
+        "width": 768,
+        "homePlanAndBack": true,
+        "allFloorsAndPolygonSelection": true,
+        "selectedTabsAndRoomList": true,
+        "unknownDimensions": true,
+        "deviceReadingsAndFavoritePersistence": true,
+        "simulatedOnOffAndDismissal": true,
+        "primaryPowerInSummary": true,
+        "targets48px": true,
+        "loadedRoutesWorkOffline": true,
+        "directHouseRoute": true,
+        "noHorizontalOverflow": true,
+        "roomDetailRevealedAndFocused": true,
+        "placedMarkerAndCaptionAvoidRoomName": true,
+        "marker48pxAndAccessibleList": true,
+        "markerDetailsAndBackKeepFloor": true,
+        "markerReturnFocusCycles": 3,
+        "namedRowReturnFocus": true,
+        "hiddenLayoutSettledBeforeReturn": true
+      },
+      {
+        "width": 1440,
+        "homePlanAndBack": true,
+        "allFloorsAndPolygonSelection": true,
+        "selectedTabsAndRoomList": true,
+        "unknownDimensions": true,
+        "deviceReadingsAndFavoritePersistence": true,
+        "simulatedOnOffAndDismissal": true,
+        "primaryPowerInSummary": true,
+        "targets48px": true,
+        "loadedRoutesWorkOffline": true,
+        "directHouseRoute": true,
+        "noHorizontalOverflow": true,
+        "roomDetailRevealedAndFocused": true,
+        "placedMarkerAndCaptionAvoidRoomName": true,
+        "marker48pxAndAccessibleList": true,
+        "markerDetailsAndBackKeepFloor": true,
+        "markerReturnFocusCycles": 3,
+        "namedRowReturnFocus": true,
+        "hiddenLayoutSettledBeforeReturn": true
+      }
+    ],
+    "desktopLayout": {
+      "widths": [
+        1024,
+        1280,
+        1440,
+        1920
+      ],
+      "compactWidth": 800,
+      "keyboardNavigation": true,
+      "skipToContent": true,
+      "resizePreservesRoom": true,
+      "sharedCardsInColumns": true
+    },
+    "browserConnection": {
+      "fixtureOnly": true,
+      "browserHaConnection": true,
+      "credentialsMemoryOnly": true,
+      "reloadRequiresToken": true,
+      "preferencesAndExactGrantSurviveReload": true,
+      "defaultDenied": true,
+      "canceledReviewAndGrantSendNothing": true,
+      "simulatedServiceCalls": 2,
+      "recoveryWithoutReplay": true,
+      "nativeBrowserForgetCancelAndConfirm": true,
+      "pageErrors": 0,
+      "unexpectedRequests": 0,
+      "physicalServiceCalls": 0
+    },
+    "developerPlanUnchanged": true,
+    "pageErrorCount": 0,
+    "externalRequests": 0,
+    "serverAndBrowserClosed": true,
+    "result": "passed"
+  },
+  "localAndroidExport": {
+    "scope": "Private local Hermes/DOM export; not shared or installed",
+    "runtimeMapGuard": "passed"
+  },
+  "realChrome": {
+    "scope": "Chrome local development, household read-only",
+    "physicalServiceCalls": 0,
+    "browser": "155.0.8059.80",
+    "browserConnectedToHouseholdHa": true,
+    "hs103SummaryAndDefaultDenial": true,
+    "personalPlanRenders": true,
+    "credentialsAbsentFromPersistence": true,
+    "pageErrors": 0,
+    "serviceCalls": 0,
+    "result": "passed"
+  },
+  "dependencyPolicy": {
+    "result": "passed-with-exceptions",
+    "advisories": 3,
+    "affectedEntries": 56,
+    "expiresOn": "2026-11-02",
+    "strictReleaseRemainsBlocked": true
+  },
+  "physicalServiceCalls": 0,
+  "limits": [
+    "No phone APK update or new native runtime acceptance",
+    "No Chrome physical-control test; real HA checks are read-only",
+    "Browser tokens require entry again after reload; phone and browser preferences are independent",
+    "No production 3D/GPU, fresh offline startup or remote hosting acceptance"
+  ]
+}

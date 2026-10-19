@@ -27,6 +27,7 @@ import { FloorPlanView } from "../components/FloorPlanView";
 import { restoreReadingFocus } from "../components/readingFocus";
 import { CockpitSceneView } from "../components/CockpitSceneView";
 import { buildFeatures } from "../config/build";
+import { useResponsiveLayout } from "../components/layout";
 import {
   entityAppearance,
   Icon,
@@ -70,6 +71,7 @@ function HousePlanContent({
   defaultChanged: boolean;
   identity: string;
 }) {
+  const { desktop, height } = useResponsiveLayout();
   const [floorId, setFloorId] = useState(plan.floors[0]!.id);
   const [roomId, setRoomId] = useState<string | null>(null);
   const scroll = useRef<ScrollView>(null);
@@ -271,7 +273,11 @@ function HousePlanContent({
     <ScrollView
       ref={scroll}
       style={styles.screen}
-      contentContainerStyle={[styles.content, planStyles.content]}
+      contentContainerStyle={[
+        styles.content,
+        planStyles.content,
+        desktop && { maxWidth: 1320, padding: 32 },
+      ]}
       testID="house-scroll"
       onLayout={(event) => {
         viewport.current.height = event.nativeEvent.layout.height;
@@ -411,6 +417,11 @@ function HousePlanContent({
               />
             ) : (
               <FloorPlanView
+                height={
+                  desktop
+                    ? Math.max(400, Math.min(560, height - 260))
+                    : undefined
+                }
                 floor={floor}
                 selectedRoom={room?.id ?? null}
                 onSelectRoom={selectRoom}
@@ -423,7 +434,7 @@ function HousePlanContent({
           <Text style={planStyles.hint}>
             {view === "3d"
               ? "Drag to orbit · Pinch to zoom · Tap a room or marker"
-              : "Tap a room to explore. Room and device names are also listed below."}
+              : "Select a room to explore. Room and device names are also listed below."}
           </Text>
           {(view === "3d" || room) && (
             <Button

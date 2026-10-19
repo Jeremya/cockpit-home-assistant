@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from "react";
 import {
   Pressable,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -67,7 +68,14 @@ export function Button({
 }
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 22, paddingBottom: 48, gap: 20 },
+  content: {
+    padding: 22,
+    paddingBottom: 48,
+    gap: 20,
+    ...Platform.select({
+      web: { width: "100%", maxWidth: 1200, alignSelf: "center" },
+    } as const),
+  },
   label: {
     color: colors.accent,
     fontSize: 11,

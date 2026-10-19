@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -14,6 +13,8 @@ import { router } from "expo-router";
 import { useCockpit } from "../core/store";
 import { session } from "../services/runtime";
 import { normalizeUrl } from "../session/homeAssistant/url";
+import { credentialPersistence } from "../services/credentialStorage";
+import { confirmAction } from "../services/confirmAction";
 import {
   Body,
   Button,
@@ -24,6 +25,7 @@ import {
   styles,
 } from "../components/ui";
 export function SettingsScreen() {
+  const browserSession = credentialPersistence === "page";
   const profileId = useCockpit((state) => state.profileId);
   const mode = useCockpit((state) => state.mode);
   const [url, setUrl] = useState(
@@ -58,7 +60,7 @@ export function SettingsScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { maxWidth: 800 }]}
         keyboardShouldPersistTaps="handled"
       >
         <Label>Make yourself at home</Label>
@@ -66,9 +68,18 @@ export function SettingsScreen() {
         <Panel>
           <Text style={styles.sectionTitle}>Home Assistant</Text>
           <Body>
-            Your devices stay connected through your own Home Assistant. Maurice
-            keeps the access token securely on this phone.
+            Your devices stay connected through your own Home Assistant.{" "}
+            {browserSession
+              ? "Your token stays in memory for this page only. Reloading requires it again; it is never saved in browser storage."
+              : "Maurice keeps the access token securely on this phone."}
           </Body>
+          {browserSession && (
+            <Body>
+              Preferences and power permissions are saved in this browser,
+              separately from your phone. Open Home Assistant from this computer
+              to check its address; allow local network access if Chrome asks.
+            </Body>
+          )}
           <Text style={{ color: colors.text }}>Home Assistant URL</Text>
           <TextInput
             accessibilityLabel="Home Assistant URL"
@@ -105,7 +116,7 @@ export function SettingsScreen() {
           <Body>
             Create a token in Home Assistant → Profile → Security. Use a
             dedicated household user. Use the address you open Home Assistant
-            with. For a local connection, keep your phone on the same Wi-Fi.
+            with. For a local connection, use the same household network.
           </Body>
           {url.trim().startsWith("http:") && (
             <View style={styles.row}>
@@ -126,6 +137,13 @@ export function SettingsScreen() {
             <Text accessibilityRole="alert" style={styles.error}>
               {error}
             </Text>
+          )}
+          {!!error && browserSession && (
+            <Body>
+              Check that Home Assistant opens in this browser and that Chrome
+              permits the connection. For a local HTTP server, run Maurice on
+              localhost. Remote hosting may require HTTPS for Home Assistant.
+            </Body>
           )}
           <Button
             title={busy ? "Connecting…" : "Connect"}
@@ -173,25 +191,19 @@ export function SettingsScreen() {
                 title="Forget this Home Assistant"
                 secondary
                 onPress={() =>
-                  Alert.alert(
-                    "Forget connection?",
-                    "Removes the token from this phone. Preferences are kept. Revoke the token separately in Home Assistant.",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Forget",
-                        style: "destructive",
-                        onPress: () => {
-                          void session
-                            .forget()
-                            .then(() => router.replace("/"))
-                            .catch(() =>
-                              setError("Could not remove stored credentials."),
-                            );
-                        },
-                      },
-                    ],
-                  )
+                  confirmAction({
+                    title: "Forget connection?",
+                    message: `Removes the token from ${browserSession ? "this page" : "this phone"}. Preferences are kept. Revoke the token separately in Home Assistant.`,
+                    confirmLabel: "Forget",
+                    onConfirm: () => {
+                      void session
+                        .forget()
+                        .then(() => router.replace("/"))
+                        .catch(() =>
+                          setError("Could not remove stored credentials."),
+                        );
+                    },
+                  })
                 }
               />
             )}

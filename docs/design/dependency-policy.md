@@ -37,6 +37,10 @@ Maps and bundles are inspected locally in the isolated public workspace; they ar
 
 `npm run check:audit:strict` ignores all exceptions and still fails on any finding. **R03b/public distribution requires the strict mode and its own release review.** No public-release pipeline is introduced here. The original native startup incident remains a separate R01/R03a observation; this dependency change is not a claimed native crash fix or new APK acceptance.
 
+## Desktop review — 2026-10-19
+
+D01 changes the browser smoke and its bounded capture workflow, and adds `scripts/lib/browser-connection-check.mjs` to reviewed hashes. The helper spawns only the repository-owned loopback HA fixture, accepts its public token and permits only that exact socket; household credentials are never involved. The browser runtime reuses the existing HA client and command policy, with page-memory tokens. No dependency/lockfile, signing configuration, glob input, affected graph, advisory or exception expiry changes. Web and Android runtime-map guards remain required.
+
 ## Maintenance
 
 Before changing a pinned dependency or a reviewed configuration, review the actual exposure and update the relevant evidence. Inspect all changed inputs and compare the fresh root advisories, package paths and release metadata. Do not mechanically replace hashes or extend dates to make CI green. Replace an exception with a tested upstream fix when available; remove obsolete exceptions. A renewed review requires a dated rationale and a bounded expiration.

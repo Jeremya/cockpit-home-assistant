@@ -47,7 +47,10 @@ export function DeviceDetailScreen() {
     ? snapshot.devices[entity.deviceId]
     : undefined;
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[styles.content, { maxWidth: 880 }]}
+    >
       <Label>{room ? snapshot.areas[room]?.name : "Unassigned"}</Label>
       <Title>{entity.name}</Title>
       {device && (device.manufacturer || device.model) && (

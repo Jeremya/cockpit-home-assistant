@@ -1,7 +1,8 @@
-import { Alert, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
 import { router } from "expo-router";
 import { useCockpit } from "../core/store";
 import { session } from "../services/runtime";
+import { confirmAction } from "../services/confirmAction";
 import { useHousePlan } from "../spatial/plans";
 import { areaLinkStatus } from "../spatial/selectors";
 import { savedPlacements, placementIssueLabel } from "../spatial/placements";
@@ -123,23 +124,18 @@ export function DiagnosticsScreen() {
             secondary
             disabled={!preferencesReady}
             onPress={() =>
-              Alert.alert(
-                "Reset floor plan?",
-                "Replaces this profile's floor plan with the current default and removes its room links and device placements. Favorites, visibility, room overrides and credentials are kept.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Reset",
-                    style: "destructive",
-                    onPress: () => {
-                      if (!session.resetSpatial())
-                        session.notice(
-                          "The plan was not reset: preferences for this profile are not loaded.",
-                        );
-                    },
-                  },
-                ],
-              )
+              confirmAction({
+                title: "Reset floor plan?",
+                message:
+                  "Replaces this profile's floor plan with the current default and removes its room links and device placements. Favorites, visibility, room overrides and power permissions are kept.",
+                confirmLabel: "Reset",
+                onConfirm: () => {
+                  if (!session.resetSpatial())
+                    session.notice(
+                      "The plan was not reset: preferences for this profile are not loaded.",
+                    );
+                },
+              })
             }
           />
         </Panel>
