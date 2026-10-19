@@ -344,13 +344,17 @@ try {
       .digest("hex"),
     signingCertificateSha256:
       /Signer #1 certificate SHA-256 digest: (\S+)/.exec(signature)?.[1],
+    features: {
+      powerControl: "enrolled-tplink-hs103",
+      defaultPowerAuthorization: "denied",
+      spatial3d: false,
+    },
     checks: {
       embeddedReleaseBundle: true,
       debuggable: false,
       developmentLauncher: false,
       backup: false,
       localHttp: true,
-      realControls: false,
       spatial3d: false,
     },
     acceptance: "candidate; installed-device validation required",

@@ -20,7 +20,7 @@
     "jest.config.js": "b35b333041c57f2a108c5eaa5ca78c0fcf0c2143623f1055bef3042410080811",
     "eslint.config.js": "2d22744e2d35b71a4523f356f46fbe5ffb03791b4b567947f26f208580657db8",
     "plugins/withTrialAndroid.js": "ffb551a998d63360620bf3a4f3fdc2c39c8d8c27735d819c53549da67451dea6",
-    "scripts/build-trial-android.mjs": "e76d5d291a1b64086370d1b3ee56e4dff94429fe9cca51c1d39184820c306414",
+    "scripts/build-trial-android.mjs": "7fb1ebc265be9b8238950c90ea0fe690555403f665fa8215a81123cc4bed549e",
     "scripts/check-audit.mjs": "ac8c6d24e29af125fcb50ae62f5ac4d7453d663da0d0f77496118aa270aecd30",
     "scripts/lib/dependency-audit.mjs": "a85e5fed7c8ad6a368efce911b2be479bcf030fcafee343eefe5a49c7ae89269",
     "scripts/check-runtime-dependencies.mjs": "f119c69dd8d9d984716bc15cc4acac0bae1cf4c6f0b934adeba3dc17860ccd46",
