@@ -146,7 +146,9 @@ test.each([
       act(() => cleanup?.());
       act(() => transition({ data: { closing: false } }));
       expect(frame).toBeUndefined();
-      expect(navigation.addListener.mock.results.at(-1)!.value).toHaveBeenCalled();
+      expect(
+        navigation.addListener.mock.results.at(-1)!.value,
+      ).toHaveBeenCalled();
       await screen.unmountAsync();
       return;
     }
