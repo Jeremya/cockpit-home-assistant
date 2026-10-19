@@ -5,7 +5,7 @@ import { emptyPreferences } from "../../preferences/types";
 import { sampleHouse } from "../../spatial/plans";
 import { resetSpatial } from "../../spatial/profilePlan";
 import { DemoBackend } from "../../session/demo/DemoBackend";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useNavigation } from "expo-router";
 import { AccessibilityInfo } from "react-native";
 import {
   fixtureEntity,
@@ -17,18 +17,28 @@ import {
 jest.mock("expo-router", () => ({
   router: { push: jest.fn() },
   useFocusEffect: jest.fn(),
+  useNavigation: jest.fn(),
 }));
 jest.mock("../../web/CockpitScene", () => () => null);
 
-beforeEach(() =>
+const navigation = {
+  addListener: jest.fn(
+    (
+      _event: string,
+      _listener: (event: { data: { closing: boolean } }) => void,
+    ) => jest.fn(),
+  ),
+};
+beforeEach(() => {
+  jest.mocked(useNavigation).mockReturnValue(navigation);
   useCockpit.setState({
     mode: "demo",
     profileId: "demo",
     snapshot: null,
     status: { kind: "idle" },
     preferences: emptyPreferences(),
-  }),
-);
+  });
+});
 const withPlan = (edit: (plan: typeof sampleHouse) => void, revision = 1) => {
   const spatial = resetSpatial(sampleHouse);
   edit(spatial.plan!);
@@ -95,6 +105,7 @@ test.each([
   "floor",
   "view",
   "blur",
+  "blurBeforeTransition",
 ])("return accessibility focus revalidates its origin: %s", async (change) => {
   useCockpit.setState({
     preferencesLoadedFor: "demo",
@@ -125,6 +136,22 @@ test.each([
     act(() => {
       cleanup = effect();
     });
+    expect(frame).toBeUndefined();
+    const transition = navigation.addListener.mock.calls.at(-1)![1] as (event: {
+      data: { closing: boolean };
+    }) => void;
+    act(() => transition({ data: { closing: true } }));
+    expect(frame).toBeUndefined();
+    if (change === "blurBeforeTransition") {
+      act(() => cleanup?.());
+      act(() => transition({ data: { closing: false } }));
+      expect(frame).toBeUndefined();
+      expect(navigation.addListener.mock.results.at(-1)!.value).toHaveBeenCalled();
+      await screen.unmountAsync();
+      return;
+    }
+    act(() => transition({ data: { closing: false } }));
+    expect(frame).toBeDefined();
     // The profile may reconcile a hidden/removed identity before native focus resolves.
     await act(async () => {
       if (change === "removed")
@@ -156,6 +183,9 @@ test.each([
     act(() => {
       cleanup?.();
     });
+    expect(
+      navigation.addListener.mock.results.at(-1)!.value,
+    ).toHaveBeenCalled();
     await screen.unmountAsync();
   } finally {
     raf.mockRestore();

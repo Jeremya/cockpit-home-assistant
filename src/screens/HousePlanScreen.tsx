@@ -8,7 +8,12 @@ import {
   Text,
   View,
 } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import {
+  router,
+  useFocusEffect,
+  useNavigation,
+  type NativeStackNavigationProp,
+} from "expo-router";
 import { useCockpit } from "../core/store";
 import { housePlanFor, useHousePlan } from "../spatial/plans";
 import { savedPlacements } from "../spatial/placements";
@@ -79,6 +84,8 @@ function HousePlanContent({
     view: "2d" | "3d";
   } | null>(null);
   const routeFocused = useRef(true);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<Record<string, undefined>>>();
   const [view, setView] = useState<"2d" | "3d">("2d");
   const [resetKey, setResetKey] = useState(0);
   const profileId = useCockpit((state) => state.profileId);
@@ -131,13 +138,29 @@ function HousePlanContent({
         // A valid origin may be awaiting the visible floor's layout/ref commit.
         return readingTargets.current.get(pending.id) ?? null;
       };
-      const cancelFocus = restoreReadingFocus(target);
+      let cancelFocus: (() => void) | undefined;
+      let scheduled = false;
+      const restore = () => {
+        if (cancelled || scheduled) return;
+        scheduled = true;
+        cancelFocus = restoreReadingFocus(target);
+      };
+      // Native route focus precedes screen exposure/animation. TalkBack can
+      // discard an event sent to the covered screen; onAppear emits this event.
+      const unsubscribe =
+        Platform.OS === "web"
+          ? undefined
+          : navigation.addListener("transitionEnd", ({ data }) => {
+              if (!data.closing) restore();
+            });
+      if (Platform.OS === "web") restore();
       return () => {
         routeFocused.current = false;
         cancelled = true;
-        cancelFocus();
+        unsubscribe?.();
+        cancelFocus?.();
       };
-    }, [identity]),
+    }, [identity, navigation]),
   );
   const currentFloor = () =>
     current.current.mounted &&

@@ -23,8 +23,16 @@ RN Web measures the hidden screen as zero-sized; `FloorPlanView` has no projecte
 - TypeScript, lint and formatting pass.
 - Extended isolated public smoke passes at **320/430/768**: three marker returns and one named-row return per width, with hidden-screen layout settling before each return. No assertion retry wrapper; zero page errors and external requests; developer plan unchanged; server/browser closed.
 
-These local checks use the working changes based on `a909f9d`; exact committed-source CI and native acceptance are recorded below when available. Raw diagnostics and public captures remain ignored under `.local/m00/` and `artifacts/ui/`.
+The first passing browser run used working changes based on `a909f9d`. A second complete run passes on clean **`62bd0a5e3a2ffe0946d16c79692d9c6479273cc4`**, the committed fix, with the same twelve return-focus assertions. The [safe aggregate](return-focus-proof-2026-10-19.json) retains the failing baseline and the exact clean passing report. Raw diagnostics and public captures remain ignored under `.local/m00/` and `artifacts/ui/`.
 
-## Remaining acceptance at the source-fix checkpoint
+## Exact candidate and acceptance
 
-Clean Linux CI and the supervised Seeker TalkBack pass are pending. The user confirmed availability to listen. A new exact signed candidate will preserve credentials/preferences and use the public demo for the listening route. No browser result closes spoken-feedback acceptance. R01's separate dependency audit and S02/physical-control gates are unchanged.
+The [Public checks run](https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39277773409) for clean `62bd0a5` **passes**. Its separate dependency audit fails; R01 remains open.
+
+Maurice Trial **1006**, package `com.larrabee.homecockpit.trial`, is built from that same clean revision and installed as a signed update on Seeker / Android 16. APK SHA-256: `0d820e196383572e287bdda8c9ad294ba84b9dab2d903118d9dcf2db8f16e56b`. Certificate SHA-256: `7191b909f58f9900cbfeb875c8d61ad5261efff9463b53b3e522c6b872261153`. The embedded sample/Hermes release, disabled development launcher/backup and disabled real controls/3D pass the build checks. Installation preserves app data and verifies the installed APK hash.
+
+The user confirmed availability to listen. The first M00 native attempt again encountered TalkBack onboarding and did not establish app-level focus. Its accessibility settings, temporary demo placement and saved ready HA connection were restored. The subsequent supervised attempt avoids UiAutomator while TalkBack is active. Acceptance is pending until that actual route and feedback are recorded. A browser result does not close spoken-feedback acceptance. S02 and physical-control gates are unchanged.
+
+The live 1006 attempt opened the demo lamp from both the marker and named row, returned to the plan, and selected Study. Captures show the selected Study row and accessibility focus on its revealed heading, but the return captures still show the header Back button outlined rather than the originating reading. Spoken feedback remains awaiting the user's response. Accessibility settings, the temporary placement and saved ready HA connection were restored. No physical services were sent.
+
+The native follow-up waits for incoming native-stack `transitionEnd` before scheduling accessibility focus. In the installed Expo Router source this event is emitted by `onAppear`; route focus happens earlier. This is a lifecycle correction to validate on the next exact candidate, not a claim that build 1006 has passed native return-focus acceptance. Unit tests keep all origin guards and verify cancellation before screen exposure. Browser assertions remain unchanged.

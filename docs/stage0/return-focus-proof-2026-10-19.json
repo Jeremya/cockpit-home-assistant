@@ -1,0 +1,255 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "scope": "M00 return focus and supervised native accessibility",
+  "sourceRevision": "62bd0a5e3a2ffe0946d16c79692d9c6479273cc4",
+  "reproduction": {
+    "revision": "a909f9d38af124ca9ac151f9ef2330af1a039e9a",
+    "publicSampleOnly": true,
+    "result": "failed",
+    "firstFailedWidth": 320,
+    "firstFailedCycle": 1,
+    "markerCountWhileHidden": 0,
+    "helperTargetPresentAtReturn": false,
+    "focusAssertionFailedAfterMarkerReappeared": true,
+    "pageErrorCount": 0,
+    "externalRequests": 0,
+    "developerPlanUnchanged": true,
+    "instrumentation": "Diagnostic log in isolated staged helper only; two animation frames settle hidden layout"
+  },
+  "automated": {
+    "jest": {
+      "passed": 607,
+      "suites": 39
+    },
+    "targetedFocusTests": 25,
+    "toolingTests": 6,
+    "typecheck": "passed",
+    "lint": "passed",
+    "format": "passed",
+    "protocol": "passed; 18 fake loopback services, no configured HA",
+    "regressionsFailedBeforeFix": [
+      "late-mounted marker",
+      "replacement of disconnected ref",
+      "visibility-refused focus"
+    ],
+    "publicUiClean": {
+      "schema": 1,
+      "publicSampleOnly": true,
+      "realHaRequired": false,
+      "physicalServiceCalls": 0,
+      "widths": [
+        {
+          "width": 320,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true,
+          "markerReturnFocusCycles": 3,
+          "namedRowReturnFocus": true,
+          "hiddenLayoutSettledBeforeReturn": true
+        },
+        {
+          "width": 430,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true,
+          "markerReturnFocusCycles": 3,
+          "namedRowReturnFocus": true,
+          "hiddenLayoutSettledBeforeReturn": true
+        },
+        {
+          "width": 768,
+          "homePlanAndBack": true,
+          "allFloorsAndPolygonSelection": true,
+          "selectedTabsAndRoomList": true,
+          "unknownDimensions": true,
+          "deviceReadingsAndFavoritePersistence": true,
+          "simulatedOnOffAndDismissal": true,
+          "targets48px": true,
+          "loadedRoutesWorkOffline": true,
+          "directHouseRoute": true,
+          "noHorizontalOverflow": true,
+          "roomDetailRevealedAndFocused": true,
+          "placedMarkerAndCaptionAvoidRoomName": true,
+          "marker48pxAndAccessibleList": true,
+          "markerDetailsAndBackKeepFloor": true,
+          "markerReturnFocusCycles": 3,
+          "namedRowReturnFocus": true,
+          "hiddenLayoutSettledBeforeReturn": true
+        }
+      ],
+      "pageErrors": [],
+      "pageErrorCount": 0,
+      "externalRequests": 0,
+      "result": "passed",
+      "plan": {
+        "source": "sample",
+        "sha256": "a5f7f720366291c723e59abfca780cd8e9ffda3d7919595095efdd8d024eff06"
+      },
+      "chromium": "156.0.8078.4",
+      "developerPlanUnchanged": true,
+      "artifacts": [
+        {
+          "file": "home-320.png",
+          "bytes": 69732
+        },
+        {
+          "file": "plan-320.png",
+          "bytes": 37356
+        },
+        {
+          "file": "control-320.png",
+          "bytes": 53451
+        },
+        {
+          "file": "home-430.png",
+          "bytes": 72539
+        },
+        {
+          "file": "plan-430.png",
+          "bytes": 40184
+        },
+        {
+          "file": "control-430.png",
+          "bytes": 55915
+        },
+        {
+          "file": "home-768.png",
+          "bytes": 77194
+        },
+        {
+          "file": "plan-768.png",
+          "bytes": 45445
+        },
+        {
+          "file": "control-768.png",
+          "bytes": 61060
+        }
+      ],
+      "revision": "62bd0a5e3a2ffe0946d16c79692d9c6479273cc4",
+      "dirtySource": false,
+      "serverAndBrowserClosed": true
+    },
+    "priorWorkingTreeUiRun": "passed at all three widths"
+  },
+  "ci": {
+    "revision": "62bd0a5e3a2ffe0946d16c79692d9c6479273cc4",
+    "runs": [
+      {
+        "id": 39277773424,
+        "name": "Dependency audit",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39277773424",
+        "head_sha": "62bd0a5e3a2ffe0946d16c79692d9c6479273cc4",
+        "created_at": "2026-10-19T15:25:02Z",
+        "updated_at": "2026-10-19T15:28:22Z"
+      },
+      {
+        "id": 39277773409,
+        "name": "Public checks",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Jeremya/cockpit-home-assistant/actions/runs/39277773409",
+        "head_sha": "62bd0a5e3a2ffe0946d16c79692d9c6479273cc4",
+        "created_at": "2026-10-19T15:25:02Z",
+        "updated_at": "2026-10-19T15:35:05Z"
+      }
+    ]
+  },
+  "native": {
+    "build1006": {
+      "schema": 1,
+      "variant": "internal-trial",
+      "package": "com.larrabee.homecockpit.trial",
+      "versionName": "0.1.0-trial.6",
+      "versionCode": 1006,
+      "sourceRevision": "62bd0a5e3a2ffe0946d16c79692d9c6479273cc4",
+      "dirtySource": false,
+      "sourceSha256": "653feab3cf5822fe64fc78818462e7a4a26cb47d08643c318b1f2b31b6fd5a67",
+      "plan": "sample",
+      "privateArtifact": false,
+      "architecture": "arm64-v8a",
+      "apkSha256": "0d820e196383572e287bdda8c9ad294ba84b9dab2d903118d9dcf2db8f16e56b",
+      "signingCertificateSha256": "7191b909f58f9900cbfeb875c8d61ad5261efff9463b53b3e522c6b872261153",
+      "checks": {
+        "embeddedReleaseBundle": true,
+        "debuggable": false,
+        "developmentLauncher": false,
+        "backup": false,
+        "localHttp": true,
+        "realControls": false,
+        "spatial3d": false
+      },
+      "acceptance": "candidate; installed-device validation required"
+    },
+    "installedAsSignedUpdate": true,
+    "firstAttempt": {
+      "device": "seeker",
+      "date": "2026-10-19",
+      "checks": {
+        "savedHouseholdConnectionRestored": true
+      },
+      "audibleSpeechManuallyVerified": false,
+      "physicalHaServices": 0,
+      "createdTemporaryPlacement": true,
+      "apkSha256": "0d820e196383572e287bdda8c9ad294ba84b9dab2d903118d9dcf2db8f16e56b",
+      "result": "needs-review",
+      "failure": "Expected trial UI target missing: Floor 2",
+      "accessibilitySettingsRestored": true,
+      "temporaryDemoPlacementRemoved": true
+    },
+    "liveAttempt": {
+      "device": "seeker",
+      "date": "2026-10-19",
+      "checks": {
+        "talkBackEnabledDuringListening": true,
+        "savedHouseholdConnectionRestored": true
+      },
+      "audibleSpeechManuallyVerified": false,
+      "physicalHaServices": 0,
+      "createdTemporaryPlacement": true,
+      "apkSha256": "0d820e196383572e287bdda8c9ad294ba84b9dab2d903118d9dcf2db8f16e56b",
+      "result": "awaiting-manual-feedback",
+      "accessibilitySettingsRestored": true,
+      "temporaryDemoPlacementRemoved": true
+    },
+    "visualObservations": {
+      "sampleDemoOnly": true,
+      "markerAndNamedRowOpenedReading": true,
+      "studyHeadingAccessibilityFocus": true,
+      "returnCaptureFocus": "Header Back button, not accepted",
+      "spokenFeedback": "awaiting user response"
+    },
+    "followUp": "Native transitionEnd gating implemented after 1006 observation; exact new-candidate acceptance pending"
+  },
+  "physicalHaServices": 0,
+  "remainingLimits": [
+    "Native follow-up CI and exact-candidate acceptance pending",
+    "Spoken feedback awaiting user response",
+    "R01 dependency audit is separate and failing",
+    "S02 and physical Kasa gates unchanged"
+  ]
+}

@@ -24,6 +24,7 @@ jest.mock("../../components/EntityIcon", () => ({
 jest.mock("expo-router", () => ({
   router: { push: jest.fn() },
   useFocusEffect: jest.fn(),
+  useNavigation: () => ({ addListener: jest.fn(() => jest.fn()) }),
 }));
 const scene = () => mockScenes[mockScenes.length - 1]!;
 
