@@ -1,6 +1,6 @@
 # R03a standalone Android acceptance — 2026-10-18
 
-**Maurice Trial build 1002 is accepted for the bounded internal trial on the Seeker.** It runs without Metro and is connected to the household HA in read-only use. The user selected the Seeker for this step, the Pixel later, and the public sample for this first candidate. Pixel acceptance and S02's Pixel measurements remain deferred. This is not public-release acceptance or completion of the proposed seven-day observation period.
+**Maurice Trial build 1002 is accepted for the bounded internal trial on Seeker (Android 16) and Pixel 9 Pro (Android 17).** Both phones run the same signed APK without Metro and connect to household HA in read-only use, with the user-selected public sample. The original Seeker checkpoint below is retained; the subsequent [Pixel ledger](internal-trial-pixel-validation.md) and [Pixel aggregate](internal-trial-pixel-proof-2026-10-18.json) record its separate battery. S02's Pixel production-3D measurements remain open. This is not public-release acceptance or completion of the proposed seven-day observation period.
 
 The [trial architecture/build guide](../design/internal-trial.md) owns reproducible staging, signing, install/update and data policy. The [safe aggregate proof](internal-trial-proof-2026-10-18.json) records checks and exact artifacts; private/native raw logs remain ignored.
 
@@ -24,6 +24,8 @@ The local final APK is `.local/trial/sample/build-1002/maurice-trial-1002-arm64.
 The accepted feature set is HA observations, device summaries/readings, favorites, room links/placements, 2D floors, diagnostics/settings and simulated demo commands. Real Kasa controls remain gated; 3D and the lab are unavailable in this variant. The APK contains the sample layout, not the household geometry. Trial preferences and credentials are separate from the development client's package.
 
 ## Installed-device evidence
+
+This section records the original **Seeker** run. The [Pixel report](internal-trial-pixel-validation.md) separately records the later Android 17 acceptance, including its test-environment correction.
 
 The first connection and update checks use the disposable loopback HA fixture. Household checks then use the actual native connection over Wi-Fi; they send no HA service and do not restart or modify the household HA server. The named final binary is used for the lifecycle, spatial, reinstall and household cases below. The earlier build is retained specifically as an update baseline.
 
@@ -62,7 +64,7 @@ The unavailable-server banner may currently show the generic “try again” wor
 
 ## Proposed seven-day household trial
 
-Start when ready, using **Maurice Trial** on the Seeker with the sample layout. HA still runs on the Mac; Mac/network availability remains H02 work. Existing HA devices stay connected through HA; the app's real controls remain disabled.
+Start when ready, using **Maurice Trial** on the Seeker or Pixel 9 Pro with the sample layout. HA still runs on the Mac; Mac/network availability remains H02 work. Existing HA devices stay connected through HA; the app's real controls remain disabled.
 
 For each useful visit, note the task, whether the observation answered it, confusing states/navigation, any return to a vendor app, and any crash/restart/network context. Counts and short descriptions are enough; no analytics or raw HA data is needed.
 

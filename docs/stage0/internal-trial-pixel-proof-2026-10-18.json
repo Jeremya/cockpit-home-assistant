@@ -1,0 +1,338 @@
+{
+  "schema": 1,
+  "date": "2026-10-18",
+  "scope": "R03a exact standalone artifact accepted on Pixel 9 Pro; separate from S02 production 3D and public distribution",
+  "acceptedArtifact": {
+    "schema": 1,
+    "variant": "internal-trial",
+    "package": "com.larrabee.homecockpit.trial",
+    "versionName": "0.1.0-trial.2",
+    "versionCode": 1002,
+    "sourceRevision": "02b5ac647578d1edc2b5d6f383e10e5cc0b469bb",
+    "dirtySource": false,
+    "sourceSha256": "655d4296d9a1f4bdaf9c3b49182dba8d547de86c1495d950a0a1fb6a684d3734",
+    "plan": "sample",
+    "privateArtifact": false,
+    "architecture": "arm64-v8a",
+    "apkSha256": "80f4fa803992be53801917fcefa8fa9b60c0f2159d4e4697341e20b9aa89650b",
+    "signingCertificateSha256": "7191b909f58f9900cbfeb875c8d61ad5261efff9463b53b3e522c6b872261153",
+    "checks": {
+      "embeddedReleaseBundle": true,
+      "debuggable": false,
+      "developmentLauncher": false,
+      "backup": false,
+      "localHttp": true,
+      "realControls": false,
+      "spatial3d": false
+    },
+    "receiptStatus": "candidate; installed-device validation required"
+  },
+  "updateBaseline": {
+    "schema": 1,
+    "variant": "internal-trial",
+    "package": "com.larrabee.homecockpit.trial",
+    "versionName": "0.1.0-trial.1",
+    "versionCode": 1001,
+    "sourceRevision": "02b5ac647578d1edc2b5d6f383e10e5cc0b469bb",
+    "dirtySource": false,
+    "sourceSha256": "655d4296d9a1f4bdaf9c3b49182dba8d547de86c1495d950a0a1fb6a684d3734",
+    "plan": "sample",
+    "privateArtifact": false,
+    "architecture": "arm64-v8a",
+    "apkSha256": "9afba40d3fc2644274a303567c2e20e1414a7ad5a7e2ada67a6744d29c0f8533",
+    "signingCertificateSha256": "7191b909f58f9900cbfeb875c8d61ad5261efff9463b53b3e522c6b872261153",
+    "checks": {
+      "embeddedReleaseBundle": true,
+      "debuggable": false,
+      "developmentLauncher": false,
+      "backup": false,
+      "localHttp": true,
+      "realControls": false,
+      "spatial3d": false
+    },
+    "acceptance": "candidate; installed-device validation required"
+  },
+  "sourceTreeIds": {
+    "app": "a22e9f95ff4201b1b17fa8987173278e800f4ebc",
+    "src": "9ef27142cbd041d4df4bccabc72ed9624c93d048",
+    "plugins": "3091405d5885f40c21ea4fa1513bf958cc64d3d4",
+    "scripts": "b99f88fbcf78ecc236a5e874b8debd331637aa88"
+  },
+  "nativeLibrary": {
+    "library": "libreactnative.so",
+    "buildId": "89dd2a6210340221565500c9f9f21b1bf299c568"
+  },
+  "acceptance": {
+    "device": "Pixel 9 Pro",
+    "android": "17",
+    "sdk": 37,
+    "result": "accepted for bounded internal trial",
+    "bundledPlan": "public sample",
+    "sevenDayObservationsCollected": false
+  },
+  "metroEnvironment": {
+    "initialEmbeddedReleasePhasesWithMetro8081Present": [
+      "bootstrap",
+      "updated",
+      "spatial"
+    ],
+    "projectMetro8081And8082StoppedForAcceptedLaterPhases": true,
+    "developmentForwardsRemovedOnPixel": true,
+    "lifecycleRepeatedAfterStoppingMetro": true,
+    "initialLifecycleAttemptExcludedFromAcceptedResults": true
+  },
+  "helperCorrections": [
+    {
+      "reason": "Initial helper checked only Metro port 8082; found the old project server on 8081, stopped it, removed both forwards and reran lifecycle. Fresh reinstall and all later phases use neither server. Initial bootstrap is labeled embedded release, not no-Metro acceptance.",
+      "applicationChange": false
+    }
+  ],
+  "nativePhases": [
+    {
+      "date": "2026-10-18",
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "package": "com.larrabee.homecockpit.trial",
+      "apkSha256": "9afba40d3fc2644274a303567c2e20e1414a7ad5a7e2ada67a6744d29c0f8533",
+      "phase": "bootstrap",
+      "physicalHaServices": 0,
+      "checks": {
+        "bundledSampleFloors2dOnly": true,
+        "labDeepLinkRedirected": true,
+        "simulatedOnOffObserved": true,
+        "fixtureConnected": true,
+        "realControlGateAndFavorite": true,
+        "roomLinkSaved": true,
+        "processRestartRetainsProfileAndPreferences": true,
+        "freshEmbeddedReleaseStart": true
+      },
+      "fixtureCounters": {
+        "authentications": 2,
+        "snapshots": 6,
+        "serviceCalls": 0
+      },
+      "result": "passed",
+      "newNativeCrash": false,
+      "context": "Initial install/update/spatial checks ran with the embedded release while an old project Metro remained on 8081. Explicit no-Metro fresh launch and lifecycle acceptance follow after stopping it."
+    },
+    {
+      "date": "2026-10-18",
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "package": "com.larrabee.homecockpit.trial",
+      "apkSha256": "80f4fa803992be53801917fcefa8fa9b60c0f2159d4e4697341e20b9aa89650b",
+      "phase": "updated",
+      "physicalHaServices": 0,
+      "checks": {
+        "signedVersionUpdate": true,
+        "updateRetainsSecureTokenAndPreferences": true
+      },
+      "fixtureCounters": {
+        "authentications": 4,
+        "snapshots": 11,
+        "serviceCalls": 0
+      },
+      "result": "passed",
+      "newNativeCrash": false
+    },
+    {
+      "date": "2026-10-18",
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "package": "com.larrabee.homecockpit.trial",
+      "apkSha256": "80f4fa803992be53801917fcefa8fa9b60c0f2159d4e4697341e20b9aa89650b",
+      "phase": "spatial",
+      "physicalHaServices": 0,
+      "checks": {
+        "placementSavedAndMarkerOpensStableReading": true,
+        "placementSurvivesProcessRestart": true,
+        "placementMovesBetweenFloors": true,
+        "placementRemoved": true
+      },
+      "fixtureCounters": {
+        "authentications": 24,
+        "snapshots": 39,
+        "serviceCalls": 0
+      },
+      "result": "passed",
+      "newNativeCrash": false
+    },
+    {
+      "date": "2026-10-18",
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "package": "com.larrabee.homecockpit.trial",
+      "apkSha256": "80f4fa803992be53801917fcefa8fa9b60c0f2159d4e4697341e20b9aa89650b",
+      "phase": "lifecycle",
+      "physicalHaServices": 0,
+      "checks": {
+        "liveObservations": true,
+        "foregroundGetsFreshSnapshot": true,
+        "offlineColdStartRecoversWithoutRetry": true,
+        "terminalAuthSurvivesForeground": true,
+        "authRetryRecovers": true,
+        "terminalVersionSurvivesForeground": true,
+        "versionRetryRecovers": true,
+        "tenColdStartsWithoutMetro": true
+      },
+      "fixtureCounters": {
+        "authentications": 42,
+        "snapshots": 58,
+        "serviceCalls": 0
+      },
+      "result": "passed",
+      "newNativeCrash": false
+    },
+    {
+      "date": "2026-10-18",
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "package": "com.larrabee.homecockpit.trial",
+      "apkSha256": "80f4fa803992be53801917fcefa8fa9b60c0f2159d4e4697341e20b9aa89650b",
+      "phase": "server",
+      "physicalHaServices": 0,
+      "checks": {
+        "serverProcessRestartReplacesObservationWithoutRetry": true
+      },
+      "beforeRestartFixtureCounters": {
+        "authentications": 43,
+        "snapshots": 60,
+        "serviceCalls": 0
+      },
+      "fixtureCounters": {
+        "authentications": 1,
+        "snapshots": 1,
+        "serviceCalls": 0
+      },
+      "result": "passed",
+      "newNativeCrash": false
+    },
+    {
+      "date": "2026-10-18",
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "package": "com.larrabee.homecockpit.trial",
+      "apkSha256": "80f4fa803992be53801917fcefa8fa9b60c0f2159d4e4697341e20b9aa89650b",
+      "phase": "forget",
+      "physicalHaServices": 0,
+      "checks": {
+        "forgetPersistsAcrossProcessRestart": true
+      },
+      "fixtureCounters": {
+        "authentications": 1,
+        "snapshots": 2,
+        "serviceCalls": 0
+      },
+      "result": "passed",
+      "newNativeCrash": false
+    },
+    {
+      "date": "2026-10-18",
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "package": "com.larrabee.homecockpit.trial",
+      "apkSha256": "80f4fa803992be53801917fcefa8fa9b60c0f2159d4e4697341e20b9aa89650b",
+      "phase": "fresh",
+      "physicalHaServices": 0,
+      "checks": {
+        "reinstallReturnsToFreshOnboarding": true,
+        "freshStartWithoutMetro": true
+      },
+      "fixtureCounters": {
+        "authentications": 1,
+        "snapshots": 2,
+        "serviceCalls": 0
+      },
+      "result": "passed",
+      "newNativeCrash": false
+    },
+    {
+      "date": "2026-10-18",
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "package": "com.larrabee.homecockpit.trial",
+      "apkSha256": "80f4fa803992be53801917fcefa8fa9b60c0f2159d4e4697341e20b9aa89650b",
+      "phase": "real",
+      "physicalHaServices": 0,
+      "checks": {
+        "householdHaConnectedOverLanHttpOptIn": true,
+        "householdRegistriesFresh": true,
+        "householdForegroundResync": true,
+        "householdColdStartWithWifiOff": true,
+        "actualWifiReturnRecoversWithoutRetry": true,
+        "householdNativeTokenPersists": true,
+        "householdSummaryAndRelatedReadings": true,
+        "householdTokenAbsentFromProcessLogs": true,
+        "metroStopped": true
+      },
+      "visibleEntityCount": 91,
+      "householdDeviceSummariesOpened": 2,
+      "fixtureCounters": {
+        "authentications": 1,
+        "snapshots": 2,
+        "serviceCalls": 0
+      },
+      "result": "passed",
+      "newNativeCrash": false
+    },
+    {
+      "date": "2026-10-18",
+      "device": "Pixel 9 Pro",
+      "android": "17",
+      "package": "com.larrabee.homecockpit.trial",
+      "apkSha256": "80f4fa803992be53801917fcefa8fa9b60c0f2159d4e4697341e20b9aa89650b",
+      "phase": "final-demo",
+      "physicalHaServices": 0,
+      "checks": {
+        "finalBinarySampleFloorsAnd3dGate": true,
+        "finalBinaryLabGate": true,
+        "finalBinarySimulatedOnOff": true,
+        "householdConnectionRestoredAfterDemo": true
+      },
+      "fixtureCounters": {
+        "authentications": 1,
+        "snapshots": 2,
+        "serviceCalls": 0
+      },
+      "result": "passed",
+      "newNativeCrash": false
+    }
+  ],
+  "nativeCheckCount": 39,
+  "unchangedArtifactVerification": {
+    "reference": "internal-trial-proof-2026-10-18.json",
+    "scope": "Previously recorded repository/build, signing, manifest, backup-rule and privacy checks; exact same APKs installed here without rebuilding. JavaScript tests are not rerun for this documentation-only checkpoint.",
+    "recordedRepositoryTests": {
+      "passed": 573,
+      "suites": 35
+    }
+  },
+  "deviceIsolation": {
+    "trialAbsentBeforeInstallation": true,
+    "explicitUsbTargetForEveryAdbCommand": true,
+    "seekerNotOperated": true,
+    "developmentPackageInstallMetadataUnchanged": true,
+    "reinstallErasedOnlyNewDisposableTrialFixtureData": true
+  },
+  "fixtureServiceCalls": 0,
+  "physicalHaServicesRequestedByTest": 0,
+  "realKasaGate": false,
+  "spatial3dEnabled": false,
+  "privateValuesIncluded": false,
+  "finalState": {
+    "fixtureStopped": true,
+    "metroStopped": true,
+    "wifiEnabled": true,
+    "trialProcessRunning": true,
+    "savedHouseholdHomeVisible": true
+  },
+  "openBoundaries": [
+    "seven-day household observations",
+    "S02 Pixel production-3D acceptance",
+    "R01 tooling advisories and original unexplained development Fabric incident",
+    "F02/R02 automation",
+    "U01 accessibility and retry wording",
+    "C07a scoped enrollment and physical acceptance",
+    "actual cloud/OEM restore and public distribution"
+  ]
+}
