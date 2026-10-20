@@ -1,6 +1,6 @@
 # UX03 — Une action explicite depuis la carte partagée
 
-Statut : à faire après UX01 + UX02. Termine la partie action rapide de M03.
+Statut : **commité localement avec UX02 le 20 octobre 2026, non poussé** ([preuves](../stage0/desktop-validation.md#ux03-card-action--2026-10-20)). Termine la partie action rapide de M03.
 
 ## Résultat
 

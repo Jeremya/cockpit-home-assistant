@@ -37,8 +37,8 @@ Un modèle dans **ce workspace** voit les modifications locales. Un clone distan
 | --- | --- | --- | --- |
 | [UX00](UX00-checkpoint.md) | Base locale reproductible et vérifiée — **revue et checkpoint Git local** | aucune | consolidation, pas de nouvelle UX |
 | [UX01](UX01-shared-home.md) | Accueil et cartes cohérents aux deux tailles — **revue et checkpoint Git local** | UX00 | M03, présentation |
-| [UX02](UX02-switch-controller.md) | Un seul hook pour les protections de commande — **session séparée, hors checkpoint** | UX00 | extraction sans changement de comportement |
-| [UX03](UX03-card-action.md) | Action lampe depuis la carte, sans cible imbriquée | UX01 + UX02 | M03, interaction |
+| [UX02](UX02-switch-controller.md) | Un seul hook pour les protections de commande — **commité localement le 20 octobre, non poussé** | UX00 | extraction sans changement de comportement |
+| [UX03](UX03-card-action.md) | Action lampe depuis la carte, sans cible imbriquée — **commité localement le 20 octobre, non poussé** | UX01 + UX02 | M03, interaction |
 | [UX04](UX04-household.md) | Bonne maison, pièces, placements et favoris | UX00 ; matériel disponible | M02, configuration et vérification |
 | [UX05](UX05-spatial-selection.md) | Une sélection commune entre plan 2D et appareils | UX01 ; UX03 peut précéder | D03, sélection |
 | [UX06](UX06-camera-math.md) | Cadrage maquette testé, sans modifier le moteur | UX00 | calcul pur |

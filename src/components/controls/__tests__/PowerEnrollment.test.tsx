@@ -178,3 +178,27 @@ test("ambiguous main switches keep readings reachable without a guessed primary 
     screen.getByRole("button", { name: "Show all 2 readings" }),
   ).toBeTruthy();
 });
+test("a permission being saved cannot be used to send power", async () => {
+  await press("Allow power control");
+  await press("Allow this device");
+  const on = () => screen.getByRole("button", { name: "Turn Public lamp on" });
+  expect(on()).not.toBeDisabled();
+  let finish!: () => void;
+  const revoke = mockManager.revokeSwitch.bind(mockManager);
+  jest
+    .spyOn(mockManager, "revokeSwitch")
+    .mockImplementation(async (...args) => {
+      await new Promise<void>((resolve) => (finish = resolve));
+      return revoke(...args);
+    });
+  await press("Revoke power control");
+  expect(screen.getByText("Saving power permission…")).toBeTruthy();
+  expect(on()).toBeDisabled();
+  fireEvent.press(on());
+  expect(mockBackend.callService).not.toHaveBeenCalled();
+  await act(async () => finish());
+  expect(screen.queryByText("Saving power permission…")).toBeNull();
+  expect(on()).toBeDisabled();
+  expect(useCockpit.getState().preferences.switchEnrollments).toEqual({});
+  expect(mockBackend.callService).not.toHaveBeenCalled();
+});

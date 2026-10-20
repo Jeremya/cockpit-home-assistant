@@ -221,6 +221,68 @@ try {
         };
       }
       await page.screenshot({ path: join(output, `home-${width}.png`) });
+      // UX03: the card's power target is a sibling of its detail target.
+      const homeUrl = page.url();
+      const cardOutcome = page.getByTestId("card-switch-outcome");
+      for (const [on, key] of [
+        [true, "Enter"],
+        [false, "Space"],
+      ]) {
+        const action = page.getByRole("button", {
+          name: `Turn Living room lamp ${on ? "on" : "off"}`,
+          exact: true,
+        });
+        await action.scrollIntoViewIfNeeded();
+        const box = await action.boundingBox();
+        assert(
+          box.width >= 48 &&
+            box.height >= 48 &&
+            box.x >= 0 &&
+            box.x + box.width <= width + 1,
+          "Card power target must fit and be at least 48px",
+        );
+        await action.focus();
+        await page.keyboard.press(key);
+        await expect(
+          cardOutcome.getByText(
+            `Requested ${on ? "On" : "Off"}: Simulated state observed after the request.`,
+            { exact: true },
+          ),
+        ).toBeVisible();
+        assert.equal(page.url(), homeUrl, "Card power must not navigate");
+        await expect(
+          page.getByRole("button", {
+            name: `Turn Living room lamp ${on ? "off" : "on"}`,
+            exact: true,
+          }),
+        ).toBeEnabled();
+        await page
+          .getByRole("button", {
+            name: "Dismiss result for Living room lamp",
+            exact: true,
+          })
+          .click();
+        await expect(cardOutcome).toHaveCount(0);
+      }
+      await noOverflow(page);
+      const openLamp = page.getByRole("button", {
+        name: "Open device: Living room lamp",
+        exact: true,
+      });
+      await openLamp.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.getByTestId("device-summary")).toBeVisible();
+      await expect(
+        page.getByTestId("device-summary").getByRole("button", {
+          name: "Turn Living room lamp on",
+          exact: true,
+        }),
+      ).toBeEnabled();
+      await expect(page.getByTestId("switch-outcome")).toHaveCount(0);
+      await page.goBack();
+      await expect(
+        page.getByText("Maurice · demo home", { exact: true }),
+      ).toBeVisible();
       await page
         .getByRole("button", {
           name: "Open Sample home floor plan",
@@ -510,6 +572,8 @@ try {
         simulatedOnOffAndDismissal: true,
         primaryPowerInSummary: true,
         targets48px: true,
+        cardPowerKeyboardWithoutNavigation: true,
+        cardOpenWithoutCommand: true,
         loadedRoutesWorkOffline: true,
         directHouseRoute: true,
         noHorizontalOverflow: true,

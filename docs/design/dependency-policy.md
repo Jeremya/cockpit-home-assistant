@@ -53,6 +53,21 @@ import into the app and is never enabled by the public checks. No dependency,
 lockfile, signing configuration, glob pattern, advisory scope or exception
 expiry changes. The existing 2026-11-02 deadline and strict-release gate remain.
 
+## Card action review — 2026-10-20
+
+UX03 extends the same smoke with a card power pass at each width: the demo
+lamp's Home card is toggled On with Enter and Off with Space, the URL must stay
+on Home, each result is dismissed, then Enter on **Open device** must show the
+summary with the lamp still Off and no outcome. Review reproduced
+`reviewed_inputs_changed` with `scripts/check-ui.mjs` as the only changed pinned
+input; the diff adds Playwright interactions inside the existing public sample
+page and two report flags. Exposure is unchanged: the isolated public export,
+the closed demo/fixture data, external-request rejection, runtime-map checks
+and `physicalServiceCalls: 0` all stay. The same 56 entries / 3 advisories
+(braces, node-forge, sprintf-js) were reported, so there is no drift. No
+dependency, lockfile, signing configuration, glob pattern, advisory scope or
+exception expiry changes.
+
 ## Maintenance
 
 Before changing a pinned dependency or a reviewed configuration, review the actual exposure and update the relevant evidence. Inspect all changed inputs and compare the fresh root advisories, package paths and release metadata. Do not mechanically replace hashes or extend dates to make CI green. Replace an exception with a tested upstream fix when available; remove obsolete exceptions. A renewed review requires a dated rationale and a bounded expiration.

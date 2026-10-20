@@ -119,11 +119,11 @@ The final preparation restores local development configuration. Browser storage 
 | ---- | ------------------- | ---------------------- | ---------------------------------------------------- | -------------------------------------------------------- |
 | D01 | Delivered; browser/source scope | P1 / M | Shared Chrome desktop layout, keyboard navigation and HA connection | Existing Expo web, M01 guards; [contract](design/desktop.md) |
 | D02 | Not started | P1 / M | Persistent browser sign-in with explicit authorization and logout | D01; review HA auth and token lifetime before durable storage |
-| UX00–UX09 | UX00/UX01 reviewed locally; UX02/UX03 separate; UX04–UX09 pending | Sequenced / bounded | [Shared Home → direct card action → coherent selection → model camera → acceptance](handoff/README.md) | Next UX02; preserves M01 and native evidence |
+| UX00–UX09 | UX00–UX03 committed locally (not pushed); UX04–UX09 not implemented | Sequenced / bounded | [Shared Home → direct card action → coherent selection → model camera → acceptance](handoff/README.md) | Next UX04 or UX05; preserves M01 and native evidence |
 | D03 | Draft; superseded in part by UX handoff | Decomposed | Shared cards/actions and spatial view; in-panel detail deferred | [Scope reconciliation](handoff/README.md#objectif-et-décisions) |
 | M01  | Done for enrolled lamp on Pixel 1009 | P0 / M | Scoped Kasa power enrollment and primary action | Exact-binary checks and user-observed On/Off accepted |
 | M02  | Pending client-specific configuration | P0 / S–M | Personal household plan, room links, placements and favorites | [UX04](handoff/UX04-household.md); can proceed independently of visual work |
-| M03 | Présentation livrée, action directe restante | P1 / split | Shared daily Home and direct card action | UX01 reviewed in local checkpoint ([evidence](stage0/desktop-validation.md#ux01-shared-home--2026-10-20)); next UX02, then UX03 |
+| M03 | Présentation et action de carte livrées localement ; effet physique en attente | P1 / split | Shared daily Home and direct card action | UX01–UX03 delivered locally ([UX01](stage0/desktop-validation.md#ux01-shared-home--2026-10-20), [UX03](stage0/desktop-validation.md#ux03-card-action--2026-10-20)); physical one-press effect belongs to UX09 |
 | M04 | Pending target acceptance | P1 / split | Spatial camera/lifecycle and exact-candidate acceptance | UX05–UX09; native scope remains separate |
 | M05 | Not yet observed | Field trial | Seven days of useful household use | UX09; D02/H02 if needed |
 | F01  | Done                | —                      | Native floor-plan acceptance                         | Recorded Pixel proof                                     |

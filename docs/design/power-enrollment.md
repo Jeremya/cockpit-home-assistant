@@ -6,6 +6,8 @@ Implemented on 2026-10-19. This replaces C07a's model-global Boolean with explic
 
 Home → device summary exposes the unique primary switch directly: its reported On/Off value, the existing `SwitchControl`, and independent request outcomes. After enrollment this is two presses from Home to a power request. No nested press targets or service calls are added to cards or the 3D scene. Individual readings remain available. A device with several main switches has no guessed primary; names, favorite order and hiding a sibling cannot select one.
 
+**Amendment — [UX03](../handoff/UX03-card-action.md), 2026-10-20:** card commands go through the shared controller; sibling regions, never nested targets. On Home (phone and Chrome), the `DeviceSummaryCard` of the unique existing `primarySwitch` adds a `CompactPowerAction` next to, not inside, its **Open device** target. The single button sends the intent shown by the observed state (Off → On, On → Off); an unknown or unavailable state offers no assumed inverse. It appears only when `switchControlRestriction` allows this device in this home; enrollment stays in the summary. Revocation or lost identity removes the button, while a result for that identity stays readable. The two-press path above and its Pixel acceptance remain the recorded physical evidence; the one-press card path has no physical acceptance yet (UX09).
+
 A verified Kasa offers **Allow power control**, a cancelable review naming the device, then **Allow this device**. The review explains that the connected load must be safe to switch and that granting permission sends no request. **Revoke power control** is also available offline. Revoking blocks future requests; an already-sent request may still take effect.
 
 ## Stored permission and migration

@@ -9,9 +9,14 @@ jest.mock("../../components/EntityIcon", () => ({
   ...jest.requireActual("../../components/EntityIcon"),
   Icon: () => null,
 }));
-jest.mock("../../services/runtime", () => ({
-  session: { retry: jest.fn(), refresh: jest.fn(), connect: jest.fn() },
-}));
+jest.mock("../../services/runtime", () => {
+  const { createCommandStore } = jest.requireActual("../../commands/store");
+  return {
+    session: { retry: jest.fn(), refresh: jest.fn(), connect: jest.fn() },
+    commands: { capture: jest.fn(), setSwitch: jest.fn() },
+    commandStore: createCommandStore().readonly,
+  };
+});
 let mockDesktop = false;
 jest.mock("../../components/layout", () => ({
   useResponsiveLayout: () => ({

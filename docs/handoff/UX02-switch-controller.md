@@ -1,6 +1,6 @@
 # UX02 — Extraire le contrôleur de commande sans changer son comportement
 
-Statut : implémentation dans une session séparée, hors checkpoint UX00/UX01 et à revoir avant intégration. Extraction ciblée avant l’action de carte.
+Statut : **commité localement avec UX03 le 20 octobre 2026, non poussé** (hook `useSwitchCommand`, tests ciblés 144/144, suite complète verte). Extraction ciblée avant l'action de carte. UI de `SwitchControl` visuellement et fonctionnellement inchangée.
 
 ## Lire avant de modifier
 
