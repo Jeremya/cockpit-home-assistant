@@ -22,6 +22,7 @@ import { SessionBanner } from "../components/SessionBanner";
 import { HousePlanCard } from "../components/HousePlanCard";
 import { CardGrid } from "../components/CardGrid";
 import { useResponsiveLayout } from "../components/layout";
+import { minTouchTarget, radii, spacing, typography } from "../theme";
 
 export function HomeScreen() {
   const profileId = useCockpit((state) => state.profileId);
@@ -116,7 +117,7 @@ function HomeContent({ profileId }: { profileId: string | null }) {
       </CardGrid>
     );
   const attentionSection = snapshot && (
-    <View style={{ gap: 10 }}>
+    <Panel style={[home.attention, desktop && home.attentionAside]}>
       <View style={styles.row}>
         <View style={home.heading}>
           <Icon
@@ -124,7 +125,9 @@ function HomeContent({ profileId }: { profileId: string | null }) {
             size={18}
             color={ready && !attention.length ? colors.muted : colors.warning}
           />
-          <Text style={home.attentionTitle}>Needs attention</Text>
+          <Text accessibilityRole="header" style={home.attentionTitle}>
+            Needs attention
+          </Text>
         </View>
         {ready && !!attention.length && (
           <Text style={home.count}>{attention.length}</Text>
@@ -191,7 +194,7 @@ function HomeContent({ profileId }: { profileId: string | null }) {
           )}
         </>
       )}
-    </View>
+    </Panel>
   );
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
@@ -283,20 +286,23 @@ function HomeContent({ profileId }: { profileId: string | null }) {
         ) : (
           <SessionBanner />
         )}
+        {initialized && (
+          <View
+            testID="home-overview"
+            style={[home.overview, desktop && home.wideOverview]}
+          >
+            {attentionSection}
+            <View style={{ flex: desktop ? 1 : undefined, minWidth: 0 }}>
+              <HousePlanCard expanded={desktop} />
+            </View>
+          </View>
+        )}
         {snapshot && (
           <>
-            {desktop ? (
-              <View testID="desktop-overview" style={home.overview}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <HousePlanCard expanded />
-                </View>
-                <Panel style={{ width: 330 }}>{attentionSection}</Panel>
-              </View>
-            ) : (
-              attentionSection
-            )}
-            <View style={{ gap: 14 }}>
-              <Text style={home.sectionTitle}>Around your home</Text>
+            <View style={home.section}>
+              <Text accessibilityRole="header" style={home.title}>
+                Around your home
+              </Text>
               <Text style={home.caption}>
                 {deviceCount} {deviceCount === 1 ? "device" : "devices"} ·{" "}
                 {count} visible readings
@@ -337,17 +343,21 @@ function HomeContent({ profileId }: { profileId: string | null }) {
               </ScrollView>
             </View>
             {!selection && !!favorites.length && (
-              <View style={{ gap: 14 }}>
+              <View style={home.section}>
                 <View style={home.heading}>
                   <Icon name="star" size={16} color={colors.accent} />
-                  <Text style={home.sectionTitle}>Favorites</Text>
+                  <Text accessibilityRole="header" style={home.sectionTitle}>
+                    Favorites
+                  </Text>
                 </View>
                 {renderGroups(favorites)}
               </View>
             )}
             {[...buckets].map(([key, bucket]) => (
-              <View key={key} style={{ gap: 14 }}>
-                <Text style={home.roomTitle}>{bucket.name}</Text>
+              <View key={key} style={home.section}>
+                <Text accessibilityRole="header" style={home.roomTitle}>
+                  {bucket.name}
+                </Text>
                 {renderGroups(bucket.items)}
               </View>
             ))}
@@ -358,9 +368,6 @@ function HomeContent({ profileId }: { profileId: string | null }) {
               </Body>
             )}
           </>
-        )}
-        {initialized && (!desktop || !snapshot) && (
-          <HousePlanCard expanded={desktop} />
         )}
         {snapshot && (
           <Text style={home.footer}>
@@ -376,78 +383,79 @@ function HomeContent({ profileId }: { profileId: string | null }) {
   );
 }
 const home = StyleSheet.create({
-  desktopContent: { maxWidth: 1440, padding: 32, gap: 28 },
-  overview: { flexDirection: "row", gap: 22, alignItems: "flex-start" },
   content: {
-    paddingTop: 16,
-    gap: 26,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl + spacing.lg,
+    gap: spacing.xl,
     maxWidth: 960,
     width: "100%",
     alignSelf: "center",
   },
-  brand: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  homeIcon: { width: 44, height: 44, borderRadius: 15 },
-  brandName: { color: colors.text, fontSize: 16, fontWeight: "600" },
-  connection: { color: colors.muted, fontSize: 12 },
+  desktopContent: { maxWidth: 1440, padding: spacing.xxl },
+  overview: { gap: spacing.xl },
+  // Attention keeps its reading position before the house on wide screens.
+  wideOverview: { flexDirection: "row", alignItems: "flex-start" },
+  attention: { padding: spacing.lg, gap: spacing.md },
+  attentionAside: { width: 360 },
+  section: { gap: spacing.md },
+  brand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    flex: 1,
+  },
+  homeIcon: { width: 44, height: 44, borderRadius: radii.control },
+  brandName: { ...typography.name, color: colors.text, fontWeight: "600" },
+  connection: { ...typography.secondary, color: colors.muted },
   settings: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: minTouchTarget,
+    height: minTouchTarget,
+    borderRadius: minTouchTarget / 2,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  summary: {
-    flexDirection: "row",
-    paddingVertical: 18,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  stat: { flex: 1, alignItems: "center", gap: 6 },
-  statValue: {
-    color: colors.text,
-    fontSize: 27,
-    fontWeight: "500",
-    fontVariant: ["tabular-nums"],
-  },
-  statLabel: { color: colors.muted, fontSize: 12 },
-  attention: { padding: 16, gap: 12 },
   heading: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
+    gap: spacing.sm,
     flexShrink: 1,
   },
-  attentionTitle: { color: colors.text, fontSize: 14, fontWeight: "600" },
+  attentionTitle: { ...typography.name, color: colors.text, fontWeight: "600" },
   count: {
+    ...typography.secondary,
     color: colors.warning,
-    fontSize: 12,
     fontWeight: "600",
+    fontVariant: ["tabular-nums"],
     backgroundColor: "#ffc08316",
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.control,
   },
   expand: {
-    minHeight: 48,
+    minHeight: minTouchTarget,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: spacing.sm,
   },
-  link: { color: colors.accent, fontSize: 13 },
-  sectionTitle: { color: colors.text, fontSize: 19, fontWeight: "600" },
-  caption: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  filters: { gap: 8, paddingRight: 2 },
+  link: { ...typography.secondary, color: colors.accent },
+  title: {
+    ...typography.title,
+    color: colors.text,
+    fontWeight: "600",
+    letterSpacing: -0.6,
+  },
+  sectionTitle: { ...typography.name, color: colors.text, fontWeight: "600" },
+  caption: { ...typography.secondary, color: colors.muted },
+  filters: { gap: spacing.sm, paddingRight: 2 },
   chip: {
-    minHeight: 48,
-    paddingHorizontal: 17,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.lg,
     justifyContent: "center",
-    borderRadius: 22,
+    borderRadius: radii.control,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -456,21 +464,19 @@ const home = StyleSheet.create({
     backgroundColor: colors.accentSurface,
     borderColor: "#638bb9",
   },
-  chipText: { color: colors.muted, fontSize: 13, fontWeight: "500" },
+  chipText: { ...typography.secondary, color: colors.muted, fontWeight: "500" },
   roomTitle: {
+    ...typography.secondary,
     color: colors.muted,
-    fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1.1,
     textTransform: "uppercase",
     flexShrink: 1,
   },
-  gridRow: { flexDirection: "row", gap: 10 },
   footer: {
+    ...typography.secondary,
     color: colors.muted,
-    fontSize: 12,
     textAlign: "center",
-    lineHeight: 21,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
 });

@@ -13,3 +13,15 @@ export const colors = {
   sensor: "#91d9bd",
   accentSurface: "#1b2d47",
 };
+
+/** Shared rhythm for Home and its cards; other screens migrate separately. */
+export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
+export const radii = { control: 12, card: 20, panel: 24 };
+export const typography = {
+  secondary: { fontSize: 13, lineHeight: 19 },
+  body: { fontSize: 15, lineHeight: 22 },
+  name: { fontSize: 16, lineHeight: 22 },
+  value: { fontSize: 26, lineHeight: 34 },
+  title: { fontSize: 30, lineHeight: 36 },
+};
+export const minTouchTarget = 48;

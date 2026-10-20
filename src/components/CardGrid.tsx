@@ -1,15 +1,15 @@
 import { Children, type PropsWithChildren, useState } from "react";
 import { View } from "react-native";
-import { useResponsiveLayout } from "./layout";
+import { spacing } from "../theme";
 
-/** Measure the actual content width, including when a desktop rail is present. */
+/** Columns follow the measured content width, whatever the platform or rail. */
 export function CardGrid({ children }: PropsWithChildren) {
-  const { desktop } = useResponsiveLayout();
   const [width, setWidth] = useState(0);
-  const gap = 14;
-  const columns = desktop
-    ? Math.max(1, Math.min(3, Math.floor((width + gap) / (320 + gap))))
-    : 1;
+  const gap = spacing.md;
+  const columns = Math.max(
+    1,
+    Math.min(3, Math.floor((width + gap) / (320 + gap))),
+  );
   return (
     <View
       testID="device-grid"

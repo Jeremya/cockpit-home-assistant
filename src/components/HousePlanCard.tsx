@@ -8,6 +8,7 @@ import {
 import { router } from "expo-router";
 import { useHousePlan } from "../spatial/plans";
 import { colors } from "./ui";
+import { radii, spacing, typography } from "../theme";
 import { Icon } from "./EntityIcon";
 import { FloorPlanView } from "./FloorPlanView";
 
@@ -44,7 +45,9 @@ export function HousePlanCard({ expanded = false }: { expanded?: boolean }) {
           <Icon name="layers" size={25} color={colors.accent} />
         </View>
       )}
-      <View style={{ flex: expanded ? undefined : 1, gap: 5 }}>
+      <View
+        style={{ flex: expanded ? undefined : 1, minWidth: 0, gap: spacing.xs }}
+      >
         <Text style={card.title}>{plan.name}</Text>
         <Text style={card.subtitle}>
           {plan.floors.length} floors · {spaces} spaces
@@ -56,13 +59,13 @@ export function HousePlanCard({ expanded = false }: { expanded?: boolean }) {
   );
 }
 const card = StyleSheet.create({
-  expanded: { flexDirection: "column", alignItems: "stretch", gap: 16 },
+  expanded: { flexDirection: "column", alignItems: "stretch" },
   container: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    padding: 20,
-    borderRadius: 24,
+    gap: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radii.panel,
     backgroundColor: colors.accentSurface,
     borderWidth: 1,
     borderColor: "#3a5374",
@@ -70,12 +73,12 @@ const card = StyleSheet.create({
   icon: {
     width: 48,
     height: 48,
-    borderRadius: 16,
+    borderRadius: radii.control,
     backgroundColor: "#98c2ff14",
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { color: colors.text, fontSize: 18, fontWeight: "600" },
-  subtitle: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  link: { color: colors.accent, fontSize: 12, lineHeight: 18, marginTop: 3 },
+  title: { ...typography.name, color: colors.text, fontWeight: "600" },
+  subtitle: { ...typography.secondary, color: colors.muted },
+  link: { ...typography.secondary, color: colors.accent },
 });

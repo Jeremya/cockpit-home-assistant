@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { ComponentPropsWithRef, PropsWithChildren } from "react";
 import { Image } from "react-native";
 import { Link, usePathname, type Href } from "expo-router";
 import { useCockpit } from "../core/store";
@@ -14,6 +14,15 @@ const destinations: { href: Href; label: string; icon: IconName }[] = [
   { href: "/diagnostics", label: "Diagnostics", icon: "activity" },
   { href: "/settings", label: "Connection", icon: "sliders" },
 ];
+
+function RouterAnchor({
+  onPress,
+  ...props
+}: ComponentPropsWithRef<"a"> & { onPress?: unknown }) {
+  // Expo Link supplies both handlers on web; only onClick belongs on the DOM.
+  void onPress;
+  return <a {...props} />;
+}
 
 function selected(path: string, href: Href) {
   if (href === "/house") return path.startsWith("/house");
@@ -44,7 +53,7 @@ export function AppShell({ children }: PropsWithChildren) {
       {desktop && (
         <aside className="maurice-sidebar" data-testid="desktop-sidebar">
           <Link href="/" dismissTo asChild>
-            <a className="maurice-brand" aria-label="Maurice home">
+            <RouterAnchor className="maurice-brand" aria-label="Maurice home">
               <Image
                 source={require("../../assets/icon.png")}
                 style={{ width: 40, height: 40, borderRadius: 13 }}
@@ -53,7 +62,7 @@ export function AppShell({ children }: PropsWithChildren) {
                 <strong>MAURICE</strong>
                 <small>Your home. His rules.</small>
               </span>
-            </a>
+            </RouterAnchor>
           </Link>
           <p className="maurice-nav-label">Your workspace</p>
           <nav aria-label="Main navigation">
@@ -64,7 +73,7 @@ export function AppShell({ children }: PropsWithChildren) {
                 dismissTo={href === "/"}
                 asChild
               >
-                <a
+                <RouterAnchor
                   className="maurice-nav-link"
                   aria-current={selected(path, href) ? "page" : undefined}
                 >
@@ -74,7 +83,7 @@ export function AppShell({ children }: PropsWithChildren) {
                     color={selected(path, href) ? colors.accent : colors.muted}
                   />
                   <span>{label}</span>
-                </a>
+                </RouterAnchor>
               </Link>
             ))}
           </nav>

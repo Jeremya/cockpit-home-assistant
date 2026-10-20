@@ -16,6 +16,10 @@ import { normalizeUrl } from "../session/homeAssistant/url";
 import { credentialPersistence } from "../services/credentialStorage";
 import { confirmAction } from "../services/confirmAction";
 import {
+  canLoadLocalConnection,
+  loadLocalConnection,
+} from "../services/localConnection";
+import {
   Body,
   Button,
   Label,
@@ -36,6 +40,29 @@ export function SettingsScreen() {
   const [trust, setTrust] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [localLoaded, setLocalLoaded] = useState(false);
+  const loadLocal = async () => {
+    setError("");
+    setBusy(true);
+    setLocalLoaded(false);
+    setToken("");
+    setShowToken(false);
+    setTrust(false);
+    try {
+      const local = await loadLocalConnection();
+      setUrl(local.url);
+      setToken(local.token);
+      setLocalLoaded(true);
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not load the local connection.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
   const connect = async () => {
     setError("");
     setBusy(true);
@@ -79,6 +106,22 @@ export function SettingsScreen() {
               separately from your phone. Open Home Assistant from this computer
               to check its address; allow local network access if Chrome asks.
             </Body>
+          )}
+          {canLoadLocalConnection() && (
+            <>
+              <Button
+                title="Load local connection"
+                disabled={busy}
+                secondary
+                onPress={() => void loadLocal()}
+              />
+              {localLoaded && (
+                <Body>
+                  Local connection loaded. Review the address, confirm trust for
+                  HTTP if needed, then Connect.
+                </Body>
+              )}
+            </>
           )}
           <Text style={{ color: colors.text }}>Home Assistant URL</Text>
           <TextInput

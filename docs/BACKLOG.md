@@ -1,5 +1,7 @@
 # Implementation backlog and agent handoff
 
+**Execution update — 2026-10-20:** UX00/UX01 are reviewed in the local Git checkpoint: preview, opt-in local loading, DOM fixes and shared Home presentation. See the [review evidence](stage0/desktop-validation.md#ux00ux01-precommit-review--2026-10-20). UX02/UX03 are separate concurrent work, excluded from this checkpoint and requiring their own integration review. The [handoff](handoff/README.md) owns the next bounded steps; no push, new remote CI or APK acceptance is implied.
+
 Updated 2026-10-19 through [D01 Chrome desktop](design/desktop.md), [M01 scoped power enrollment](design/power-enrollment.md), [R01 policy/uuid follow-up](stage0/dependency-ci-validation.md), [M00 return focus](stage0/return-focus-validation.md), [the household MVP review](reviews/2026-10-19-household-mvp-review.md), [U01 diagnostics, readable plan labels and guarded focus](design/diagnostics-accessibility.md), [F02/R02 smoke and verified GitHub Actions](stage0/public-ci-validation.md), R03a acceptance on Seeker and Pixel, C07a switch UI and C01–C04 command foundations and offline simulation, S02 production spatial integration and U03 summaries, with the integrated application/tests checkpointed in `ec6abf0` and public evidence in `3cf13a2` ([clean-clone verification](stage0/repository-checkpoint.md)). This is the execution guide for the next agent, including a smaller model. Work on **one ticket per change**. The [project status](README.md) distinguishes implemented code, native acceptance and future delivery. Read actual source and tests before editing; future requirements are not current APIs.
 
 ## 1. Starting point
@@ -33,21 +35,21 @@ flowchart LR
   HA[Home Assistant] <--> Backend[HomeAssistantBackend]
   Backend --> Manager[SessionManager]
   Credentials[SecureStore + credential journal] --> Manager
-  Prefs[Schema-2 profile preferences] <--> Manager
+  Prefs[Schema-3 profile preferences] <--> Manager
   Manager --> Store[Zustand observations and status]
-  Store --> Native[Native screens and selectors]
+  Store --> Native[Shared screens and selectors]
   Local[Ignored local plan] --> Prepare[house:prepare validator]
   Sample[Public sample fallback] --> Prepare
   Prepare --> Bundle[Ignored bundled JSON]
   Bundle -->|seed once or explicit reset| Prefs
   Store --> Plan[useHousePlan]
   Plan --> Native
-  Native -. future control UI .-> Commands[Typed commands facade]
+  Native --> Commands[Typed commands facade]
   Commands --> Manager
   Manager --> Backend
   Manager --> Tracker[Command tracker]
   Tracker --> Outcomes[Transient command store]
-  Native -. sanitized props .-> Scene[DOM / Three.js prototype]
+  Native -. sanitized props .-> Scene[DOM / Three.js renderer]
   Scene -. selection callback only .-> Native
 ```
 
@@ -79,7 +81,7 @@ Invariants:
 - Tokens/PINs/authenticated image URLs never enter logs, persisted command records, diagnostics, the scene bridge or plan exports. Scenes never receive raw HA attributes.
 - Device keys and HA area IDs are different from plan-room IDs. Do not create/assign HA rooms by guessing from names on the drawing.
 - Personal `.local/home-plan.json`, `.local/home-reference.png`, `src/spatial/current-plan.json`, bundles and personal screenshots stay out of Git. The generated JSON is ignored but **is included in app/web exports**. Demo display alone does not sanitize an already prepared personal bundle.
-- Controls remain read-only until the command tickets are complete. Tests may actuate fixtures/demo. A physical unlock/open is tested only with the user's specific authorization for that action.
+- M01 permits only scoped, explicitly enrolled switch control; other control UIs remain future work. Tests may actuate fixtures/demo. Further physical actions require specific authorization for that target and moment.
 
 ## 3. Setup and validation for each agent
 
@@ -117,8 +119,13 @@ The final preparation restores local development configuration. Browser storage 
 | ---- | ------------------- | ---------------------- | ---------------------------------------------------- | -------------------------------------------------------- |
 | D01 | Delivered; browser/source scope | P1 / M | Shared Chrome desktop layout, keyboard navigation and HA connection | Existing Expo web, M01 guards; [contract](design/desktop.md) |
 | D02 | Not started | P1 / M | Persistent browser sign-in with explicit authorization and logout | D01; review HA auth and token lifetime before durable storage |
+| UX00–UX09 | UX00/UX01 reviewed locally; UX02/UX03 separate; UX04–UX09 pending | Sequenced / bounded | [Shared Home → direct card action → coherent selection → model camera → acceptance](handoff/README.md) | Next UX02; preserves M01 and native evidence |
+| D03 | Draft; superseded in part by UX handoff | Decomposed | Shared cards/actions and spatial view; in-panel detail deferred | [Scope reconciliation](handoff/README.md#objectif-et-décisions) |
 | M01  | Done for enrolled lamp on Pixel 1009 | P0 / M | Scoped Kasa power enrollment and primary action | Exact-binary checks and user-observed On/Off accepted |
-| M02  | Next / not started | P0 / M | Personal household plan, room links, placements and favorites | M01; explicit profile-plan choice; household review handoff |
+| M02  | Pending client-specific configuration | P0 / S–M | Personal household plan, room links, placements and favorites | [UX04](handoff/UX04-household.md); can proceed independently of visual work |
+| M03 | Présentation livrée, action directe restante | P1 / split | Shared daily Home and direct card action | UX01 reviewed in local checkpoint ([evidence](stage0/desktop-validation.md#ux01-shared-home--2026-10-20)); next UX02, then UX03 |
+| M04 | Pending target acceptance | P1 / split | Spatial camera/lifecycle and exact-candidate acceptance | UX05–UX09; native scope remains separate |
+| M05 | Not yet observed | Field trial | Seven days of useful household use | UX09; D02/H02 if needed |
 | F01  | Done                | —                      | Native floor-plan acceptance                         | Recorded Pixel proof                                     |
 | F02  | Done; see M00       | P1 / S                 | Reproducible sample UI smoke                         | None                                                     |
 | H01  | Partial             | P0 / hardware          | Actual household capabilities                        | Kasa/Petlibro read-only proven; remaining hardware/setup |
@@ -148,7 +155,7 @@ The final preparation restores local development configuration. Browser storage 
 | R03b | Not started         | P2 / M                 | Public distribution and release hardening            | R03a, R01 closure, R02, enabled-feature acceptance       |
 | H02  | Deferred            | Hardware / conditional | Always-on HA and explicit profile move               | Advance if Mac availability blocks trial                 |
 
-Completed: **D01 Chrome desktop** ([architecture](design/desktop.md), [ledger](stage0/desktop-validation.md)) and **M01 — accepted for the enrolled household lamp on Pixel 1009**, including the user-observed On/Off cycle with original Off restored ([contract](design/power-enrollment.md), [ledger](stage0/power-enrollment-validation.md)). **Next bounded task: M02 household personalization**, using the handoff below and the household review. M00's final application CI and named Seeker 1007 focus/listening route pass. The user approved [expiring R01 tooling exceptions](design/dependency-policy.md), not a blanket suppression: dependency/build-config changes require an exposure review, and public release still requires strict zero findings. [M01–M05](reviews/2026-10-19-household-mvp-review.md) define the household sequence.
+Completed: **D01 Chrome desktop** ([architecture](design/desktop.md), [ledger](stage0/desktop-validation.md)) and **M01 — accepted for the enrolled household lamp on Pixel 1009**, including the user-observed On/Off cycle with original Off restored ([contract](design/power-enrollment.md), [ledger](stage0/power-enrollment-validation.md)). **Next integration: review UX02, then UX03**, using the [current execution pack](handoff/README.md). M02 remains pending configuration and is detailed in UX04; it can proceed independently of shared-UI work. M00's final application CI and named Seeker 1007 focus/listening route pass. The user approved [expiring R01 tooling exceptions](design/dependency-policy.md), not a blanket suppression: dependency/build-config changes require an exposure review, and public release still requires strict zero findings. [M01–M05](reviews/2026-10-19-household-mvp-review.md) define the household sequence.
 
 M01 replaces C07a's model-global Boolean with explicit profile/stable-key/device/capability grants, shared dispatch enforcement and direct summary controls. Existing profiles migrate with no grant. The authorized lamp cycle is accepted on the named Pixel APK; other targets and phones need their own evidence ([finding and bounded follow-up](reviews/2026-10-17-global-review.md#3-c07as-activation-switch-is-global-to-a-model)). S02 Pixel acceptance remains explicit in its [ledger](stage0/spatial-view-validation.md). R03a can use the accepted read-only feature set without waiting for every hardware/control category. See [delivery order](README.md#delivery-order).
 
@@ -461,8 +468,6 @@ Prepare a host/network/backup plan with the user, including any BLE/proxy path e
 
 ## 7. Ticket completion / next-agent prompt
 
-Use this prompt, replacing the ID:
-
-> Read docs/README.md, docs/design/desktop.md, docs/stage0/desktop-validation.md, docs/design/power-enrollment.md and docs/stage0/power-enrollment-validation.md before choosing the next change. D01 adds shared desktop layout, memory-only browser credentials and real Chrome read-only validation. Latest source checks are 634 Jest tests/41 suites, 19 tooling tests and the four-width public smoke including desktop keyboard/resize and browser HA fixture checks; the M01 checkpoint below retains its own counts. Do not persist a browser token, duplicate screens/command logic or automatically copy phone power grants into browser storage. M01 source is 2a4e87a plus build-report follow-up 220b303. Trial 1009 from clean 220b303 passes scoped Pixel 9 Pro / Android 17 UI, update, permission/persistence, fixture recovery/refusal/no-replay and 100/200% text checks; the user-observed physical lamp On/Off cycle also passes, with initial Off and the exact grant retained after restart. The one-cycle test authorization is consumed; do not issue further physical tests without new authorization. Source checkpoint: 633 Jest tests/40 suites, 19 tooling tests, type/lint/format, decoder/protocol proof and green web/Android CI. Native checks need Android's busy label suffix and must respect C02 transient-outcome dismissal after a fresh observation. Preferences are schema 3; migrate v1/v2 with empty switchEnrollments, never rekey permissions through aliases. Generic preference/spatial edits preserve grants; only allowSwitch/revokeSwitch change them. Entry/final dispatch share policy and reject uncommitted grants; schedule writes before publication so reentrant revocation wins. Keep M00 focus assertions and strict R01 release mode; three private tooling exceptions still expire 2026-11-02. Next independent feature is M02 household personalization per the household review: explicitly apply the actual plan to the saved profile, link HA rooms, place the two proven devices and curate readings/favorites. Merely changing the bundle does not replace profilePlan.ts's saved plan. Preserve nonspatial preferences and power rights during spatial edits; any future import/profile-origin move needs a fresh permission decision, not silently rewritten grants. Keep personal plans/IDs/tokens/screenshots out of shared builds. Do not start M03/M04 or additional actuator categories in the M02 change.
+Use the [current copyable prompt](handoff/README.md#prompt-à-copier-au-prochain-modèle), replacing UX00 with the next accepted ticket. Read the common context and only that ticket's source/tests first. The previous M02-only prompt has been replaced: the current sequence starts by consolidating local preview/login fixes, then shared UI. M02 remains UX04, and the M01 permission/identity rules and consumed physical-test authorization remain unchanged.
 
 For every finished ticket, record the commit, checks actually run, limitations and any changed contract here or in a linked validation artifact. Keep unfinished acceptance gates explicit. Update the affected docs when behavior changes. Do not carry a worktree requiring an untracked personal plan into the handoff: `npm ci` plus the public fallback must continue to build it.

@@ -12,6 +12,30 @@ jest.mock("../../components/EntityIcon", () => ({
 jest.mock("../../services/runtime", () => ({
   session: { retry: jest.fn(), refresh: jest.fn(), connect: jest.fn() },
 }));
+let mockDesktop = false;
+jest.mock("../../components/layout", () => ({
+  useResponsiveLayout: () => ({
+    desktop: mockDesktop,
+    width: mockDesktop ? 1440 : 430,
+    height: 932,
+  }),
+}));
+afterEach(() => {
+  mockDesktop = false;
+});
+type Node = ReturnType<ReturnType<typeof render>["toJSON"]>;
+/** Labels and texts in tree order, which is the reading order on both platforms. */
+function readingOrder(node: Node): string[] {
+  if (!node) return [];
+  if (Array.isArray(node)) return node.flatMap(readingOrder);
+  const label = node.props.accessibilityLabel as string | undefined;
+  return [
+    ...(label ? [label] : []),
+    ...(node.children ?? []).flatMap((child) =>
+      typeof child === "string" ? [child] : readingOrder(child),
+    ),
+  ];
+}
 beforeEach(async () => {
   const demo = new DemoBackend("screen-proof");
   demo.onSnapshot((snapshot) =>
@@ -38,6 +62,54 @@ test("demo home renders rooms and opens a physical device in the active profile"
     params: { id: "demo-door", profile: "demo" },
   });
   screen.unmount();
+});
+
+test("compact and wide homes read attention, house, filters then the same single cards", () => {
+  const cardsAt = (desktop: boolean) => {
+    mockDesktop = desktop;
+    const screen = render(<HomeScreen />);
+    const order = readingOrder(screen.toJSON());
+    const attention = order.indexOf("Needs attention");
+    const house = order.findIndex((text) => /^Open .+ floor plan$/.test(text));
+    const filters = order.indexOf("All rooms");
+    const cards = order.filter((text) => text.startsWith("Open device: "));
+    expect(attention).toBeGreaterThanOrEqual(0);
+    expect(attention).toBeLessThan(house);
+    expect(house).toBeLessThan(filters);
+    expect(filters).toBeLessThan(order.indexOf(cards[0]!));
+    expect(
+      screen.getByRole("header", { name: "Around your home" }),
+    ).toBeTruthy();
+    screen.unmount();
+    return cards;
+  };
+  const compact = cardsAt(false);
+  expect(compact.length).toBeGreaterThan(1);
+  expect(new Set(compact).size).toBe(compact.length);
+  expect(cardsAt(true)).toEqual(compact);
+});
+
+test("favorites lead All rooms without repeating in their room group", () => {
+  const { snapshot, preferences } = useCockpit.getState();
+  useCockpit.setState({
+    preferences: {
+      ...preferences,
+      favorites: [snapshot!.entities["fan.office_vent"]!.key],
+    },
+  });
+  const screen = render(<HomeScreen />);
+  const order = readingOrder(screen.toJSON());
+  const firstCard = order.findIndex((text) => text.startsWith("Open device: "));
+  expect(order.indexOf("Favorites")).toBeLessThan(firstCard);
+  expect(order[firstCard]).toBe("Open device: Office booster vent");
+  expect(
+    screen.getAllByLabelText("Open device: Office booster vent"),
+  ).toHaveLength(1);
+  fireEvent.press(screen.getByRole("tab", { name: "Office" }));
+  expect(screen.queryByText("Favorites")).toBeNull();
+  expect(
+    screen.getAllByLabelText("Open device: Office booster vent"),
+  ).toHaveLength(1);
 });
 
 test("room selection filters observations while preserving household attention", () => {

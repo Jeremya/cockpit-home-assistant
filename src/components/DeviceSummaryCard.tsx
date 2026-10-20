@@ -5,6 +5,7 @@ import type { HomeSnapshot } from "../core/types";
 import { openDeviceSummary } from "../services/deviceNavigation";
 import { entityAppearance, Icon } from "./EntityIcon";
 import { colors } from "./ui";
+import { radii, spacing, typography } from "../theme";
 
 export function DeviceSummaryCard({
   summary,
@@ -46,7 +47,7 @@ export function DeviceSummaryCard({
             size={23}
           />
         </View>
-        <View style={{ flex: 1, gap: 4 }}>
+        <View style={{ flex: 1, minWidth: 0, gap: spacing.xs }}>
           <Text style={card.name}>{summary.name}</Text>
           <Text style={card.muted}>
             {summary.roomLabel} · {summary.members.length}{" "}
@@ -79,9 +80,9 @@ export function DeviceSummaryCard({
 }
 const card = StyleSheet.create({
   container: {
-    padding: 18,
-    gap: 9,
-    borderRadius: 22,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    borderRadius: radii.card,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -89,29 +90,33 @@ const card = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 4,
+    gap: spacing.md,
+    marginBottom: spacing.xs,
   },
   icon: {
     width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 14,
+    borderRadius: radii.control,
   },
-  name: { color: colors.text, fontSize: 16, fontWeight: "600" },
-  muted: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  value: { fontSize: 23, lineHeight: 31, fontWeight: "500" },
+  name: { ...typography.name, color: colors.text, fontWeight: "600" },
+  muted: { ...typography.secondary, color: colors.muted },
+  value: {
+    ...typography.value,
+    fontWeight: "500",
+    fontVariant: ["tabular-nums"],
+  },
   reading: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "baseline",
-    gap: 6,
+    columnGap: spacing.sm,
   },
   readingValue: {
+    ...typography.secondary,
     color: colors.text,
-    fontSize: 13,
-    lineHeight: 19,
     flexShrink: 1,
+    fontVariant: ["tabular-nums"],
   },
 });

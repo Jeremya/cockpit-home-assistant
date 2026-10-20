@@ -41,6 +41,18 @@ Maps and bundles are inspected locally in the isolated public workspace; they ar
 
 D01 changes the browser smoke and its bounded capture workflow, and adds `scripts/lib/browser-connection-check.mjs` to reviewed hashes. The helper spawns only the repository-owned loopback HA fixture, accepts its public token and permits only that exact socket; household credentials are never involved. The browser runtime reuses the existing HA client and command policy, with page-memory tokens. No dependency/lockfile, signing configuration, glob input, affected graph, advisory or exception expiry changes. Web and Android runtime-map guards remain required.
 
+## Shared Home review — 2026-10-20
+
+UX01 renames the smoke's `desktop-overview` selector to `home-overview` to match
+the shared Home tree. Review reproduced `reviewed_inputs_changed`: this single
+string replacement is the only change to a pinned input. The new fingerprint
+records that inspected change; the runner still exports an isolated public
+sample, uses the closed fixture, rejects external requests and checks runtime
+maps. UX00's opt-in local credential helper uses Node built-ins, has no runtime
+import into the app and is never enabled by the public checks. No dependency,
+lockfile, signing configuration, glob pattern, advisory scope or exception
+expiry changes. The existing 2026-11-02 deadline and strict-release gate remain.
+
 ## Maintenance
 
 Before changing a pinned dependency or a reviewed configuration, review the actual exposure and update the relevant evidence. Inspect all changed inputs and compare the fresh root advisories, package paths and release metadata. Do not mechanically replace hashes or extend dates to make CI green. Replace an exception with a tested upstream fix when available; remove obsolete exceptions. A renewed review requires a dated rationale and a bounded expiration.

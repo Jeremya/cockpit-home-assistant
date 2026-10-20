@@ -1,5 +1,7 @@
 # D03 — Desktop workspace: plan, device panel and direct power
 
+> **Execution update — 2026-10-20:** this is the earlier design draft, not an implemented feature. The user subsequently requested one shared phone/desktop experience. Follow the [UX00–UX09 handoff](../../handoff/README.md): evolve the shared card/action on both sizes, retain existing detail routes in the first sequence, then add coherent spatial selection and the constrained desktop camera. The in-panel detail requirement is deferred. The original sections below preserve the proposal; they do not override the handoff's corrected zoom bounds, lifecycle or shared-component scope.
+
 Date: 2026-10-19. Status: design approved in conversation; awaiting written-spec review. Builds on [D01](../../design/desktop.md), [M01](../../design/power-enrollment.md), [U03](../../design/device-summaries.md), [S02](../../design/spatial-view.md) and the P03 room links.
 
 ## Intent

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Maurice — Atelier responsive</title>
+    <link rel="stylesheet" href="/preview.css" />
+    <script src="/preview.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span class="monogram" aria-hidden="true">M</span>
+        <div>
+          <strong>MAURICE</strong><span>Une app, toutes les tailles.</span>
+        </div>
+      </div>
+      <div class="controls" aria-label="Dimensions de l’aperçu">
+        <label for="size">Format</label>
+        <select id="size">
+          <option value="360,800">Petit téléphone</option>
+          <option value="412,915" selected>Téléphone</option>
+          <option value="430,932">Grand téléphone</option>
+          <option value="768,1024">Tablette</option>
+          <option value="1280,900">Grand écran</option>
+        </select>
+        <button id="rotate" type="button">Pivoter</button>
+        <a
+          href="__MAURICE_APP_ORIGIN__/"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Ouvrir l’app ↗</a
+        >
+      </div>
+    </header>
+    <main aria-label="Aperçu de l’application">
+      <div class="device" id="device">
+        <span class="speaker" aria-hidden="true"></span>
+        <iframe
+          title="Maurice — application partagée"
+          src="__MAURICE_APP_ORIGIN__/"
+        ></iframe>
+      </div>
+    </main>
+    <footer>
+      <output id="dimensions" aria-live="polite"></output>
+      <span
+        >Rendu web · mises à jour à chaud · validation Android sur le
+        téléphone</span
+      >
+    </footer>
+  </body>
+</html>

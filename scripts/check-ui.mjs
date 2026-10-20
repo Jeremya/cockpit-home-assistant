@@ -196,7 +196,7 @@ try {
         }
         await page.getByRole("tab", { name: "All rooms", exact: true }).click();
         await expect(
-          page.getByTestId("desktop-overview").filter({ visible: true }),
+          page.getByTestId("home-overview").filter({ visible: true }),
         ).toBeVisible();
         const grids = page.getByTestId("device-grid").filter({ visible: true });
         let sharedRow = false;

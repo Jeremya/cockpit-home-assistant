@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -24,6 +25,7 @@ import {
 import { layoutPlanLabels } from "../spatial/planLabels";
 import { Icon, type IconName } from "./EntityIcon";
 import { colors } from "./ui";
+import { PlanRoomPolygon } from "./PlanRoomPolygon";
 
 export interface FloorPlanMarker {
   key: string;
@@ -140,9 +142,13 @@ export function FloorPlanView({
         height={viewHeight}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
-        accessible={false}
         aria-hidden
-        importantForAccessibility="no-hide-descendants"
+        {...(Platform.OS === "web"
+          ? {}
+          : {
+              accessible: false,
+              importantForAccessibility: "no-hide-descendants" as const,
+            })}
       >
         <Polygon
           points={points(floor.outline)}
@@ -152,15 +158,13 @@ export function FloorPlanView({
           strokeLinejoin="round"
         />
         {floor.rooms.map((room) => (
-          <Polygon
+          <PlanRoomPolygon
             key={room.id}
-            testID={`plan-room-${room.id}`}
+            id={room.id}
             points={points(room.polygon)}
             fill={selectedRoom === room.id ? "#34547a" : roomColors[room.kind]}
             stroke={selectedRoom === room.id ? colors.accent : "transparent"}
-            strokeWidth={2}
-            strokeLinejoin="round"
-            onPress={() => onSelectRoom(room.id)}
+            onSelect={() => onSelectRoom(room.id)}
           />
         ))}
         <G pointerEvents="none">

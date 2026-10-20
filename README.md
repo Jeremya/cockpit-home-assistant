@@ -195,6 +195,19 @@ Production 2D/3D integration, P03/P04 and U03/U04 are implemented. Keep S02’s 
 
 ## 🧰 Development
 
+For the next implementation task, start with the [next-model handoff](docs/handoff/README.md): ten bounded tickets with architecture, exact source entry points, acceptance checks and a prompt. **UX00/UX01** are reviewed in the local Git checkpoint ([review and checks](docs/stage0/desktop-validation.md#ux00ux01-precommit-review--2026-10-20)); UX02/UX03 are being developed separately and need their own integration review.
+
+To work on the shared interface in a phone frame on your computer, keep these two commands running in separate terminals:
+
+```sh
+npm run web -- --host localhost --port 8082
+node scripts/preview-devices.mjs
+```
+
+Open **http://localhost:8083** in Chrome. Choose a phone, tablet or wide viewport, or rotate it. The preview embeds the real app, including Expo's development updates; changing size keeps the current route and session. It adds no app dependency. This is a browser preview, so keep native Android checks for touch, safe areas, GPU performance and TalkBack. [Shared UI direction and preview workflow](docs/design/desktop.md#shared-interface-and-phone-preview).
+
+For local development, reuse the existing `.local/ha-token` without pasting it into Chrome: start the second command as `node scripts/preview-devices.mjs --local-ha`. In Maurice's Settings, choose **Load local connection**, confirm trust if using HTTP, then **Connect**. This works in the phone frame and directly on localhost:8082. The token stays in page memory; after reload, load it again with the same button. The helper defaults to HA at `http://127.0.0.1:8123`; override it with `--ha-url` if needed. The file must be owner-only (`chmod 600 .local/ha-token`). [Local connection scope](docs/design/desktop.md#local-token-loading-development-only).
+
 ```sh
 npm run typecheck        # TypeScript
 npm run lint             # ESLint
