@@ -87,7 +87,7 @@ Excluded from any delivery: `.local/`, `.env*`, `artifacts/`, generated plan and
 
 ## UX03 card action — 2026-10-20
 
-[UX03](../handoff/UX03-card-action.md) finishes M03's quick action on top of [UX02](../handoff/UX02-switch-controller.md)'s `useSwitchCommand`. Initial implementation status: **local only, uncommitted**; see the final UX00/UX01 review below for the Git checkpoint. UX02 and UX03 were done in this same working tree by two sessions, one after the other; UX02's state on disk was kept as-is.
+[UX03](../handoff/UX03-card-action.md) finishes M03's quick action on top of [UX02](../handoff/UX02-switch-controller.md)'s `useSwitchCommand`. Source checkpoint: **`8ea4e2a`, committed locally, not pushed**. UX02 and UX03 were done in this same working tree by two sessions, one after the other; UX02's state on disk was kept as-is.
 
 - `DeviceSummaryCard` is now a plain `View` with two sibling regions: the **Open device** target (`openDeviceSummary`, unchanged) and, for the unique existing `primarySwitch`, `components/controls/CompactPowerAction.tsx`. No target is nested in another and the card makes no service call.
 - The action is shown only when `switchControlRestriction` allows this device in this home (the demo lamp; an enrolled HS103 in HA). Its single button sends the intent from the displayed observation (Off → `Turn … on`, On → `Turn … off`). Unknown/unavailable shows a disabled **Power unavailable** with no assumed inverse. Cached, background, `sending` and `accepted` disable it with an explanation. Revocation or lost identity removes it; a result for that identity stays readable (polite live region, `switchOutcomeText`, **Dismiss result for …**).
@@ -164,3 +164,31 @@ claiming its audit passes. Do not copy this candidate's hash over later changes.
 
 Only reviewed source/docs are committed. No `.local`, credentials, generated
 plan, generated Expo types, bundles or screenshots are included.
+
+## UX02/UX03 review — 2026-10-20
+
+Reviewed `8ea4e2a`. The shared hook preserves the previous dispatch guards,
+manager-owned outcomes and exact-device permission checks. Card targets are
+siblings, and the smoke's additional interactions retain the closed demo/fixture
+boundary and reviewed audit expiry.
+
+**Reproduced and corrected:** a verified primary plug with three alphabetically
+earlier sensor readings had a power action but no visible On/Off observation.
+The generic presenter chose “4 readings” and its bounded supporting rows omitted
+the switch. The card now prioritizes the existing unique `primarySwitch` for its
+headline, while retaining issue qualifiers, supporting observations and the
+unchanged permission path. A real-manager regression first failed on the missing
+Off value, then passes for Off, an external On observation and the matching next
+intent. Ambiguous devices and feeder presentation keep their existing rules.
+
+The original **656 tests / 43 suites** pass with the normal `npm test` command.
+The previous review's temporary checkout has been moved outside the repository;
+the local duplicate-React workaround in the implementation note is no longer
+needed. No physical device was operated. UX04 configuration and UX05 spatial
+selection follow separately; no native acceptance is inferred from this review.
+
+The corrected card also keys supporting rows by their entity key rather than
+their display name; two identically named readings remain distinct without a
+React duplicate-key warning. The focused card/Home suites pass **20 tests**;
+the four control/card/Home suites passed **39 tests** before this key correction,
+and TypeScript plus targeted ESLint pass.

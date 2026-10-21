@@ -3,6 +3,7 @@ import { primarySwitch } from "../commands/switchControl";
 import type { DeviceSummary } from "../core/deviceSummaries";
 import { presentDevice } from "../core/devicePresentation";
 import { getCondition } from "../core/policy";
+import { primaryValue } from "../core/presentation";
 import { useCockpit } from "../core/store";
 import type { HomeSnapshot } from "../core/types";
 import { openDeviceSummary } from "../services/deviceNavigation";
@@ -25,7 +26,14 @@ export function DeviceSummaryCard({
   const preferences = useCockpit((state) => state.preferences);
   const mode = useCockpit((state) => state.mode);
   const display = presentDevice(summary, snapshot, ready, now);
-  const shown = summary.issues[0] ?? display.primary ?? summary.members[0]!;
+  const power = primarySwitch(summary.deviceId, snapshot, preferences, mode);
+  // Keep the observation driving the action visible even when sorted sensor
+  // readings would otherwise displace it from the bounded summary.
+  const primary = power ?? display.primary;
+  const headline = power
+    ? primaryValue(power, snapshot.config, now)
+    : display.headline;
+  const shown = summary.issues[0] ?? primary ?? summary.members[0]!;
   const appearance = entityAppearance(shown, ready);
   const { icon } = appearance;
   // Only a ready, qualified On observation gets the active color; never a request.
@@ -36,19 +44,16 @@ export function DeviceSummaryCard({
         ? appearance.tint
         : colors.muted
       : appearance.tint;
-  const power = primarySwitch(summary.deviceId, snapshot, preferences, mode);
   const supporting = display.feeder
     ? display.rows.slice(1, 4)
-    : display.rows
-        .filter((row) => row.key !== display.primary?.key)
-        .slice(0, 2);
+    : display.rows.filter((row) => row.key !== primary?.key).slice(0, 2);
   // Sibling targets: opening the detail and requesting power never nest.
   return (
     <View style={card.container}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Open device: ${summary.name}`}
-        accessibilityHint={`${display.headline}. ${display.qualifiers.join(". ")} Opens related readings.`}
+        accessibilityHint={`${headline}. ${display.qualifiers.join(". ")} Opens related readings.`}
         onPress={() =>
           summary.deviceId &&
           openDeviceSummary(summary.profileId, summary.deviceId)
@@ -76,9 +81,9 @@ export function DeviceSummaryCard({
           <Icon name="chevron-right" size={18} />
         </View>
         {display.feeder && <Text style={card.muted}>Last reported feed</Text>}
-        <Text style={[card.value, { color: tint }]}>{display.headline}</Text>
+        <Text style={[card.value, { color: tint }]}>{headline}</Text>
         {supporting.map((row) => (
-          <View key={row.label} style={card.reading}>
+          <View key={row.key ?? row.label} style={card.reading}>
             <Text style={[card.muted, { flex: 1 }]}>{row.label}</Text>
             <Text style={card.readingValue}>{row.value}</Text>
           </View>

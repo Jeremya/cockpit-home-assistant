@@ -385,3 +385,43 @@ test("another HS103 and an ambiguous device get no card action", async () => {
     useCockpit.getState().profileId,
   );
 });
+
+test("a primary switch stays visible beside the action when other readings precede it", async () => {
+  const errors = jest.spyOn(console, "error");
+  await homeAssistant();
+  const next = haHome();
+  for (const [index, name] of ["Alpha", "Alpha", "Gamma"].entries()) {
+    const reading = entity({
+      key: `sensor-${index}`,
+      entityId: `sensor.reading_${index}`,
+      deviceId: "plug",
+      domain: "sensor",
+      name,
+      state: "12",
+    });
+    next.entities[reading.entityId] = reading;
+    next.devices.plug!.entityIds.push(reading.entityId);
+  }
+  await act(async () => mockHa.observe(next));
+  await allow("stable-lamp");
+  expect(
+    screen.getByRole("button", { name: "Turn Public lamp on" }),
+  ).toBeEnabled();
+  expect(screen.getByText("Off")).toBeTruthy();
+  expect(screen.getAllByText("Alpha")).toHaveLength(2);
+  expect(screen.queryByText("4 readings")).toBeNull();
+  expect(mockHa.callService).not.toHaveBeenCalled();
+  const changed = {
+    ...next,
+    entities: {
+      ...next.entities,
+      "switch.lamp": { ...next.entities["switch.lamp"]!, state: "on" },
+    },
+  };
+  await act(async () => mockHa.observe(changed));
+  expect(screen.getByText("On")).toBeTruthy();
+  expect(
+    screen.getByRole("button", { name: "Turn Public lamp off" }),
+  ).toBeEnabled();
+  expect(errors).not.toHaveBeenCalled();
+});
