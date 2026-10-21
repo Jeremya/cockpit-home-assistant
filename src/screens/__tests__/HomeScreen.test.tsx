@@ -1,10 +1,33 @@
-import { act, fireEvent, render } from "@testing-library/react-native";
-import { HomeScreen } from "../HomeScreen";
+import { act, fireEvent, render, within } from "@testing-library/react-native";
+import { HomeScreen as Home } from "../HomeScreen";
+import {
+  HomeViewProvider,
+  createHomeViewSession,
+} from "../../spatial/HomeViewProvider";
 import { useCockpit } from "../../core/store";
 import { DemoBackend } from "../../session/demo/DemoBackend";
 import { emptyPreferences } from "../../preferences/types";
-import { router } from "expo-router";
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+import { router, useFocusEffect } from "expo-router";
+import { HomePlanOverview } from "../../components/HomePlanOverview";
+import { sampleHouse } from "../../spatial/plans";
+import { resetSpatial } from "../../spatial/profilePlan";
+import {
+  fixtureSnapshot,
+  fixturePreferences,
+  location,
+} from "../../spatial/__tests__/placementFixtures";
+let mockViewSession: ReturnType<typeof createHomeViewSession>;
+function HomeScreen() {
+  return (
+    <HomeViewProvider session={mockViewSession}>
+      <Home />
+    </HomeViewProvider>
+  );
+}
+jest.mock("expo-router", () => ({
+  router: { push: jest.fn() },
+  useFocusEffect: jest.fn(),
+}));
 jest.mock("../../components/EntityIcon", () => ({
   ...jest.requireActual("../../components/EntityIcon"),
   Icon: () => null,
@@ -41,6 +64,7 @@ function readingOrder(node: Node): string[] {
     ),
   ];
 }
+afterEach(() => mockViewSession?.dispose());
 beforeEach(async () => {
   const demo = new DemoBackend("screen-proof");
   demo.onSnapshot((snapshot) =>
@@ -55,6 +79,7 @@ beforeEach(async () => {
   );
   await demo.start();
   demo.stop();
+  mockViewSession = createHomeViewSession();
 });
 
 test("demo home renders rooms and opens a physical device in the active profile", () => {
@@ -134,7 +159,7 @@ test("room selection filters observations while preserving household attention",
   ).toBeTruthy();
 });
 
-test("removing a selected room's entities returns to all rooms", () => {
+test("hiding a selected area's readings keeps its selection and explains the empty result", () => {
   const screen = render(<HomeScreen />);
   fireEvent.press(screen.getByRole("tab", { name: "Kitchen" }));
   act(() => {
@@ -147,10 +172,13 @@ test("removing a selected room's entities returns to all rooms", () => {
     useCockpit.setState({ preferences: { ...preferences, visibility } });
   });
   expect(
-    screen.getByRole("tab", { name: "All rooms", selected: true }),
+    screen.getByRole("tab", { name: "Kitchen", selected: true }),
   ).toBeTruthy();
   expect(
-    screen.getByLabelText("Open device: Office booster vent"),
+    screen.queryByLabelText("Open device: Office booster vent"),
+  ).toBeNull();
+  expect(
+    screen.getByText("No visible devices in this selection."),
   ).toBeTruthy();
 });
 
@@ -163,6 +191,208 @@ test("changing home profiles resets room selection", () => {
   ).toBeTruthy();
   expect(
     screen.getByLabelText("Open device: Office booster vent"),
+  ).toBeTruthy();
+});
+
+function linkSample() {
+  const spatial = resetSpatial(sampleHouse);
+  spatial.areaLinks = { "sample-1-1": "kitchen", "sample-2-1": "office" };
+  useCockpit.setState({
+    preferences: { ...useCockpit.getState().preferences, spatial },
+  });
+}
+
+test("area and plan room controls share selection across floors and resize", () => {
+  linkSample();
+  const screen = render(<HomeScreen />);
+  fireEvent.press(screen.getByRole("tab", { name: "Office" }));
+  fireEvent.press(screen.getByRole("button", { name: "Show rooms on plan" }));
+  expect(
+    screen.getByRole("tab", { name: "Floor 2", selected: true }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("tab", { name: "Select Study on plan", selected: true }),
+  ).toBeTruthy();
+  mockDesktop = true;
+  screen.rerender(<HomeScreen />);
+  expect(
+    screen.getByRole("tab", { name: "Select Study on plan", selected: true }),
+  ).toBeTruthy();
+  fireEvent.press(screen.getByRole("tab", { name: "Floor 1" }));
+  expect(
+    screen.getByRole("tab", { name: "All rooms", selected: true }),
+  ).toBeTruthy();
+  fireEvent.press(screen.getByRole("tab", { name: "Select Kitchen on plan" }));
+  expect(
+    within(screen.getByLabelText("Filter devices by area")).getByRole("tab", {
+      name: "Kitchen",
+      selected: true,
+    }),
+  ).toBeTruthy();
+  expect(
+    screen.queryByLabelText("Open device: Office booster vent"),
+  ).toBeNull();
+  fireEvent.press(screen.getByLabelText("Open device: Kitchen fridge"));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: "/appliance/[id]",
+    params: { id: "demo-fridge", profile: "demo" },
+  });
+  const effect = jest.mocked(useFocusEffect).mock.calls.at(-1)![0];
+  act(() => {
+    const blur = effect();
+    if (blur) blur();
+    effect();
+  });
+  expect(
+    screen.getByRole("tab", { name: "Select Kitchen on plan", selected: true }),
+  ).toBeTruthy();
+  fireEvent.press(screen.getByRole("button", { name: "Show all rooms" }));
+  expect(
+    screen.getByRole("tab", { name: "Floor 1", selected: true }),
+  ).toBeTruthy();
+});
+
+test("unlinked rooms explain their empty results and remain usable without a snapshot", () => {
+  mockDesktop = true;
+  const screen = render(<HomeScreen />);
+  fireEvent.press(screen.getByRole("tab", { name: "Select Kitchen on plan" }));
+  expect(screen.getByText("Room not linked")).toBeTruthy();
+  expect(screen.queryByLabelText("Open device: Kitchen fridge")).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "Link this room" }));
+  expect(router.push).toHaveBeenCalledWith("/house-links");
+  act(() => useCockpit.setState({ snapshot: null }));
+  expect(
+    screen.getByRole("tab", { name: "Select Kitchen on plan", selected: true }),
+  ).toBeTruthy();
+});
+
+test("Home intent survives route remounts, but not a scope change while Home is absent", () => {
+  linkSample();
+  mockDesktop = true;
+  const tree = (shown: boolean) => (
+    <HomeViewProvider session={mockViewSession}>
+      {shown && <Home />}
+    </HomeViewProvider>
+  );
+  const screen = render(tree(true));
+  fireEvent.press(screen.getByRole("tab", { name: "Office" }));
+  screen.rerender(tree(false));
+  screen.rerender(tree(true));
+  expect(
+    screen.getByRole("tab", { name: "Select Study on plan", selected: true }),
+  ).toBeTruthy();
+  screen.rerender(tree(false));
+  act(() => useCockpit.setState({ profileId: "other-home" }));
+  act(() => useCockpit.setState({ profileId: "demo" }));
+  screen.rerender(tree(true));
+  expect(
+    screen.getByRole("tab", { name: "All rooms", selected: true }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("tab", { name: "Floor 1", selected: true }),
+  ).toBeTruthy();
+});
+
+test("fresh area deletion clears selection, while a reconnect's missing registry preserves it", () => {
+  linkSample();
+  const screen = render(<HomeScreen />);
+  fireEvent.press(screen.getByRole("tab", { name: "Office" }));
+  const snapshot = useCockpit.getState().snapshot!;
+  act(() =>
+    useCockpit.setState({
+      snapshot: {
+        ...snapshot,
+        areas: {},
+        metadata: {
+          ...snapshot.metadata,
+          areas: { kind: "stale", lastLoadedAt: null, reason: "timeout" },
+        },
+      },
+    }),
+  );
+  expect(
+    screen.getByRole("tab", { name: "Selected area", selected: true }),
+  ).toBeTruthy();
+  expect(screen.getByText(/Area registry not verified/)).toBeTruthy();
+  act(() => useCockpit.setState({ snapshot: { ...snapshot, areas: {} } }));
+  expect(
+    screen.getByRole("tab", { name: "All rooms", selected: true }),
+  ).toBeTruthy();
+});
+
+test.each(["floor", "profile", "revision", "hidden", "blur", "unmount"])(
+  "delayed marker callbacks reject an obsolete scope: %s",
+  (change) => {
+    mockDesktop = true;
+    useCockpit.setState({
+      preferencesLoadedFor: "demo",
+      snapshot: fixtureSnapshot(),
+      preferences: fixturePreferences({ stable: location }),
+    });
+    const screen = render(<HomeScreen />);
+    const marker = screen.UNSAFE_getByType(HomePlanOverview).props.onMarker;
+    if (change === "floor")
+      fireEvent.press(screen.getByRole("tab", { name: "Floor 2" }));
+    if (change === "profile")
+      act(() => useCockpit.setState({ profileId: "other" }));
+    if (change === "revision")
+      act(() => {
+        const preferences = useCockpit.getState().preferences;
+        useCockpit.setState({
+          preferences: {
+            ...preferences,
+            spatial: {
+              ...preferences.spatial,
+              plan: { ...preferences.spatial.plan!, revision: 2 },
+            },
+          },
+        });
+      });
+    if (change === "hidden")
+      act(() =>
+        useCockpit.setState({
+          preferences: {
+            ...useCockpit.getState().preferences,
+            visibility: { stable: "hidden" },
+          },
+        }),
+      );
+    if (change === "blur")
+      act(() => {
+        const cleanup = jest.mocked(useFocusEffect).mock.calls.at(-1)![0]();
+        if (cleanup) cleanup();
+      });
+    if (change === "unmount") screen.unmount();
+    act(() => marker("stable"));
+    expect(router.push).not.toHaveBeenCalled();
+  },
+);
+
+test("current markers navigate through placement validation without clearing selection", () => {
+  mockDesktop = true;
+  const preferences = fixturePreferences({ stable: location });
+  preferences.spatial.areaLinks = { "sample-1-1": "kitchen" };
+  useCockpit.setState({
+    preferencesLoadedFor: "demo",
+    snapshot: fixtureSnapshot(),
+    preferences,
+  });
+  const screen = render(<HomeScreen />);
+  fireEvent.press(
+    within(screen.getByLabelText("Filter devices by area")).getByRole("tab", {
+      name: "Kitchen",
+    }),
+  );
+  act(() => screen.UNSAFE_getByType(HomePlanOverview).props.onMarker("stable"));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: "/device/[key]",
+    params: { key: "stable" },
+  });
+  expect(
+    within(screen.getByLabelText("Filter devices by area")).getByRole("tab", {
+      name: "Kitchen",
+      selected: true,
+    }),
   ).toBeTruthy();
 });
 

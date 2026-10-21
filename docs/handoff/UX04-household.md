@@ -1,6 +1,6 @@
 # UX04 — Personnaliser la maison avec les écrans existants
 
-Statut : à faire / à vérifier sur le client choisi. Correspond à M02. **C'est d'abord une configuration**, pas un éditeur à construire.
+Statut : **configuré et vérifié dans le profil Chrome dédié sur ce Mac**, le 21 octobre 2026. M02 est réalisé pour ce client uniquement ; le Chrome habituel et les téléphones ne sont pas synchronisés. [Preuve](../stage0/desktop-validation.md#ux04--configuration-chrome-dédiée--2026-10-21). Le parcours ci-dessous reste la référence pour configurer un autre client.
 
 ## Limite importante
 

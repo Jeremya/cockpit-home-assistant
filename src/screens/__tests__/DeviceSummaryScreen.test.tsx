@@ -1,6 +1,10 @@
 import { act, fireEvent, render, within } from "@testing-library/react-native";
 import { DeviceSummaryScreen } from "../DeviceSummaryScreen";
-import { HomeScreen } from "../HomeScreen";
+import { HomeScreen as Home } from "../HomeScreen";
+import {
+  HomeViewProvider,
+  createHomeViewSession,
+} from "../../spatial/HomeViewProvider";
 import { useCockpit } from "../../core/store";
 import { emptyPreferences } from "../../preferences/types";
 import { publicDeviceFixture } from "../../core/__tests__/deviceFixtures";
@@ -9,8 +13,17 @@ import {
   openDeviceSummary,
   openReading,
 } from "../../services/deviceNavigation";
+let mockViewSession: ReturnType<typeof createHomeViewSession>;
+function HomeScreen() {
+  return (
+    <HomeViewProvider session={mockViewSession}>
+      <Home />
+    </HomeViewProvider>
+  );
+}
 let mockParams = { id: "feeder", profile: "public-home" };
 jest.mock("expo-router", () => ({
+  useFocusEffect: jest.fn(),
   useLocalSearchParams: () => mockParams,
   router: { push: jest.fn() },
 }));
@@ -21,7 +34,9 @@ jest.mock("../../components/EntityIcon", () => ({
   ...jest.requireActual("../../components/EntityIcon"),
   Icon: () => null,
 }));
+afterEach(() => mockViewSession?.dispose());
 beforeEach(() => {
+  mockViewSession = createHomeViewSession();
   mockParams = { id: "feeder", profile: "public-home" };
   useCockpit.setState({
     initialized: true,

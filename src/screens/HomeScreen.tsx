@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Image,
   Pressable,
@@ -9,30 +16,102 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCockpit } from "../core/store";
-import { attentionSummary, groupByRoom } from "../core/selectors";
+import { attentionSummary } from "../core/selectors";
 import { deviceSummaries, type DeviceSummary } from "../core/deviceSummaries";
 import { session } from "../services/runtime";
 import { Body, Button, Label, Panel, colors, styles } from "../components/ui";
-import { Icon } from "../components/EntityIcon";
+import { Icon, entityAppearance } from "../components/EntityIcon";
 import { EntityCard } from "../components/EntityCard";
 import { DeviceSummaryCard } from "../components/DeviceSummaryCard";
 import { SessionBanner } from "../components/SessionBanner";
-import { HousePlanCard } from "../components/HousePlanCard";
+import { HomePlanOverview } from "../components/HomePlanOverview";
+import { housePlanFor, useHousePlan } from "../spatial/plans";
+import type { HousePlan } from "../spatial/model";
+import { areaLinkStatus, own } from "../spatial/selectors";
+import { savedPlacements } from "../spatial/placements";
+import { openPlacement } from "../spatial/navigation";
+import { useHomeView } from "../spatial/HomeViewProvider";
+import { primaryValue } from "../core/presentation";
+import {
+  selectHomeArea,
+  selectHomeFloor,
+  selectHomeRoom,
+  selectedHomeRoom,
+  selectedHomeArea,
+  filterHomeSummaries,
+  type HomeSelection,
+  type HomeViewState,
+} from "../spatial/homeSelection";
 import { CardGrid } from "../components/CardGrid";
 import { useResponsiveLayout } from "../components/layout";
 import { minTouchTarget, radii, spacing, typography } from "../theme";
 
 export function HomeScreen() {
   const profileId = useCockpit((state) => state.profileId);
-  return <HomeContent key={profileId ?? "welcome"} profileId={profileId} />;
+  const { plan, identity } = useHousePlan();
+  return (
+    <HomeContent
+      key={identity}
+      profileId={profileId}
+      plan={plan}
+      identity={identity}
+    />
+  );
 }
-function HomeContent({ profileId }: { profileId: string | null }) {
+function HomeContent({
+  profileId,
+  plan,
+  identity,
+}: {
+  profileId: string | null;
+  plan: HousePlan;
+  identity: string;
+}) {
   const { desktop } = useResponsiveLayout();
   const { snapshot, status, preferences, mode, initialized } = useCockpit();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const { state: viewState, setState: setHomeState } = useHomeView();
+  const links = preferences.spatial.areaLinks;
+  const current = useRef({
+    mounted: true,
+    focused: true,
+    floorId: viewState.floorId,
+  });
+  useLayoutEffect(() => {
+    current.current.floorId = viewState.floorId;
+  });
+  useLayoutEffect(() => {
+    const scope = current.current;
+    scope.mounted = true;
+    return () => {
+      scope.mounted = false;
+    };
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      current.current.focused = true;
+      return () => {
+        current.current.focused = false;
+      };
+    }, []),
+  );
+  const currentScope = () =>
+    current.current.mounted &&
+    current.current.focused &&
+    current.current.floorId === viewState.floorId &&
+    housePlanFor(useCockpit.getState()).identity === identity;
+  const changeView = (next: HomeViewState) => {
+    if (currentScope()) setHomeState(next);
+  };
+  const choose = (selection: HomeSelection) => {
+    changeView(
+      selection.kind === "area"
+        ? selectHomeArea(viewState, selection.areaId, plan, links)
+        : { ...viewState, selection },
+    );
+  };
   const [expandedAttention, setExpandedAttention] = useState(false);
   const [expandedCoverage, setExpandedCoverage] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -41,10 +120,6 @@ function HomeContent({ profileId }: { profileId: string | null }) {
     return () => clearInterval(timer);
   }, []);
   const ready = status.kind === "ready";
-  const rooms = useMemo(
-    () => (snapshot ? groupByRoom(snapshot, preferences) : []),
-    [snapshot, preferences],
-  );
   const summaries = useMemo(
     () =>
       snapshot && profileId
@@ -52,7 +127,73 @@ function HomeContent({ profileId }: { profileId: string | null }) {
         : [],
     [snapshot, preferences, profileId, ready],
   );
-  const selection = rooms.find((room) => room.id === selectedRoom);
+  const isAll = viewState.selection.kind === "all";
+  const selectedArea = selectedHomeArea(viewState, links);
+  const selectedPlanRoom = selectedHomeRoom(viewState, plan, links);
+  const floor = plan.floors.find((item) => item.id === viewState.floorId)!;
+  const room = floor.rooms.find((item) => item.id === selectedPlanRoom?.roomId);
+  const selectionLabel =
+    viewState.selection.kind === "planRoom"
+      ? room?.name
+      : viewState.selection.kind === "area"
+        ? (snapshot && own(snapshot.areas, viewState.selection.areaId)?.name) ||
+          "Selected area"
+        : viewState.selection.kind === "unassigned"
+          ? "Unassigned"
+          : null;
+  const areaIds = new Set([
+    ...Object.keys(snapshot?.areas ?? {}),
+    ...summaries.flatMap((group) =>
+      group.roomIds.filter((id): id is string => id !== null),
+    ),
+  ]);
+  if (viewState.selection.kind === "area")
+    areaIds.add(viewState.selection.areaId);
+  const rooms: { name: string; selection: HomeSelection }[] = [...areaIds]
+    .map((id) => ({
+      name:
+        (snapshot && own(snapshot.areas, id)?.name) ||
+        (id === selectedArea ? "Selected area" : "Unverified area"),
+      selection: { kind: "area" as const, areaId: id },
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (
+    summaries.some((group) => group.roomIds.includes(null)) ||
+    viewState.selection.kind === "unassigned"
+  )
+    rooms.push({ name: "Unassigned", selection: { kind: "unassigned" } });
+  const filtered = filterHomeSummaries(summaries, viewState, links);
+  const linkStatus = room ? areaLinkStatus(room.id, links, snapshot) : null;
+  const needsLink =
+    linkStatus?.kind === "unlinked" || linkStatus?.kind === "missing";
+  const selectionNote =
+    viewState.selection.kind === "planRoom"
+      ? linkStatus?.kind === "unlinked"
+        ? "Room not linked"
+        : linkStatus?.kind === "missing"
+          ? "Linked area was removed from Home Assistant"
+          : linkStatus?.kind === "unverified" ||
+              (linkStatus?.kind === "linked" && !linkStatus.verified)
+            ? "Room link is cached, not verified"
+            : (room?.name ?? null)
+      : viewState.selection.kind === "area"
+        ? (!room ? "No linked plan room" : room.name) +
+          (snapshot?.metadata.areas.kind !== "fresh"
+            ? " · Area registry not verified"
+            : "")
+        : null;
+  const markers = savedPlacements(snapshot, preferences, plan, ready)
+    .filter(
+      (entry) => entry.placement.floorId === floor.id && !entry.issues.length,
+    )
+    .map((entry) => ({
+      key: entry.key,
+      name: entry.entity!.name,
+      position: entry.placement.position,
+      condition: entry.condition,
+      ...entityAppearance(entry.entity!, ready),
+      stateLabel: `${primaryValue(entry.entity!, snapshot!.config)}${ready ? "" : " · Cached"}`,
+    }));
   const coverage = snapshot
     ? attentionSummary(snapshot, preferences, ready)
     : null;
@@ -61,29 +202,25 @@ function HomeContent({ profileId }: { profileId: string | null }) {
     .filter((group) => group.favoriteRank !== null)
     .sort((a, b) => a.favoriteRank! - b.favoriteRank!);
   const favoriteIds = new Set(favorites.map((group) => group.id));
-  const displayed = summaries.filter((group) =>
-    selection
-      ? group.roomIds.includes(
-          selection.id === "unassigned" ? null : selection.id,
-        )
-      : !favoriteIds.has(group.id),
+  const displayed = filtered.filter(
+    (group) => !isAll || !favoriteIds.has(group.id),
   );
   const buckets = new Map<string, { name: string; items: DeviceSummary[] }>();
   for (const group of displayed) {
     const key =
-      selection?.id ??
+      (!isAll ? "selected" : null) ??
       (group.roomIds.length > 1
         ? JSON.stringify(["multiple"])
         : JSON.stringify(["room", group.roomIds[0]]));
     const bucket = buckets.get(key) ?? {
-      name: selection?.name ?? group.roomLabel,
+      name: selectionLabel ?? group.roomLabel,
       items: [],
     };
     bucket.items.push(group);
     buckets.set(key, bucket);
   }
   const count = coverage?.visibleCount ?? 0;
-  const deviceCount = summaries.filter((group) => group.deviceId).length;
+  const deviceCount = filtered.filter((group) => group.deviceId).length;
   const refresh = async () => {
     setRefreshing(true);
     try {
@@ -293,7 +430,32 @@ function HomeContent({ profileId }: { profileId: string | null }) {
           >
             {attentionSection}
             <View style={{ flex: desktop ? 1 : undefined, minWidth: 0 }}>
-              <HousePlanCard expanded={desktop} />
+              <HomePlanOverview
+                plan={plan}
+                floorId={floor.id}
+                selectedRoomId={room?.id ?? null}
+                markers={markers}
+                wide={desktop}
+                note={selectionNote}
+                needsLink={needsLink}
+                onFloor={(id) =>
+                  changeView(selectHomeFloor(viewState, id, plan))
+                }
+                onRoom={(id) =>
+                  changeView(selectHomeRoom(viewState, floor.id, id, plan))
+                }
+                onMarker={(key) => {
+                  if (currentScope())
+                    openPlacement(profileId, identity, floor.id, key);
+                }}
+                onAll={() => choose({ kind: "all" })}
+                onOpen={() => {
+                  if (currentScope()) router.push("/house");
+                }}
+                onLink={() => {
+                  if (currentScope()) router.push("/house-links");
+                }}
+              />
             </View>
           </View>
         )}
@@ -305,7 +467,13 @@ function HomeContent({ profileId }: { profileId: string | null }) {
               </Text>
               <Text style={home.caption}>
                 {deviceCount} {deviceCount === 1 ? "device" : "devices"} ·{" "}
-                {count} visible readings
+                {isAll
+                  ? count
+                  : filtered.reduce(
+                      (sum, group) => sum + group.members.length,
+                      0,
+                    )}{" "}
+                visible readings
                 {summaries.some((group) => !group.deviceId)
                   ? " · includes standalone readings"
                   : ""}
@@ -315,18 +483,29 @@ function HomeContent({ profileId }: { profileId: string | null }) {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={home.filters}
                 accessibilityRole="tablist"
+                accessibilityLabel="Filter devices by area"
               >
-                {[{ id: null, name: "All rooms" }, ...rooms].map((room) => {
-                  const selected = selection
-                    ? selection.id === room.id
-                    : room.id === null;
+                {[
+                  {
+                    name: "All rooms",
+                    selection: { kind: "all" } as HomeSelection,
+                  },
+                  ...rooms,
+                ].map((option) => {
+                  const selected =
+                    option.selection.kind === "all"
+                      ? isAll
+                      : option.selection.kind === "unassigned"
+                        ? viewState.selection.kind === "unassigned"
+                        : option.selection.kind === "area" &&
+                          selectedArea === option.selection.areaId;
                   return (
                     <Pressable
-                      key={room.id ?? "all"}
+                      key={JSON.stringify(option.selection)}
                       accessibilityRole="tab"
                       accessibilityState={{ selected }}
                       aria-selected={selected}
-                      onPress={() => setSelectedRoom(room.id)}
+                      onPress={() => choose(option.selection)}
                       style={[home.chip, selected && home.selectedChip]}
                     >
                       <Text
@@ -335,14 +514,14 @@ function HomeContent({ profileId }: { profileId: string | null }) {
                           selected && { color: colors.text },
                         ]}
                       >
-                        {room.name}
+                        {option.name}
                       </Text>
                     </Pressable>
                   );
                 })}
               </ScrollView>
             </View>
-            {!selection && !!favorites.length && (
+            {isAll && !!favorites.length && (
               <View style={home.section}>
                 <View style={home.heading}>
                   <Icon name="star" size={16} color={colors.accent} />
@@ -361,6 +540,13 @@ function HomeContent({ profileId }: { profileId: string | null }) {
                 {renderGroups(bucket.items)}
               </View>
             ))}
+            {!isAll && !filtered.length && count > 0 && (
+              <Body>
+                {needsLink
+                  ? "Room not linked — choose a Home Assistant area to see its devices."
+                  : "No visible devices in this selection."}
+              </Body>
+            )}
             {!count && (
               <Body>
                 No visible supported entities yet. Select entities in Settings,

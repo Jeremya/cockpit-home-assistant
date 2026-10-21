@@ -2,7 +2,7 @@
 
 Préparé le **20 octobre 2026** à partir du code présent dans ce workspace. Ce dossier est le point d'entrée pour le prochain modèle. Il découpe M02/M03 et la partie spatiale de D03/M04 ; il ne crée pas un second backlog produit.
 
-**Point de revue — 20 octobre : UX00/UX01 sont livrés dans le checkpoint Git local**, avec [contrôles isolés et correction de l’audit](../stage0/desktop-validation.md#ux00ux01-precommit-review--2026-10-20). UX02/UX03 avancent dans des sessions distinctes ; leurs changements ne sont pas inclus dans ce checkpoint. Pas de push ni nouvelle CI distante.
+**Point de revue — 21 octobre : UX00–UX03 sont revus et committés localement**, y compris le correctif de lecture primaire `4fc81b2`. UX04 est configuré dans le profil Chrome dédié ; UX05 est implémenté et vérifié. [Preuves et limites](../stage0/desktop-validation.md). Aucun push, nouveau résultat CI distant ou APK n’est implicite.
 
 ## Objectif et décisions
 
@@ -39,14 +39,14 @@ Un modèle dans **ce workspace** voit les modifications locales. Un clone distan
 | [UX01](UX01-shared-home.md) | Accueil et cartes cohérents aux deux tailles — **revue et checkpoint Git local** | UX00 | M03, présentation |
 | [UX02](UX02-switch-controller.md) | Un seul hook pour les protections de commande — **commité localement le 20 octobre, non poussé** | UX00 | extraction sans changement de comportement |
 | [UX03](UX03-card-action.md) | Action lampe depuis la carte, sans cible imbriquée — **commité localement le 20 octobre, non poussé** | UX01 + UX02 | M03, interaction |
-| [UX04](UX04-household.md) | Bonne maison, pièces, placements et favoris | UX00 ; matériel disponible | M02, configuration et vérification |
-| [UX05](UX05-spatial-selection.md) | Une sélection commune entre plan 2D et appareils | UX01 ; UX03 peut précéder | D03, sélection |
+| [UX04](UX04-household.md) | Bonne maison, pièces, placements et favoris — **Chrome dédié vérifié** | UX00 ; matériel disponible | M02, configuration et vérification |
+| [UX05](UX05-spatial-selection.md) | Une sélection commune entre plan 2D et appareils — **implémentée et vérifiée** | UX01 ; UX03 peut précéder | D03, sélection |
 | [UX06](UX06-camera-math.md) | Cadrage maquette testé, sans modifier le moteur | UX00 | calcul pur |
 | [UX07](UX07-renderer-lifecycle.md) | Repli durable et un seul moteur web actif | UX05 | cycle de vie, sans nouvelle caméra |
 | [UX08](UX08-model-camera.md) | Maquette 3D par défaut sur Chrome large | UX06 + UX07 | D03, caméra et mesures |
 | [UX09](UX09-acceptance.md) | Candidat accepté et début d'usage quotidien | UX03 + UX04 ; UX08 pour la maquette | M04/M05, terrain |
 
-**Suite immédiate : revue/intégration d’UX02, puis UX03.** UX02 est volontairement séparé : ne pas changer en même temps le rendu et les règles de commande. UX04 peut avancer indépendamment du polissage ; une pièce ambiguë ou un téléphone absent ne bloque pas le code de démonstration.
+**Suite immédiate : UX06 puis UX07 et UX08.** La configuration UX04 concerne le profil Chrome dédié et ne bloque pas le code partagé. UX09 conserve ses validations matérielles et la semaine d’usage.
 
 ## Carte du code
 
@@ -106,8 +106,8 @@ Pas besoin de réinstaller les dépendances ni de reconstruire un APK pour chaqu
 ## Prompt à copier au prochain modèle
 
 ```text
-Revois et intègre UX02 uniquement, selon
-docs/handoff/README.md et docs/handoff/UX02-switch-controller.md.
+Implémente UX07 uniquement, selon
+docs/handoff/README.md et docs/handoff/UX07-renderer-lifecycle.md.
 Préserve toutes les modifications locales existantes.
 Commence par comparer git status aux fichiers attendus ; ne refais pas les
 fonctionnalités déjà présentes. Lis seulement le contexte commun, le ticket,
@@ -118,7 +118,7 @@ pas sans instruction de livraison. Termine par : changements, vérifications
 exactes, limites, et prochain lot. Mets à jour les liens d'état pertinents.
 ```
 
-Remplacer UX02 et le chemin par le lot suivant après clôture. Une interruption humaine pour une validation matérielle ne doit pas être maquillée en succès.
+Remplacer UX07 et le chemin par le lot suivant après clôture. Une interruption humaine pour une validation matérielle ne doit pas être maquillée en succès.
 
 ## Après ces lots
 

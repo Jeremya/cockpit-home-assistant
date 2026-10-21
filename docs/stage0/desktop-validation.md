@@ -192,3 +192,22 @@ their display name; two identically named readings remain distinct without a
 React duplicate-key warning. The focused card/Home suites pass **20 tests**;
 the four control/card/Home suites passed **39 tests** before this key correction,
 and TypeScript plus targeted ESLint pass.
+
+
+## UX04 — Configuration Chrome dédiée — 2026-10-21
+
+Le client choisi par l’utilisateur est Chrome sur ce Mac. La configuration a été réalisée par les écrans existants dans **un profil Chrome dédié** (`.local/ux04/chrome-profile`), à l’origine locale de développement. Il ne s’agit pas du profil Chrome habituel ni d’une synchronisation avec les téléphones.
+
+Le plan déjà sauvegardé a été conservé sans reset. Résultat vérifié : **8 liens explicites, 2 placements de lectures représentatives, 2 favoris et 23 lectures de démonstration masquées**. Les positions sont des repères de pièce, pas des coordonnées mesurées. Les grants et la géométrie sauvegardée sont inchangés. Un rechargement puis un redémarrage du navigateur avec reconnexion confirment les préférences ; zéro appel de service, zéro requête externe et zéro erreur de page. Le token reste en mémoire de page ; après fermeture, Settings → Load local connection → Connect reste nécessaire. D02 n’est pas livré.
+
+Les identifiants, noms, positions, préférences et compte rendu détaillé restent dans `.local/ux04/`. Aucune capture de la maison privée n’est ajoutée au dépôt. M02 est clôturé pour ce profil Chrome uniquement.
+
+## UX05 — Sélection partagée — 2026-10-21
+
+Home utilise la même sélection typée pour ses filtres, son étage et son plan 2D. Les liens sont explicites ; les pièces non liées restent vides avec accès à l’écran des liens. Le registre temporairement absent conserve l’intention, une suppression fraîche la réinitialise. Un appareil multi-zones reste unique dans All et accessible sous chaque zone. Les marqueurs utilisent la validation P04 et aucun choix de pièce n’envoie de commande.
+
+La recette Chrome a reproduit la perte de sélection au retour de `/house-links` : Expo remonte le layout racine. Correction : une seule session UI bornée en mémoire, exposée par `HomeViewProvider`, sans observations ni autorisations copiées. Elle suit profil/plan/révision et invalide les callbacks d’anciens écrans. Aucun filtre ajouté à l’URL ou aux préférences. Sur compact, le plan se déplie pour conserver un accueil léger.
+
+Chrome **155.0.8059.85**, export sample isolé, 430/1440 px : pièce non liée, liaison via l’UI, puce → étage/pièce, polygone → filtre, clavier, détail → Back, resize et changement d’étage passent. Zéro erreur de page/console, zéro requête externe et zéro service. Preuve locale : `.local/ux05/report.json`. Les images de cette recette utilisent uniquement le sample. La nouvelle suite pure et les régressions Home couvrent en plus les suppressions, registres cached, identités, multi-zones et anciens callbacks.
+
+La validation ne vaut pas acceptation d’un nouvel APK, TalkBack ou performances 3D. La vue reste 2D par défaut ; UX07/UX08 suivent.

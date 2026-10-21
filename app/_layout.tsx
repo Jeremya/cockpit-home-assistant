@@ -6,6 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { session } from "../src/services/runtime";
 import { colors } from "../src/components/ui";
 import { AppShell } from "../src/components/AppShell";
+import { HomeViewProvider } from "../src/spatial/HomeViewProvider";
 export default function RootLayout() {
   useEffect(() => {
     void session.bootstrap();
@@ -22,34 +23,45 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       <AppShell>
-        <Stack
-          screenOptions={{
-            headerStyle: { backgroundColor: colors.background },
-            headerTintColor: colors.text,
-            headerShadowVisible: false,
-            contentStyle: { backgroundColor: colors.background },
-          }}
-        >
-          <Stack.Screen
-            name="index"
-            options={{ title: "Home", headerShown: false }}
-          />
-          <Stack.Screen name="settings" options={{ title: "Connection" }} />
-          <Stack.Screen name="house" options={{ title: "Floor plan" }} />
-          <Stack.Screen name="house-links" options={{ title: "Link rooms" }} />
-          <Stack.Screen
-            name="house-place"
-            options={{ title: "Place device" }}
-          />
-          <Stack.Screen name="device/[key]" options={{ title: "Device" }} />
-          <Stack.Screen
-            name="appliance/[id]"
-            options={{ title: "Device readings" }}
-          />
-          <Stack.Screen name="entities" options={{ title: "Your entities" }} />
-          <Stack.Screen name="diagnostics" options={{ title: "Diagnostics" }} />
-          <Stack.Screen name="scene-lab" options={{ title: "Scene lab" }} />
-        </Stack>
+        <HomeViewProvider>
+          <Stack
+            screenOptions={{
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerShadowVisible: false,
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          >
+            <Stack.Screen
+              name="index"
+              options={{ title: "Home", headerShown: false }}
+            />
+            <Stack.Screen name="settings" options={{ title: "Connection" }} />
+            <Stack.Screen name="house" options={{ title: "Floor plan" }} />
+            <Stack.Screen
+              name="house-links"
+              options={{ title: "Link rooms" }}
+            />
+            <Stack.Screen
+              name="house-place"
+              options={{ title: "Place device" }}
+            />
+            <Stack.Screen name="device/[key]" options={{ title: "Device" }} />
+            <Stack.Screen
+              name="appliance/[id]"
+              options={{ title: "Device readings" }}
+            />
+            <Stack.Screen
+              name="entities"
+              options={{ title: "Your entities" }}
+            />
+            <Stack.Screen
+              name="diagnostics"
+              options={{ title: "Diagnostics" }}
+            />
+            <Stack.Screen name="scene-lab" options={{ title: "Scene lab" }} />
+          </Stack>
+        </HomeViewProvider>
       </AppShell>
     </SafeAreaProvider>
   );

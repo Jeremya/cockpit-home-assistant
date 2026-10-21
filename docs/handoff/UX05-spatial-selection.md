@@ -1,6 +1,6 @@
 # UX05 — Une sélection cohérente entre maison et appareils
 
-Statut : à faire après UX01. D03 première tranche spatiale, **2D uniquement**. Les détails restent les routes partagées.
+Statut : **implémenté et vérifié localement le 21 octobre 2026**. [Preuve](../stage0/desktop-validation.md#ux05--sélection-partagée--2026-10-21). D03 première tranche spatiale, **2D uniquement**. Les détails restent les routes partagées.
 
 ## Lire
 
@@ -10,7 +10,8 @@ Statut : à faire après UX01. D03 première tranche spatiale, **2D uniquement**
 
 - `src/spatial/homeSelection.ts` : types et fonctions pures.
 - `src/components/HomePlanOverview.tsx` : plan, choix d'étage, commandes de sélection. Reçoit les données et callbacks ; pas de nouveau store.
-- État React dans Home, rattaché à `useHousePlan().identity`, au-dessus du composant visuel. Les données HA restent dans `useCockpit`.
+- `HomeViewProvider.tsx` possède une unique session UI en mémoire, rattachée à `useHousePlan().identity`, consommée par Home au-dessus du composant visuel. Chrome a reproduit un remontage du layout racine sur Back : un `useState` de route ou de layout perdait la sélection. La session conserve uniquement les IDs et la sélection, ne persiste rien et se réconcilie avec le store même quand Home est absent. Aucun second store d’observations HA. Les tests injectent une session jetable.
+- Sur compact, le plan interactif se déplie à la demande ; une pièce sélectionnée est montrée au retour. Sur large, il reste visible. Les appareils gardent les mêmes cartes et commandes.
 
 ```ts
 type HomeSelection =
