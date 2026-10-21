@@ -3,11 +3,17 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { HousePlan } from "../spatial/model";
 import { minTouchTarget, radii, spacing, typography } from "../theme";
 import { FloorPlanView, type FloorPlanMarker } from "./FloorPlanView";
+import { buildFeatures } from "../config/build";
+import { useSpatialViewState } from "../spatial/spatialViewState";
+import type { SceneMarker } from "../web/sceneModel";
+import { CockpitSceneView } from "./CockpitSceneView";
 import { colors } from "./ui";
 
 /** One shared plan/control tree. Compact Home can disclose the larger map. */
 export function HomePlanOverview({
   plan,
+  identity,
+  sceneMarkers,
   floorId,
   selectedRoomId,
   markers,
@@ -22,6 +28,8 @@ export function HomePlanOverview({
   onLink,
 }: {
   plan: HousePlan;
+  identity: string;
+  sceneMarkers: SceneMarker[];
   floorId: string;
   selectedRoomId: string | null;
   markers: FloorPlanMarker[];
@@ -35,6 +43,8 @@ export function HomePlanOverview({
   onOpen: () => void;
   onLink: () => void;
 }) {
+  const spatialView = useSpatialViewState(identity, "home");
+  const show3d = buildFeatures.spatial3d && spatialView.view === "3d";
   const [expanded, setExpanded] = useState(selectedRoomId !== null);
   const floor =
     plan.floors.find((item) => item.id === floorId) ?? plan.floors[0]!;
@@ -92,14 +102,52 @@ export function HomePlanOverview({
               </Pressable>
             ))}
           </View>
-          <FloorPlanView
-            floor={floor}
-            selectedRoom={selectedRoomId}
-            markers={markers}
-            onSelectRoom={onRoom}
-            onMarkerPress={onMarker}
-            height={wide ? 260 : 200}
-          />
+          {buildFeatures.spatial3d && (
+            <View
+              accessibilityRole="tablist"
+              accessibilityLabel="Home plan view"
+              style={s.wrap}
+            >
+              {(["2d", "3d"] as const).map((view) => (
+                <Pressable
+                  key={view}
+                  accessibilityRole="tab"
+                  accessibilityLabel={view === "2d" ? "2D plan" : "3D view"}
+                  accessibilityState={{ selected: show3d === (view === "3d") }}
+                  aria-selected={show3d === (view === "3d")}
+                  onPress={() => spatialView.choose(view)}
+                  style={s.button}
+                >
+                  <Text style={s.text}>
+                    {view === "2d" ? "2D plan" : "3D view"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {show3d ? (
+            <CockpitSceneView
+              floor={floor}
+              markers={sceneMarkers}
+              fallbackMarkers={markers}
+              selectedRoomId={selectedRoomId}
+              onRoomPress={onRoom}
+              onMarkerPress={onMarker}
+              failure={spatialView.failure}
+              onFailure={spatialView.fail}
+              onRetry={spatialView.retry}
+              height={wide ? 260 : 200}
+            />
+          ) : (
+            <FloorPlanView
+              floor={floor}
+              selectedRoom={selectedRoomId}
+              markers={markers}
+              onSelectRoom={onRoom}
+              onMarkerPress={onMarker}
+              height={wide ? 260 : 200}
+            />
+          )}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}

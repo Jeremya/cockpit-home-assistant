@@ -25,6 +25,7 @@ import { areaLinkStatus, entitiesByPlanRoom, own } from "../spatial/selectors";
 import type { HousePlan, RoomKind } from "../spatial/model";
 import { FloorPlanView } from "../components/FloorPlanView";
 import { restoreReadingFocus } from "../components/readingFocus";
+import { useSpatialViewState } from "../spatial/spatialViewState";
 import { CockpitSceneView } from "../components/CockpitSceneView";
 import { buildFeatures } from "../config/build";
 import { useResponsiveLayout } from "../components/layout";
@@ -88,7 +89,9 @@ function HousePlanContent({
   const routeFocused = useRef(true);
   const navigation =
     useNavigation<NativeStackNavigationProp<Record<string, undefined>>>();
-  const [view, setView] = useState<"2d" | "3d">("2d");
+  const spatialView = useSpatialViewState(identity, "house");
+  const view = spatialView.view === "3d" ? "3d" : "2d";
+  const setView = spatialView.choose;
   const [resetKey, setResetKey] = useState(0);
   const profileId = useCockpit((state) => state.profileId);
   const floor =
@@ -358,6 +361,7 @@ function HousePlanContent({
             accessibilityRole="tab"
             accessibilityLabel={item === "2d" ? "2D plan" : "3D view"}
             accessibilityState={{ selected: view === item }}
+            aria-selected={view === item}
             onPress={() => setView(item)}
             style={[
               planStyles.floorTab,
@@ -402,6 +406,9 @@ function HousePlanContent({
           >
             {buildFeatures.spatial3d && view === "3d" ? (
               <CockpitSceneView
+                failure={spatialView.failure}
+                onFailure={spatialView.fail}
+                onRetry={spatialView.retry}
                 floor={floor}
                 markers={placementSceneMarkers(placements, floor.id)}
                 fallbackMarkers={markers}

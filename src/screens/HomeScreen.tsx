@@ -30,6 +30,7 @@ import { HomePlanOverview } from "../components/HomePlanOverview";
 import { housePlanFor, useHousePlan } from "../spatial/plans";
 import type { HousePlan } from "../spatial/model";
 import { areaLinkStatus, own } from "../spatial/selectors";
+import { placementSceneMarkers } from "../spatial/scene";
 import { savedPlacements } from "../spatial/placements";
 import { openPlacement } from "../spatial/navigation";
 import { useHomeView } from "../spatial/HomeViewProvider";
@@ -182,7 +183,8 @@ function HomeContent({
             ? " · Area registry not verified"
             : "")
         : null;
-  const markers = savedPlacements(snapshot, preferences, plan, ready)
+  const placements = savedPlacements(snapshot, preferences, plan, ready);
+  const markers = placements
     .filter(
       (entry) => entry.placement.floorId === floor.id && !entry.issues.length,
     )
@@ -432,6 +434,8 @@ function HomeContent({
             <View style={{ flex: desktop ? 1 : undefined, minWidth: 0 }}>
               <HomePlanOverview
                 plan={plan}
+                identity={identity}
+                sceneMarkers={placementSceneMarkers(placements, floor.id)}
                 floorId={floor.id}
                 selectedRoomId={room?.id ?? null}
                 markers={markers}

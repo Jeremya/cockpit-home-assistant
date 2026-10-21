@@ -2,6 +2,14 @@
 
 Implemented 2026-10-16 in the working tree after `45df8a4`. [Project status](../README.md) and [validation](../stage0/spatial-view-validation.md) distinguish code delivery from measured hardware acceptance. This extends the existing S01 renderer and P04 preferences; no new renderer, observation store or schema is introduced.
 
+## Browser lifecycle extension — UX07, 2026-10-21
+
+Home now has an opt-in 3D preview using the same sanitized placements and room selection as its 2D plan. Both production web routes retain view preference and failure in bounded page-memory UI entries scoped to profile/plan/revision. They survive Expo layout replacement on browser Back. Retry is explicit and advances a guarded attempt; resize, floor changes, observations or hiding/showing cannot erase a failure. Switching identity resets the scope, including rejection of callbacks from an earlier visit to the same identity.
+
+`CockpitSceneView` separates its persistent failure host from a renderer mount's readiness/watchdog. `mountRenderer` defaults to true. Browser route blur and document hiding release the renderer; viewport intersection only suspends its frames and watchdog. Native retains the previous WebView suspension on AppState/route blur. The 2D fallback is interactive during loading and is removed once the first 3D frame is ready, avoiding overlapping active targets. All callers, including the host, enforce `buildFeatures.spatial3d`.
+
+Identifier-free lifecycle counters distinguish created/disposed/live/peak contexts from rendered frames. The sample Chrome lifecycle recipe measured a peak of one live renderer across Home → House → Home, explicit 2D, hidden document, fallback and retry. Disposal also verifies controls, observers, listeners and pending RAF. This is lifecycle evidence, not native/GPU performance acceptance. The default remains **2D**, and orbit is unchanged pending UX08. [Evidence](../stage0/desktop-validation.md#ux07--cycle-de-vie-web-et-repli--2026-10-21).
+
 ## Native ownership
 
 `HousePlanContent` in `src/screens/HousePlanScreen.tsx` owns the active floor, selected plan room and 2D/3D view choice. The existing `useHousePlan().identity` keys its lifetime to the profile, plan ID and revision. It opens in 2D; switching views preserves floor and room. Changing floors clears the room; changing the profile/plan resets the screen. These selections are local UI state, not saved device configuration.
@@ -26,6 +34,6 @@ The [Expo DOM contract](https://docs.expo.dev/guides/dom-components/) uses seria
 
 ## Extension boundaries
 
-This slice shows one floor with low preview walls and simple room materials. Heights are rendering settings, not measurements. Approximate furniture remains part of the 2D orientation layer; detailed 3D furnishing, shadows, bloom, a Home scene preview and an editor require separate design and measurements. Do not mount duplicate heavy scenes to add a preview.
+This slice shows one floor with low preview walls and simple room materials. Heights are rendering settings, not measurements. Approximate furniture remains part of the 2D orientation layer; detailed 3D furnishing, shadows, bloom, an editor and additional visual effects require separate design and measurements. Do not mount duplicate heavy scenes to add a preview.
 
 Tests use real Three.js marker resources without WebGL and native component probes for the asynchronous bridge. Jest transforms the installed ESM package for those tests; no mock renderer is treated as native performance evidence. Large-home budgets, TalkBack/large fonts, iOS, physical controls and household standalone acceptance remain U02/U01/L02/C*/R03 work.

@@ -5,6 +5,11 @@ import { CockpitSceneView, SCENE_WATCHDOG_MS } from "../CockpitSceneView";
 import { AppState, type AppStateStatus } from "react-native";
 let appState: AppStateStatus | null = "active";
 let appListener: (state: AppStateStatus) => void;
+let mockMount = true;
+let mockInViewport = true;
+jest.mock("../rendererActivity", () => ({
+  useRendererActivity: () => ({ mount: mockMount, visible: mockInViewport }),
+}));
 jest.mock("../EntityIcon", () => ({
   ...jest.requireActual("../EntityIcon"),
   Icon: () => null,
@@ -43,6 +48,8 @@ const setup = (overrides: Record<string, unknown> = {}) => {
 };
 
 beforeEach(() => {
+  mockMount = true;
+  mockInViewport = true;
   mounts.length = 0;
   jest.useFakeTimers();
   appState = "active";
@@ -239,4 +246,90 @@ test("queued selection is ignored while hidden or backgrounded", async () => {
   );
   await act(() => queued.onRoomPress(floor.rooms[0]!.id));
   expect(onRoomPress).not.toHaveBeenCalled();
+});
+
+test("loading keeps the 2D plan usable, then removes its targets on readiness", async () => {
+  const { screen } = setup();
+  expect(screen.getByTestId("plan-frame")).toBeTruthy();
+  await act(() => latest().onSceneReady());
+  expect(screen.queryByTestId("plan-frame")).toBeNull();
+});
+
+test("web inactivity destroys the instance and its callbacks; visibility returns create fresh readiness", async () => {
+  const props = {
+    floor,
+    markers: [],
+    selectedRoomId: null,
+    onRoomPress: jest.fn(),
+    onMarkerPress: jest.fn(),
+  };
+  const screen = render(<CockpitSceneView {...props} />);
+  const old = latest();
+  await act(() => old.onSceneReady());
+  mockMount = false;
+  screen.rerender(<CockpitSceneView {...props} />);
+  expect(screen.queryByText("3D scene")).toBeNull();
+  expect(screen.getByTestId("plan-frame")).toBeTruthy();
+  act(() => jest.advanceTimersByTime(SCENE_WATCHDOG_MS * 2));
+  mockMount = true;
+  screen.rerender(<CockpitSceneView {...props} />);
+  await act(() => old.onSceneReady());
+  await act(() => old.onSceneError("context_lost"));
+  await act(() => old.onRoomPress(floor.rooms[0]!.id));
+  expect(props.onRoomPress).not.toHaveBeenCalled();
+  expect(screen.queryByText("3D view unavailable")).toBeNull();
+  expect(screen.getByTestId("plan-frame")).toBeTruthy();
+  await act(() => latest().onSceneReady());
+  expect(screen.queryByTestId("plan-frame")).toBeNull();
+});
+
+test("failure survives mount toggles, viewport changes and floor changes until explicit Retry", async () => {
+  const props = {
+    floor,
+    markers: [],
+    selectedRoomId: null,
+    onRoomPress: jest.fn(),
+    onMarkerPress: jest.fn(),
+  };
+  const screen = render(<CockpitSceneView {...props} />);
+  const first = latest();
+  await act(() => first.onSceneError("init_failed"));
+  const count = mounts.length;
+  screen.rerender(<CockpitSceneView {...props} mountRenderer={false} />);
+  mockMount = false;
+  screen.rerender(<CockpitSceneView {...props} />);
+  mockMount = true;
+  screen.rerender(
+    <CockpitSceneView {...props} floor={parseHousePlan(sample)!.floors[1]!} />,
+  );
+  expect(mounts).toHaveLength(count);
+  expect(screen.getByText("3D view unavailable")).toBeTruthy();
+  fireEvent.press(screen.getByRole("button", { name: "Retry 3D view" }));
+  expect(mounts.length).toBeGreaterThan(count);
+  await act(() => first.onSceneReady());
+  expect(screen.getByTestId("plan-frame")).toBeTruthy();
+  await act(() => latest().onSceneReady());
+  expect(screen.queryByTestId("plan-frame")).toBeNull();
+});
+
+test("scrolling out of view suspends the current instance and watchdog without rearming failure", async () => {
+  const props = {
+    floor,
+    markers: [],
+    selectedRoomId: null,
+    onRoomPress: jest.fn(),
+    onMarkerPress: jest.fn(),
+  };
+  const screen = render(<CockpitSceneView {...props} />);
+  const instanceReady = latest().onSceneReady;
+  mockInViewport = false;
+  screen.rerender(<CockpitSceneView {...props} />);
+  expect(latest().visible).toBe(false);
+  expect(latest().onSceneReady).toBe(instanceReady);
+  act(() => jest.advanceTimersByTime(SCENE_WATCHDOG_MS * 2));
+  expect(screen.queryByText("3D view unavailable")).toBeNull();
+  mockInViewport = true;
+  screen.rerender(<CockpitSceneView {...props} />);
+  await act(() => instanceReady());
+  expect(screen.queryByTestId("plan-frame")).toBeNull();
 });

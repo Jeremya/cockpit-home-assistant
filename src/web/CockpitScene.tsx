@@ -6,6 +6,12 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { colors } from "../theme";
 import { syncMarkers, type MarkerNodes } from "./sceneMarkers";
+import {
+  rendererCreated,
+  rendererDisposed,
+  rendererFrame,
+  rendererLifecycle,
+} from "./rendererLifecycle";
 import { disposeGroup } from "./sceneResources";
 import { layoutMarkerLabels, overlaps } from "./labelLayout";
 import { planBounds, pointInPolygon } from "../spatial/model";
@@ -365,6 +371,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
       void latest.current.onSceneError("init_failed");
       return;
     }
+    rendererCreated();
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(colors.background);
     scene.add(new THREE.HemisphereLight(0xdfe7ff, 0x1a1f2b, 1.6));
@@ -413,6 +420,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
           try {
             sizeLabels(r);
             renderer.render(scene, camera);
+            rendererFrame();
           } catch {
             void latest.current.onSceneError("runtime_error");
             return;
@@ -466,6 +474,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
           }
         return {
           ...r.metrics(),
+          lifecycle: rendererLifecycle(),
           visible: r.visible,
           pendingFrame: r.frameRequested !== null,
           disposed: r.disposed,
@@ -664,6 +673,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
       r.markerNodes.clear();
       renderer.dispose();
       renderer.forceContextLoss();
+      rendererDisposed();
       renderer.domElement.remove();
       runtime.current = null;
     };

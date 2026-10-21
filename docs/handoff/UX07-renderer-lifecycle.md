@@ -1,6 +1,8 @@
 # UX07 — Préserver le repli et libérer le moteur web
 
-Statut : à faire après UX05. Pas encore de caméra maquette ni de 3D par défaut.
+Statut : **implémenté et vérifié localement le 21 octobre 2026**. Pas encore de caméra maquette ni de 3D par défaut. [Preuve](../stage0/desktop-validation.md#ux07--cycle-de-vie-web-et-repli--2026-10-21).
+
+`rendererActivity.web.ts` gère le focus/document/intersection ; `spatialViewSession.ts` conserve deux entrées UI bornées même si Expo remonte le layout racine. Le host reste l’interface de rendu, chaque montage enfant possède son readiness/watchdog. Native conserve la suspension S02. Les étapes ci-dessous sont le contrat de recette exécuté.
 
 ## Problème à résoudre avant UX08
 
