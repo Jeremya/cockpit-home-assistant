@@ -211,3 +211,12 @@ La recette Chrome a reproduit la perte de sélection au retour de `/house-links`
 Chrome **155.0.8059.85**, export sample isolé, 430/1440 px : pièce non liée, liaison via l’UI, puce → étage/pièce, polygone → filtre, clavier, détail → Back, resize et changement d’étage passent. Zéro erreur de page/console, zéro requête externe et zéro service. Preuve locale : `.local/ux05/report.json`. Les images de cette recette utilisent uniquement le sample. La nouvelle suite pure et les régressions Home couvrent en plus les suppressions, registres cached, identités, multi-zones et anciens callbacks.
 
 La validation ne vaut pas acceptation d’un nouvel APK, TalkBack ou performances 3D. La vue reste 2D par défaut ; UX07/UX08 suivent.
+
+
+## UX06 — Cadrage maquette pur — 2026-10-21
+
+`src/web/modelCamera.ts` calcule une pose en tuples monde avec FOV 26°, élévation 48°, azimut 35° ±40°, distance normalisée 1–1,25 et marges 20 px +10 % par bord. Le fit inclut la profondeur des huit coins et ajuste les plans near/far. Les entrées invalides ou numériquement non représentables retournent null. Aucun renderer, RAF, DOM ou état HA n’est utilisé.
+
+Les sept tests projettent réellement les huit coins avec `THREE.PerspectiveCamera` : 5 boîtes (dont haute, excentrée, ponctuelle et très grande), 5 azimuts, 2 facteurs de distance et 4 viewports, soit **200 poses**. Ils vérifient les marges NDC et le clipping, puis les bornes, translations, resize et entrées invalides.
+
+Validation intégrée UX05/UX06 : **681 tests Jest / 45 suites**, **23 tests d’outillage**, TypeScript, lint et format passent. Le smoke public isolé passe à 320/430/768/1440 px, avec sélection/focus P03/P04/M00, commandes démo et fixture HA fermée ; zéro service physique, zéro requête externe, plan développeur inchangé. Les dix avertissements d’ordre d’import dans les deux fichiers de tests ajoutés ont été corrigés et le lint ciblé repasse sans avertissement. La caméra visible reste inchangée ; UX07/UX08 sont nécessaires avant la maquette par défaut.

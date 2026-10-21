@@ -1,6 +1,6 @@
 # UX06 — Calculer le cadrage maquette avant de toucher au moteur
 
-Statut : à faire après UX00. Module pur + tests, aucune modification visible de caméra.
+Statut : **implémenté et vérifié localement le 21 octobre 2026**. `modelCamera.ts` et ses tests de projection sont livrés ; aucune modification visible de caméra. [Preuve](../stage0/desktop-validation.md#ux06--cadrage-maquette-pur--2026-10-21).
 
 ## Lire et créer
 

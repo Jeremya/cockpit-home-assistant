@@ -2,7 +2,7 @@
 
 Préparé le **20 octobre 2026** à partir du code présent dans ce workspace. Ce dossier est le point d'entrée pour le prochain modèle. Il découpe M02/M03 et la partie spatiale de D03/M04 ; il ne crée pas un second backlog produit.
 
-**Point de revue — 21 octobre : UX00–UX03 sont revus et committés localement**, y compris le correctif de lecture primaire `4fc81b2`. UX04 est configuré dans le profil Chrome dédié ; UX05 est implémenté et vérifié. [Preuves et limites](../stage0/desktop-validation.md). Aucun push, nouveau résultat CI distant ou APK n’est implicite.
+**Point de revue — 21 octobre : UX00–UX03 sont revus et committés localement**, y compris le correctif de lecture primaire `4fc81b2`. UX04 est configuré dans le profil Chrome dédié ; UX05 et les calculs purs UX06 sont implémentés et vérifiés. [Preuves et limites](../stage0/desktop-validation.md). Aucun push, nouveau résultat CI distant ou APK n’est implicite.
 
 ## Objectif et décisions
 
@@ -41,12 +41,12 @@ Un modèle dans **ce workspace** voit les modifications locales. Un clone distan
 | [UX03](UX03-card-action.md) | Action lampe depuis la carte, sans cible imbriquée — **commité localement le 20 octobre, non poussé** | UX01 + UX02 | M03, interaction |
 | [UX04](UX04-household.md) | Bonne maison, pièces, placements et favoris — **Chrome dédié vérifié** | UX00 ; matériel disponible | M02, configuration et vérification |
 | [UX05](UX05-spatial-selection.md) | Une sélection commune entre plan 2D et appareils — **implémentée et vérifiée** | UX01 ; UX03 peut précéder | D03, sélection |
-| [UX06](UX06-camera-math.md) | Cadrage maquette testé, sans modifier le moteur | UX00 | calcul pur |
+| [UX06](UX06-camera-math.md) | Cadrage maquette testé, sans modifier le moteur — **implémenté** | UX00 | calcul pur |
 | [UX07](UX07-renderer-lifecycle.md) | Repli durable et un seul moteur web actif | UX05 | cycle de vie, sans nouvelle caméra |
 | [UX08](UX08-model-camera.md) | Maquette 3D par défaut sur Chrome large | UX06 + UX07 | D03, caméra et mesures |
 | [UX09](UX09-acceptance.md) | Candidat accepté et début d'usage quotidien | UX03 + UX04 ; UX08 pour la maquette | M04/M05, terrain |
 
-**Suite immédiate : UX06 puis UX07 et UX08.** La configuration UX04 concerne le profil Chrome dédié et ne bloque pas le code partagé. UX09 conserve ses validations matérielles et la semaine d’usage.
+**Suite immédiate : UX07 puis UX08.** La configuration UX04 concerne le profil Chrome dédié et ne bloque pas le code partagé. UX09 conserve ses validations matérielles et la semaine d’usage.
 
 ## Carte du code
 
