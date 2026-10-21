@@ -58,6 +58,8 @@ export interface CockpitSceneViewProps {
   visible?: boolean;
   /** Retain the host/failure while releasing the expensive renderer. */
   mountRenderer?: boolean;
+  cameraMode?: "orbit" | "model";
+  onOverview?: () => void;
   simulate?: "context_loss" | null;
   onMetrics?: (metrics: SceneMetrics) => void;
   onRetry?: () => void;
@@ -89,7 +91,7 @@ export function CockpitSceneView(props: CockpitSceneViewProps) {
     <View ref={setHost} style={{ gap: 10 }}>
       {buildFeatures.spatial3d && mountRenderer && activeRoute && !failure ? (
         <SceneAttempt
-          key={attempt}
+          key={`${attempt}:${props.cameraMode ?? "orbit"}`}
           {...props}
           visible={props.visible !== false && inViewport}
           onFailure={failed}
@@ -231,6 +233,10 @@ function SceneAttempt(
         )
           latest.current.onMarkerPress(key);
       },
+      onOverview: async () => {
+        if (live() && interactive.current && phase.current === "ready")
+          latest.current.onOverview?.();
+      },
       onSceneReady: async () => {
         if (alive.current && phase.current === "loading") {
           phase.current = "ready";
@@ -267,6 +273,8 @@ function SceneAttempt(
             markers={sceneMarkers}
             selectedRoomId={selectedRoomId}
             resetKey={resetKey}
+            cameraMode={props.cameraMode ?? "orbit"}
+            interactive={ready}
             visible={visible && focused && active}
             wallHeight={PREVIEW_WALL_HEIGHT}
             simulate={simulate}

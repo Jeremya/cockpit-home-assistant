@@ -1,6 +1,6 @@
 # UX08 — Brancher la caméra maquette, puis activer le défaut desktop
 
-Statut : à faire après UX06 + UX07. Deux passages successifs : caméra opt-in, puis activation après recette.
+Statut : implémenté et mesuré sur Chrome Mac le 21 octobre 2026 ; défaut desktop activé après recette opt-in. [Mesures et limites](../stage0/desktop-validation.md#ux08--caméra-maquette-desktop--2026-10-21). UX09 conserve la recette du candidat natif et l’usage réel.
 
 ## Code et props
 

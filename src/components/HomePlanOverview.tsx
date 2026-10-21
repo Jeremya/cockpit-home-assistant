@@ -44,7 +44,14 @@ export function HomePlanOverview({
   onLink: () => void;
 }) {
   const spatialView = useSpatialViewState(identity, "home");
-  const show3d = buildFeatures.spatial3d && spatialView.view === "3d";
+  const [resetKey, setResetKey] = useState(0);
+  const overview = () => {
+    onAll();
+    setResetKey((value) => value + 1);
+  };
+  const show3d =
+    buildFeatures.spatial3d &&
+    (spatialView.view === "3d" || (spatialView.view === "auto" && wide));
   const [expanded, setExpanded] = useState(selectedRoomId !== null);
   const floor =
     plan.floors.find((item) => item.id === floorId) ?? plan.floors[0]!;
@@ -128,6 +135,9 @@ export function HomePlanOverview({
           {show3d ? (
             <CockpitSceneView
               floor={floor}
+              cameraMode={wide ? "model" : "orbit"}
+              onOverview={overview}
+              resetKey={resetKey}
               markers={sceneMarkers}
               fallbackMarkers={markers}
               selectedRoomId={selectedRoomId}
@@ -172,7 +182,7 @@ export function HomePlanOverview({
           {selectedRoomId && (
             <Pressable
               accessibilityRole="button"
-              onPress={onAll}
+              onPress={overview}
               style={s.button}
             >
               <Text style={s.link}>Show all rooms</Text>

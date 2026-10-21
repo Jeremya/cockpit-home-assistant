@@ -9,6 +9,7 @@ import { DemoBackend } from "../../session/demo/DemoBackend";
 import { emptyPreferences } from "../../preferences/types";
 import { router, useFocusEffect } from "expo-router";
 import { HomePlanOverview } from "../../components/HomePlanOverview";
+import { CockpitSceneView } from "../../components/CockpitSceneView";
 import { sampleHouse } from "../../spatial/plans";
 import { resetSpatial } from "../../spatial/profilePlan";
 import {
@@ -41,6 +42,9 @@ jest.mock("../../services/runtime", () => {
   };
 });
 let mockDesktop = false;
+jest.mock("../../components/CockpitSceneView", () => ({
+  CockpitSceneView: () => null,
+}));
 jest.mock("../../components/layout", () => ({
   useResponsiveLayout: () => ({
     desktop: mockDesktop,
@@ -80,6 +84,38 @@ beforeEach(async () => {
   await demo.start();
   demo.stop();
   mockViewSession = createHomeViewSession();
+});
+
+test("adaptive Home keeps room selection and explicit view choice across breakpoints", () => {
+  mockDesktop = true;
+  const screen = render(<HomeScreen />);
+  expect(screen.UNSAFE_getByType(CockpitSceneView).props.cameraMode).toBe(
+    "model",
+  );
+  fireEvent.press(screen.getByLabelText("Select Kitchen on plan"));
+  fireEvent.press(screen.getByRole("tab", { name: "2D plan" }));
+  mockDesktop = false;
+  screen.rerender(<HomeScreen />);
+  fireEvent.press(screen.getByRole("button", { name: "Show rooms on plan" }));
+  expect(
+    screen.getByRole("tab", { name: "2D plan", selected: true }),
+  ).toBeTruthy();
+  expect(
+    screen.getByLabelText("Select Kitchen on plan").props.accessibilityState
+      .selected,
+  ).toBe(true);
+  mockDesktop = true;
+  screen.rerender(<HomeScreen />);
+  expect(screen.UNSAFE_queryByType(CockpitSceneView)).toBeNull();
+  fireEvent.press(screen.getByRole("tab", { name: "3D view" }));
+  mockDesktop = false;
+  screen.rerender(<HomeScreen />);
+  expect(screen.UNSAFE_getByType(CockpitSceneView).props.cameraMode).toBe(
+    "orbit",
+  );
+  expect(screen.UNSAFE_getByType(CockpitSceneView).props.selectedRoomId).toBe(
+    sampleHouse.floors[0]!.rooms[1]!.id,
+  );
 });
 
 test("demo home renders rooms and opens a physical device in the active profile", () => {

@@ -85,3 +85,16 @@ npm run check:runtime-dependencies -- dist android
 ```
 
 `check:audit` writes `artifacts/dependencies/report.json`; strict mode writes `report-strict.json`. A strict failure remains expected while the three unpatched advisories exist. For local exports, follow the [public staging procedure](public-checks.md) so a personal plan is not included in shared artifacts. Recorded results are in the [R01 CI follow-up](../stage0/dependency-ci-validation.md).
+
+## Model camera smoke review — 2026-10-21
+
+UX08 adds two explicit **2D plan** tab clicks and explanatory comments
+in `scripts/check-ui.mjs`, before the existing SVG recipe and again after its persistence reload for the
+placement recipe. Wide web now
+starts in 3D, so the SVG recipe must select its tested view. The reproduced audit
+failure is `reviewed_inputs_changed`; only that pinned file changes. The fresh
+audit still reports the same 56 entries / three root advisories. Updating its
+fingerprint records this reviewed interaction, without changing the dependency
+graph, fixture/network boundaries, runtime-map guard, signing/build configuration,
+glob inputs or the 2026-11-02 expiry. Camera/GPU proofs are separate local tests;
+these clicks do not pretend that CI accepts GPU performance.

@@ -2,7 +2,7 @@
 
 Préparé le **20 octobre 2026** à partir du code présent dans ce workspace. Ce dossier est le point d'entrée pour le prochain modèle. Il découpe M02/M03 et la partie spatiale de D03/M04 ; il ne crée pas un second backlog produit.
 
-**Point de revue — 21 octobre : UX00–UX03 sont revus et committés localement**, y compris le correctif de lecture primaire `4fc81b2`. UX04 est configuré dans le profil Chrome dédié ; UX05, les calculs purs UX06 et le cycle de vie UX07 sont implémentés et vérifiés. [Preuves et limites](../stage0/desktop-validation.md). Aucun push, nouveau résultat CI distant ou APK n’est implicite.
+**Point de revue — 21 octobre : UX00–UX03 sont revus et committés localement**, y compris le correctif de lecture primaire `4fc81b2`. UX04 est configuré dans le profil Chrome dédié ; UX05–UX08 sont implémentés et vérifiés ; la maquette est maintenant le défaut de Chrome large après mesures sur le Mac M4. [Preuves et limites](../stage0/desktop-validation.md). Aucun push, nouveau résultat CI distant ou APK n’est implicite.
 
 ## Objectif et décisions
 
@@ -43,10 +43,10 @@ Un modèle dans **ce workspace** voit les modifications locales. Un clone distan
 | [UX05](UX05-spatial-selection.md) | Une sélection commune entre plan 2D et appareils — **implémentée et vérifiée** | UX01 ; UX03 peut précéder | D03, sélection |
 | [UX06](UX06-camera-math.md) | Cadrage maquette testé, sans modifier le moteur — **implémenté** | UX00 | calcul pur |
 | [UX07](UX07-renderer-lifecycle.md) | Repli durable et un seul moteur web actif — **vérifiés** | UX05 | cycle de vie, sans nouvelle caméra |
-| [UX08](UX08-model-camera.md) | Maquette 3D par défaut sur Chrome large | UX06 + UX07 | D03, caméra et mesures |
+| [UX08](UX08-model-camera.md) | Maquette 3D par défaut sur Chrome large — **mesurée et activée** | UX06 + UX07 | D03, caméra et mesures |
 | [UX09](UX09-acceptance.md) | Candidat accepté et début d'usage quotidien | UX03 + UX04 ; UX08 pour la maquette | M04/M05, terrain |
 
-**Suite immédiate : UX08.** La configuration UX04 concerne le profil Chrome dédié et ne bloque pas le code partagé. UX09 conserve ses validations matérielles et la semaine d’usage.
+**Suite immédiate : UX09, recette du candidat sur Seeker puis usage réel.** La configuration UX04 concerne le profil Chrome dédié et ne bloque pas le code partagé. UX09 conserve ses validations matérielles et la semaine d’usage.
 
 ## Carte du code
 
@@ -106,8 +106,8 @@ Pas besoin de réinstaller les dépendances ni de reconstruire un APK pour chaqu
 ## Prompt à copier au prochain modèle
 
 ```text
-Implémente UX07 uniquement, selon
-docs/handoff/README.md et docs/handoff/UX07-renderer-lifecycle.md.
+Poursuis UX09 uniquement, selon
+docs/handoff/README.md et docs/handoff/UX09-acceptance.md.
 Préserve toutes les modifications locales existantes.
 Commence par comparer git status aux fichiers attendus ; ne refais pas les
 fonctionnalités déjà présentes. Lis seulement le contexte commun, le ticket,
@@ -118,7 +118,7 @@ pas sans instruction de livraison. Termine par : changements, vérifications
 exactes, limites, et prochain lot. Mets à jour les liens d'état pertinents.
 ```
 
-Remplacer UX07 et le chemin par le lot suivant après clôture. Une interruption humaine pour une validation matérielle ne doit pas être maquillée en succès.
+Remplacer UX09 et le chemin par le lot suivant après clôture. Une interruption humaine pour une validation matérielle ne doit pas être maquillée en succès.
 
 ## Après ces lots
 

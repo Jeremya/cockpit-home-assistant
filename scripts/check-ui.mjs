@@ -292,6 +292,8 @@ try {
       await expect(
         page.getByText("Sample floor plan", { exact: true }),
       ).toBeVisible();
+      // Exercise SVG selection explicitly; wide web now starts in 3D.
+      await page.getByRole("tab", { name: "2D plan", exact: true }).click();
       for (const floor of plan.floors) {
         await page.getByRole("tab", { name: floor.name, exact: true }).click();
         await expect(
@@ -464,6 +466,8 @@ try {
           exact: true,
         })
         .click();
+      // The persistence reload above resets page-only view choice.
+      await page.getByRole("tab", { name: "2D plan", exact: true }).click();
       await page.getByRole("tab", { name: "Floor 2", exact: true }).click();
       await page
         .getByRole("button", { name: "Explore Bedroom", exact: true })

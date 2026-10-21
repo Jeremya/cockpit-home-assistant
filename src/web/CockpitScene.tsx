@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import type { DOMProps } from "expo/dom";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { ModelCameraController } from "./ModelCameraController";
+import type { Point3 } from "./modelCamera";
 import { colors } from "../theme";
 import { syncMarkers, type MarkerNodes } from "./sceneMarkers";
 import {
@@ -37,6 +39,9 @@ export interface CockpitSceneProps {
   markers: SceneMarker[];
   selectedRoomId: string | null;
   resetKey: number;
+  cameraMode?: "orbit" | "model";
+  interactive?: boolean;
+  onOverview?: () => Promise<void>;
   visible: boolean;
   /** Rendering-only preview height; not a measured story height. */
   wallHeight: number;
@@ -61,6 +66,7 @@ const roomColors: Record<string, number> = {
 const selectedColor = 0x3f6694;
 
 interface Runtime {
+  model: ModelCameraController | null;
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
@@ -270,6 +276,35 @@ function frameCamera(
   runtime.controls.update();
 }
 
+/** Bounds include rendered wall thickness/height and marker anchors, not labels. */
+function frameScene(
+  runtime: Runtime,
+  floor: SceneFloor,
+  roomId: string | null = null,
+  animate = false,
+  reset = false,
+) {
+  if (!runtime.model) {
+    frameCamera(runtime, floor, roomId);
+    return;
+  }
+  const room = floor.rooms.find((item) => item.id === roomId);
+  const points = (room?.polygon ?? floor.outline).map((point) =>
+    planToWorld(point, floor.center),
+  );
+  const min: Point3 = [
+    Math.min(...points.map((p) => p.x)) - 0.04,
+    0,
+    Math.min(...points.map((p) => p.z)) - 0.04,
+  ];
+  const max: Point3 = [
+    Math.max(...points.map((p) => p.x)) + 0.04,
+    Math.max(0.9, 0.06 + 0.6),
+    Math.max(...points.map((p) => p.z)) + 0.04,
+  ];
+  runtime.model.setBounds({ min, max }, reset, animate, performance.now());
+}
+
 /** Billboards retain a readable pixel size during orbit/zoom; spatial positions stay in meters. */
 function sizeLabels(runtime: Runtime) {
   const height = runtime.renderer.domElement.clientHeight;
@@ -390,6 +425,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
     controls.screenSpacePanning = false;
 
     const r: Runtime = {
+      model: null,
       renderer,
       scene,
       camera,
@@ -417,7 +453,9 @@ export default function CockpitScene(props: CockpitSceneProps) {
         r.frameRequested = requestAnimationFrame((now) => {
           r.frameRequested = null;
           if (!r.visible || r.disposed) return;
+          let animating = false;
           try {
+            animating = r.model?.tick(now) ?? false;
             sizeLabels(r);
             renderer.render(scene, camera);
             rendererFrame();
@@ -426,6 +464,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
             return;
           }
           r.stats.frame(now, r.visible);
+          if (animating) r.invalidate();
           if (r.readyMs === null) {
             r.readyMs = Math.round(performance.now() - started);
             void latest.current.onSceneReady();
@@ -445,6 +484,14 @@ export default function CockpitScene(props: CockpitSceneProps) {
         contextLosses: r.contextLosses,
       }),
     };
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (latest.current.cameraMode === "model")
+      r.model = new ModelCameraController(
+        camera,
+        controls,
+        () => motion.matches,
+        r.invalidate,
+      );
     runtime.current = r;
     // Read-only bounded instrumentation for the feasibility lab. No renderer,
     // connection, arbitrary evaluation API or raw entity data is exposed.
@@ -488,7 +535,11 @@ export default function CockpitScene(props: CockpitSceneProps) {
             position: camera.position.toArray(),
             target: controls.target.toArray(),
           },
-          animatedCamera: controls.enableDamping || controls.autoRotate,
+          animatedCamera:
+            controls.enableDamping ||
+            controls.autoRotate ||
+            (r.model?.probe.animating ?? false),
+          modelCamera: r.model?.probe ?? null,
           selection: latest.current.selectedRoomId,
           size: { width: rect.width, height: rect.height },
           floorCorners: latest.current.floor.outline.map((point) =>
@@ -518,7 +569,17 @@ export default function CockpitScene(props: CockpitSceneProps) {
         };
       },
     });
-    controls.addEventListener("change", r.invalidate);
+    const changed = () => {
+      r.model?.orbitChanged();
+      r.invalidate();
+    };
+    const manual = () => r.model?.finish();
+    const motionChanged = () => {
+      if (motion.matches) r.model?.finish();
+    };
+    controls.addEventListener("change", changed);
+    controls.addEventListener("start", manual);
+    motion.addEventListener("change", motionChanged);
 
     const resize = () => {
       const { clientWidth, clientHeight } = element;
@@ -526,7 +587,8 @@ export default function CockpitScene(props: CockpitSceneProps) {
       renderer.setSize(clientWidth, clientHeight);
       camera.aspect = clientWidth / clientHeight;
       camera.updateProjectionMatrix();
-      frameCamera(r, latest.current.floor, latest.current.selectedRoomId);
+      if (r.model) r.model.resize(clientWidth, clientHeight);
+      else frameCamera(r, latest.current.floor, latest.current.selectedRoomId);
       r.invalidate();
     };
     const observer = new ResizeObserver(resize);
@@ -534,6 +596,8 @@ export default function CockpitScene(props: CockpitSceneProps) {
 
     // Tap vs orbit: decided from the whole gesture, never from pointerdown alone.
     const pointers = new Set<number>();
+    const pinchPoints = new Map<number, { x: number; y: number }>();
+    let pinchDistance: number | null = null;
     let gesture: {
       x: number;
       y: number;
@@ -546,6 +610,8 @@ export default function CockpitScene(props: CockpitSceneProps) {
     const down = (event: PointerEvent) => {
       if (!r.visible) return;
       pointers.add(event.pointerId);
+      pinchPoints.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pinchPoints.size > 1) r.model?.finish();
       if (pointers.size === 1) {
         gesture = {
           x: event.clientX,
@@ -558,6 +624,18 @@ export default function CockpitScene(props: CockpitSceneProps) {
       } else if (gesture) gesture.max = Math.max(gesture.max, pointers.size);
     };
     const move = (event: PointerEvent) => {
+      if (pinchPoints.has(event.pointerId))
+        pinchPoints.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+      if (r.visible && r.model && pinchPoints.size === 2) {
+        const [a, b] = [...pinchPoints.values()];
+        const distance = Math.hypot(a!.x - b!.x, a!.y - b!.y);
+        if (pinchDistance && distance > 0)
+          r.model.zoom(pinchDistance / distance);
+        pinchDistance = distance;
+      }
       if (gesture)
         gesture.distance = Math.max(
           gesture.distance,
@@ -566,6 +644,8 @@ export default function CockpitScene(props: CockpitSceneProps) {
     };
     const up = (event: PointerEvent) => {
       pointers.delete(event.pointerId);
+      pinchPoints.delete(event.pointerId);
+      pinchDistance = null;
       if (pointers.size || !gesture) return;
       const kind = classifyGesture({
         dx: event.clientX - gesture.x,
@@ -602,14 +682,25 @@ export default function CockpitScene(props: CockpitSceneProps) {
         latest.current.floor,
       );
       if (roomId) void latest.current.onRoomPress(roomId);
+      else if (r.model) void latest.current.onOverview?.();
     };
     const cancel = (event: PointerEvent) => {
       pointers.delete(event.pointerId);
+      pinchPoints.delete(event.pointerId);
+      pinchDistance = null;
       if (!pointers.size) {
         gesture = null;
         r.stats.endInteraction(performance.now());
       }
     };
+    const wheel = (event: WheelEvent) => {
+      if (!r.model || !r.visible || event.ctrlKey || event.metaKey) return;
+      event.preventDefault();
+      r.model.zoom(
+        Math.exp(Math.max(-100, Math.min(100, event.deltaY)) * 0.002),
+      );
+    };
+    renderer.domElement.addEventListener("wheel", wheel, { passive: false });
     renderer.domElement.addEventListener("pointerdown", down);
     renderer.domElement.addEventListener("pointerup", up);
     renderer.domElement.addEventListener("pointermove", move);
@@ -618,6 +709,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
     const lost = (event: Event) => {
       event.preventDefault();
       r.contextLosses++;
+      r.model?.dispose();
       if (r.frameRequested !== null) cancelAnimationFrame(r.frameRequested);
       r.frameRequested = null;
       void latest.current.onSceneError("context_lost");
@@ -632,18 +724,21 @@ export default function CockpitScene(props: CockpitSceneProps) {
         if (r.frameRequested !== null) cancelAnimationFrame(r.frameRequested);
         r.frameRequested = null;
         pointers.clear();
+        pinchPoints.clear();
+        pinchDistance = null;
+        r.model?.finish();
         gesture = null;
         r.stats.endInteraction(performance.now());
       } else r.invalidate();
     };
     r.syncVisibility = visibility;
     document.addEventListener("visibilitychange", visibility);
-    r.listenersActive = 8;
+    r.listenersActive = 11;
 
     try {
       buildFloor(r, latest.current.floor, latest.current.wallHeight);
       updateMarkers(r, latest.current.floor, latest.current.markers);
-      frameCamera(r, latest.current.floor, latest.current.selectedRoomId);
+      frameScene(r, latest.current.floor, latest.current.selectedRoomId);
       resize();
     } catch {
       void latest.current.onSceneError("init_failed");
@@ -653,6 +748,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
       if (r.frameRequested !== null) cancelAnimationFrame(r.frameRequested);
       r.frameRequested = null;
       r.disposed = true;
+      r.model?.dispose();
       observer.disconnect();
       r.observerDisconnected = true;
       document.removeEventListener("visibilitychange", visibility);
@@ -663,7 +759,10 @@ export default function CockpitScene(props: CockpitSceneProps) {
       renderer.domElement.removeEventListener("pointermove", move);
       renderer.domElement.removeEventListener("pointercancel", cancel);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
-      controls.removeEventListener("change", r.invalidate);
+      renderer.domElement.removeEventListener("wheel", wheel);
+      motion.removeEventListener("change", motionChanged);
+      controls.removeEventListener("start", manual);
+      controls.removeEventListener("change", changed);
       controls.dispose();
       r.controlsDisposed = true;
       r.listenersActive = 0;
@@ -694,7 +793,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
     if (!r || r.builtKey === JSON.stringify([floor, wallHeight])) return;
     buildFloor(r, floor, wallHeight);
     updateMarkers(r, floor, latest.current.markers);
-    frameCamera(r, floor);
+    frameScene(r, floor, null, false, true);
     r.invalidate();
     // Markers/selection have their own effects; a floor change implies both.
   }, [floor, wallHeight]);
@@ -718,8 +817,14 @@ export default function CockpitScene(props: CockpitSceneProps) {
           : (roomColors[room?.kind ?? ""] ?? 0x333846),
       );
     }
-    // Instant framing, no auto-rotation or damping: reduced motion is honored by design.
-    frameCamera(r, latest.current.floor, selectedRoomId);
+    // Orbit stays instant; model transitions run only until their target is reached.
+    frameScene(
+      r,
+      latest.current.floor,
+      selectedRoomId,
+      true,
+      selectedRoomId === null,
+    );
     r.invalidate();
   }, [selectedRoomId, resetKey, floor]);
 
@@ -739,11 +844,42 @@ export default function CockpitScene(props: CockpitSceneProps) {
     <div
       ref={host}
       data-s01-scene
+      data-camera-mode={props.cameraMode ?? "orbit"}
+      tabIndex={
+        props.cameraMode === "model" && props.interactive !== false
+          ? 0
+          : undefined
+      }
+      aria-label={
+        props.cameraMode === "model"
+          ? "House model. Left and right arrows rotate. Escape shows the whole floor."
+          : undefined
+      }
+      onKeyDown={(event) => {
+        const r = runtime.current;
+        if (
+          event.target !== event.currentTarget ||
+          event.defaultPrevented ||
+          !r?.model ||
+          !r.visible
+        )
+          return;
+        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+          event.preventDefault();
+          r.model.rotate(
+            ((event.key === "ArrowLeft" ? -1 : 1) * 5 * Math.PI) / 180,
+          );
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          void latest.current.onOverview?.();
+        }
+      }}
       style={{
         position: "absolute",
         inset: 0,
         overflow: "hidden",
         background: colors.background,
+        outlineOffset: -3,
       }}
     />
   );

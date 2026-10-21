@@ -229,3 +229,50 @@ Home et `/house` proposent la 3D manuelle, avec les mêmes marqueurs/sélection.
 Recette Chrome headless sur export public sample (`.local/ux07/report.json`) : Home 3D → 2D → 3D → House 3D → Home, document caché puis visible, scroll hors champ, perte réelle de contexte WebGL, changement d’étage, 2D/3D, resize, détail de connexion → Back et Retry passent. **6 renderers créés, 5 disposés avant la capture finale, pic de 1 vivant** ; le dernier est détruit à la fermeture du navigateur. Le DOM de l’ancien moteur confirme disposal des contrôles, déconnexion de l’observer, zéro listener et aucun RAF en attente. Les compteurs restent stables pendant les pauses cachée/hors viewport.
 
 Une seconde page force WebGL indisponible : repli 2D, sélection des pièces et cycle **simulé** On/Off restent utilisables. Zéro erreur de page/console et zéro requête externe dans le parcours principal. Aucune connexion au HA du foyer ni service physique. Les 62 tests ciblés (6 suites) couvrent les hosts, scope/attempt, Home, House et la restriction Trial ; type/lint/format passent. Les mesures GPU du Mac et l’acceptation native restent distinctes : aucun défaut 3D activé dans ce lot.
+
+## UX08 — Caméra maquette desktop — 2026-10-21
+
+La caméra maquette est intégrée à Home et au plan complet sur web ≥1024 CSS px.
+`auto` choisit la 3D à cette largeur, la 2D sur compact/natif. Les choix explicites
+2D/3D survivent aux breakpoints et le repli durable UX07 reste prioritaire. Le
+mobile explicite 3D garde orbit ; les APK Trial conservent leur porte 3D fermée.
+
+Un contrôleur unique applique le fit UX06 : élévation fixe, azimut 35° ±40°,
+distance 1–1,25, pan interdit, clavier Gauche/Droite par pas de 5°, roue/pinch
+bornés. Pièce → transition 220 ms ; Échap ou vide → étage entier et orientation
+initiale. Resize et geste manuel interrompent/recalculent la transition. Reduced
+motion applique directement la pose. Les RAF cessent après convergence. Le
+conteneur est nommé, tabulable quand prêt et possède un contour de focus visible.
+
+Chrome **155.0.8059.85 visible**, Mac **Apple M4 / ANGLE Metal**, viewport
+1440×1000, DPR 2, canvas Home 734×260 : plan sample puis plan privé local, **deux
+marqueurs de démo** sur chaque premier étage. Export local déjà préparé, cache
+réutilisé, contexte de test neuf ; ces délais sont ceux de l’ouverture de la vue,
+pas du téléchargement à froid de toute l’application.
+
+| Plan | Clic → vue prête, 3 ouvertures | FPS, 3 interactions de 10 s | Médiane |
+| --- | --- | --- | --- |
+| Sample | 108 / 163 / 166 ms | 57,3 / 58,3 / 57,8 | 57,8 |
+| Privé local | 376 / 97 / 98 ms | 55,1 / 57,8 / 55,1 | 55,1 |
+
+Les deux budgets (≤3 s / ≥30 FPS médianes) passent. Zéro frame supplémentaire
+pendant 2 s au repos. Le gestionnaire de visibilité est exercé par événement
+`visibilitychange` avec propriété `document.hidden` contrôlée : renderer détruit,
+aucune frame pendant 2 s, recréation au retour. **Ce point est une injection de
+visibilité**, pas une mesure de masquage naturel d’onglet : Playwright maintient
+le focus de ses pages. Les timings et FPS, eux, viennent du vrai GPU en fenêtre
+visible. Le test UX07 vérifie séparément route inactive et scroll hors champ.
+
+430/1024/1280/1440 : bornes yaw/zoom, overview même déjà désélectionné, pièce,
+resize pendant transition, choix explicite, caméra compacte et reduced motion
+passent. Le vrai zoom Chrome **200 %** est sélectionné dans Appearance d’un
+profil de test : largeur CSS 1440→720, DPR 2→4, disposition compacte et zéro
+débordement ; retour à 100 % ensuite. Aucun zoom CSS n’est présenté comme cette
+preuve. Rapports/captures dans `.local/ux08/` ; géométrie privée injectée seulement
+dans le profil démo jetable, jamais dans le bundle public. Zéro service physique,
+zéro requête externe, zéro erreur de page/console dans la recette GPU finale.
+
+Tests de contrôleur : transitions terminées, retargeting, annulation manuelle,
+resize conservant yaw/zoom, overview réinitialisant, bornes et reduced motion.
+La régression Home vérifie sélection + choix explicite lors des breakpoints.
+L’acceptation native et la semaine d’usage appartiennent à UX09.

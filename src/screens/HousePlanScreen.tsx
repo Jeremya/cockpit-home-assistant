@@ -90,7 +90,10 @@ function HousePlanContent({
   const navigation =
     useNavigation<NativeStackNavigationProp<Record<string, undefined>>>();
   const spatialView = useSpatialViewState(identity, "house");
-  const view = spatialView.view === "3d" ? "3d" : "2d";
+  const view =
+    spatialView.view === "3d" || (spatialView.view === "auto" && desktop)
+      ? "3d"
+      : "2d";
   const setView = spatialView.choose;
   const [resetKey, setResetKey] = useState(0);
   const profileId = useCockpit((state) => state.profileId);
@@ -406,6 +409,13 @@ function HousePlanContent({
           >
             {buildFeatures.spatial3d && view === "3d" ? (
               <CockpitSceneView
+                cameraMode={desktop ? "model" : "orbit"}
+                onOverview={() => {
+                  if (currentFloor() && current.current.view === "3d") {
+                    setRoomId(null);
+                    setResetKey((value) => value + 1);
+                  }
+                }}
                 failure={spatialView.failure}
                 onFailure={spatialView.fail}
                 onRetry={spatialView.retry}
@@ -440,7 +450,9 @@ function HousePlanContent({
           </View>
           <Text style={planStyles.hint}>
             {view === "3d"
-              ? "Drag to orbit · Pinch to zoom · Tap a room or marker"
+              ? desktop
+                ? "Drag or use arrow keys to rotate · Scroll to zoom · Escape shows the whole floor"
+                : "Drag to orbit · Pinch to zoom · Tap a room or marker"
               : "Select a room to explore. Room and device names are also listed below."}
           </Text>
           {(view === "3d" || room) && (
