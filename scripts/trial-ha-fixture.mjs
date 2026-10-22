@@ -11,6 +11,8 @@ const state = {
   online: true,
   auth: true,
   version: "2026.10.1",
+  // Public test principal; changing it ends sessions like a different HA user.
+  userId: "trial-fixture-user",
   temperature: "21.5",
   ...(powerProof
     ? { powerOn: false, powerObserve: true, powerAccept: true }
@@ -60,7 +62,7 @@ const server = createServer(async (request, response) => {
       if (!(key in state) || typeof value !== typeof state[key])
         throw new Error("Invalid fixture configuration");
     }
-    const reconnect = ["online", "auth", "version"].some(
+    const reconnect = ["online", "auth", "version", "userId"].some(
       (key) => key in update && update[key] !== state[key],
     );
     Object.assign(state, update);
@@ -144,6 +146,15 @@ wss.on("connection", (socket) => {
       socket.send(JSON.stringify({ id: message.id, type: "pong" }));
     else if (message.type === "get_config")
       result({ unit_system: { temperature: "°C" } });
+    else if (message.type === "auth/current_user")
+      result({
+        id: state.userId,
+        name: "Trial user",
+        is_owner: true,
+        is_admin: true,
+        credentials: [],
+        mfa_modules: [],
+      });
     else if (message.type === "config/area_registry/list")
       result([{ area_id: "trial-living", name: "Trial living room" }]);
     else if (message.type === "config/device_registry/list")

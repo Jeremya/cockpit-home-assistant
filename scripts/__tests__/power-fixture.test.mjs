@@ -54,6 +54,11 @@ for (const enabled of [false, true])
           service_data: {},
         };
         await request({ type: "subscribe_entities" });
+        // Web sessions identify their HA user before the first sync.
+        assert.equal(
+          (await request({ type: "auth/current_user" })).result.id,
+          "trial-fixture-user",
+        );
         assert.equal((await request(service)).success, enabled);
         assert.equal(
           (
@@ -84,6 +89,14 @@ for (const enabled of [false, true])
             false,
           );
         }
+        // Like a different HA user, the change ends the current session.
+        const closed = once(socket, "close");
+        const changed = await fetch(`http://127.0.0.1:${port}/_proof/config`, {
+          method: "POST",
+          body: JSON.stringify({ userId: "another-trial-user" }),
+        }).then((response) => response.json());
+        assert.equal(changed.state.userId, "another-trial-user");
+        await closed;
       } finally {
         socket?.terminate();
         child.kill("SIGTERM");
