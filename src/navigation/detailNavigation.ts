@@ -73,3 +73,21 @@ export function focusOriginId(kind: "device" | "reading", key: string) {
 export function focusOriginOf(id: string | null | undefined) {
   return id?.startsWith(originPrefix) && id.length <= 512 ? id : null;
 }
+
+export type EscapeContext = {
+  /** Another handler, such as the focused camera, already used the key. */
+  handled: boolean;
+  inScene: boolean;
+  editing: boolean;
+  /** A cancelable confirmation is pending in the detail. */
+  confirmation: boolean;
+  open: boolean;
+};
+
+/** One Escape, one action: a confirmation first, then the detail. The camera
+ * owns Escape only while the scene itself is focused. */
+export function escapeAction(context: EscapeContext) {
+  if (context.handled || context.inScene || context.editing) return "none";
+  if (context.confirmation) return "cancelConfirmation";
+  return context.open ? "closeDetail" : "none";
+}

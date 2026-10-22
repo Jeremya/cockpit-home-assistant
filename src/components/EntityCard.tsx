@@ -9,6 +9,7 @@ import { kindLabel, primaryValue } from "../core/presentation";
 import { colors } from "./ui";
 import { entityAppearance, Icon } from "./EntityIcon";
 import { assessEntity, needsAttention } from "../core/policy";
+import { focusOriginId } from "../navigation/detailNavigation";
 export const EntityCard = memo(function EntityCard({
   entityId,
   now,
@@ -35,6 +36,8 @@ export const EntityCard = memo(function EntityCard({
   const assessment = assessEntity(entity, ready);
   return (
     <Pressable
+      // One reading can appear in attention and in the grid: each is its own origin.
+      nativeID={focusOriginId("reading", `${layout}:${entity.key}`)}
       accessibilityRole="button"
       accessibilityLabel={`${entity.name}, ${value}${ready ? "" : ", cached"}`}
       accessibilityHint={`Opens observed state and device details. ${assessment.explanation}`}

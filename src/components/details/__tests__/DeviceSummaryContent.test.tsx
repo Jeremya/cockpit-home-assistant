@@ -189,3 +189,30 @@ test("changing the target does not carry the expanded readings to another device
     screen.getByRole("button", { name: "Show all 1 readings" }),
   ).toBeTruthy();
 });
+test("the device name is one focusable heading the panel can move focus to", () => {
+  const screen = render(
+    <DeviceSummaryContent
+      profileId="public-home"
+      deviceId="feeder"
+      width={400}
+    />,
+  );
+  const title = screen.getByTestId("detail-title");
+  expect(title.props.accessibilityRole).toBe("header");
+  expect(title.props.tabIndex).toBe(-1);
+  expect(screen.getAllByTestId("detail-title")).toHaveLength(1);
+  expect(title).toHaveTextContent("Public cat feeder");
+});
+test("before any home is connected the target asks for a connection, not removal", () => {
+  useCockpit.setState({ profileId: null, snapshot: null });
+  const screen = render(
+    <DeviceSummaryContent
+      profileId="public-home"
+      deviceId="feeder"
+      width={400}
+    />,
+  );
+  expect(screen.getByText("Not connected")).toBeTruthy();
+  expect(screen.queryByText("Device unavailable")).toBeNull();
+  expect(screen.getByTestId("detail-title")).toHaveTextContent("Not connected");
+});

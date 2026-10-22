@@ -14,8 +14,9 @@ import {
 } from "../../services/deviceNavigation";
 import { entityAppearance, Icon } from "../EntityIcon";
 import { SwitchControl } from "../controls/SwitchControl";
-import { Body, Button, Label, Panel, Title, colors, styles } from "../ui";
+import { Body, Button, Label, Panel, colors, styles } from "../ui";
 import { detailGap } from "./layout";
+import { DetailMessage, DetailTitle, notConnected } from "./DetailTitle";
 
 export type ReadingDetailContentProps = {
   /** The home the target belongs to; another current home shows nothing of it. */
@@ -38,15 +39,13 @@ export function ReadingDetailContent({
           (item) => item.key === resolved,
         )
       : undefined;
+  if (current === null) return <DetailMessage {...notConnected} />;
   if (!entity || !snapshot)
     return (
-      <View style={{ gap: detailGap }}>
-        <Title>Entity unavailable</Title>
-        <Body>
-          This entity is missing from the current home. Its preferences are kept
-          for reconciliation.
-        </Body>
-      </View>
+      <DetailMessage
+        title="Entity unavailable"
+        body="This entity is missing from the current home. Its preferences are kept for reconciliation."
+      />
     );
   // Raw attributes opened for one target never stay visible for the next.
   return (
@@ -83,7 +82,7 @@ function ReadingBody({
   return (
     <View testID="reading-detail" style={{ gap: detailGap }}>
       <Label>{room ? snapshot.areas[room]?.name : "Unassigned"}</Label>
-      <Title>{entity.name}</Title>
+      <DetailTitle>{entity.name}</DetailTitle>
       {device && (device.manufacturer || device.model) && (
         <Body>
           {[device.manufacturer, device.model].filter(Boolean).join(" · ")}

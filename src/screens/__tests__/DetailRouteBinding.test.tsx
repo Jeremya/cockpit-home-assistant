@@ -33,7 +33,7 @@ test("a reading link naming its home waits for that home and ignores another", (
   mockParams = { key: "reading-6", profile: "home-a" };
   home(null);
   const screen = render(<DeviceDetailScreen />);
-  expect(screen.getByText("Entity unavailable")).toBeTruthy();
+  expect(screen.getByText("Not connected")).toBeTruthy();
   act(() => home("home-b"));
   expect(screen.getByText("Entity unavailable")).toBeTruthy();
   act(() => home("home-a"));
@@ -43,7 +43,7 @@ test("a legacy reading link binds to the first home it is shown in, never a late
   mockParams = { key: "reading-6" };
   home(null);
   const screen = render(<DeviceDetailScreen />);
-  expect(screen.getByText("Entity unavailable")).toBeTruthy();
+  expect(screen.getByText("Not connected")).toBeTruthy();
   act(() => home("home-a"));
   expect(screen.getByText("Vendor battery")).toBeTruthy();
   act(() => home("home-b"));

@@ -143,3 +143,20 @@ test.each([
     expect(router.push).not.toHaveBeenCalled();
   },
 );
+test("the reading name is one focusable heading the panel can move focus to", () => {
+  const screen = render(
+    <ReadingDetailContent profileId="public-home" entityKey="reading-6" />,
+  );
+  const title = screen.getByTestId("detail-title");
+  expect(title.props.accessibilityRole).toBe("header");
+  expect(title.props.tabIndex).toBe(-1);
+  expect(title).toHaveTextContent("Vendor battery");
+});
+test("before any home is connected the reading asks for a connection, not removal", () => {
+  useCockpit.setState({ profileId: null, snapshot: null });
+  const screen = render(
+    <ReadingDetailContent profileId="public-home" entityKey="reading-6" />,
+  );
+  expect(screen.getByText("Not connected")).toBeTruthy();
+  expect(screen.queryByText("Entity unavailable")).toBeNull();
+});

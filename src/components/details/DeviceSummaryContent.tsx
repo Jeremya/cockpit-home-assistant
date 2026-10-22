@@ -12,8 +12,9 @@ import { primaryValue } from "../../core/presentation";
 import type { ReadingDestination } from "../../services/deviceNavigation";
 import { EntityCard } from "../EntityCard";
 import { SwitchControl } from "../controls/SwitchControl";
-import { Body, Button, Label, Panel, Title, colors } from "../ui";
+import { Body, Button, Label, Panel, colors } from "../ui";
 import { detailColumns, detailGap } from "./layout";
+import { DetailMessage, DetailTitle, notConnected } from "./DetailTitle";
 
 export type DeviceSummaryContentProps = {
   profileId: string;
@@ -44,15 +45,13 @@ export function DeviceSummaryContent({
           (group) => group.deviceId === deviceId,
         )
       : undefined;
+  if (current === null) return <DetailMessage {...notConnected} />;
   if (!group || !snapshot)
     return (
-      <View style={{ gap: detailGap }}>
-        <Title>Device unavailable</Title>
-        <Body>
-          This device is no longer visible in the current home. Return to Home
-          to select a device.
-        </Body>
-      </View>
+      <DetailMessage
+        title="Device unavailable"
+        body="This device is no longer visible in the current home. Return to Home to select a device."
+      />
     );
   // The profile-scoped group identity remounts local expansion per target.
   return (
@@ -90,7 +89,7 @@ function SummaryBody({
   return (
     <View testID="device-summary" style={{ gap: detailGap }}>
       <Label>{summary.roomLabel}</Label>
-      <Title>{summary.name}</Title>
+      <DetailTitle>{summary.name}</DetailTitle>
       <Body>
         {[summary.device?.manufacturer, summary.device?.model]
           .filter(Boolean)

@@ -1,6 +1,6 @@
 # Detail panel navigation — URL, history, focus and renderer contract
 
-**Status: decided in B02, 2026-10-22.** Scope: the [B handoff](../handoff/parallel/B-detail-panel.md#b02--prototype-du-contrat-url--historique--focus). The installed router is **expo-router 57.0.28**, with its vendored React Navigation 7 and its own web history fork (`build/fork/useLinking.js`, `createMemoryHistory.js`). Every claim below was checked against that installed source or measured in Chromium on the public sample. The evidence is in the [B validation ledger](../stage0/detail-panel-validation.md#b02--urlhistoryfocus-prototype--2026-10-22).
+**Status: decided in B02; panel behavior added in B03, 2026-10-22.** Scope: the [B handoff](../handoff/parallel/B-detail-panel.md#b02--prototype-du-contrat-url--historique--focus). The installed router is **expo-router 57.0.28**, with its vendored React Navigation 7 and its own web history fork (`build/fork/useLinking.js`, `createMemoryHistory.js`). Every claim below was checked against that installed source or measured in Chromium on the public sample. The evidence is in the [B validation ledger](../stage0/detail-panel-validation.md#b02--urlhistoryfocus-prototype--2026-10-22).
 
 ## Decision
 
@@ -54,7 +54,7 @@ This matches the installed source. `useLinking` only pushes a history entry when
 | Open from a card, reading, parent device or marker | **Push.** A → B from Home is a new entry; Back returns to A, then to the list. Compact and native already behave this way, and every visible URL change is one Back step. |
 | Close | `StackActions.popTo("index")` on the workspace Stack: back to the list in one action, keeping Home's route key, so nothing remounts. Expo's history moves back to the list's entry when it exists. After a direct link it replaces the entry with `/` because its `go()` clamps at the app's first entry. It never calls `window.history.back()`, so it cannot leave the site. |
 | Anchored list after a direct link | The installed `getStateFromPath` gives the anchored `index` route the detail's path params (`{ name: initialRoute, params: route.params }`), so popping produced `/?id=demo-plug`. The workspace clears them once with `CommonActions.replaceParams({})` targeted at that route. Close and the header's back link then both lead to `/`. |
-| Focus | At opening, the workspace records the origin key from the focused control. Back to the list or Close restores focus to that element through `restoreReadingFocus` when it is visible. Otherwise focus goes to the main region; B03 refines this to the list title and adds title focus on opening. |
+| Focus | The workspace records the origin key at opening and restores it on return to the list; see [Panel behavior](#panel-behavior-b03) for title focus and the list-title fallback. |
 | Direct link / new tab | The detail validates against the current home on every render. Before connection it is unavailable; it appears once the named home is connected; another home never shows it. |
 | Legacy reading link | Binds to the first home in which the route is shown, then never re-resolves in another home. Links the app creates always carry `profile`. `/appliance/[id]` always did. |
 | Reload without session | Same as a direct link. The browser keeps the URL, the session is gone, and the target returns only for its own home. |
@@ -72,6 +72,18 @@ The matrix exposed two defects in the installed web history fork. **The first al
 
 A two-hunk patch makes the whole matrix pass: sync the index on `popstate`, and record the keyed root state for the first entry. It is checked in as a fixture, `scripts/fixtures/detail-panel/expo-router-history.patch`, and is **not** applied to `patches/`. `node scripts/check-detail-panel.mjs --with-proposed-router-patch` applies it only to the disposable staging copy. Adopting it, reporting it upstream or choosing another remedy belongs to A, who owns dependencies and patches. Without it, Back to the list still shows the list, but remounts Home and loses the focus return. Close is unaffected because it stays inside the router's own `go()`.
 
-## Left to B03
+## Panel behavior (B03)
 
-The panel's title, named close control, delimited scroll and styling. Focus on opening. Escape order: pending confirmation, then detail, then camera. Card/marker origins beyond device cards. The rail's active item while a detail is open. Home's own layout following its measured column instead of the window. The reduced 1024 px arrangement. Reduced motion. A connection-state message in an unavailable panel. The B02 close button and fallback focus target are prototype affordances, not the B03 design.
+| Concern | Rule |
+| --- | --- |
+| Frame | `DetailPane`: a `region` named “Details” with **Back to previous detail** (only when the panel holds more than one detail) and **Close details**, then one bounded body. It is never `aria-modal` and never traps Tab. The route adapter's ScrollView is the only scroll container. In route presentation the same component renders unframed, so `children` keep their position and nothing remounts when the breakpoint is crossed. |
+| Stack header | Hidden while the workspace is paneled (`headerShown: !paneled`); the panel draws its own Back and Close. Route presentation and native keep the existing headers and titles. |
+| Width | `detailLayout` on the measured workspace. Measured in Chromium: **360 px at 1280, 389 px at 1440, 440 px at 1920**; 1024 and below use route presentation. |
+| Home beside the panel | Home keeps `wide` (default 3D, model camera, plan height) from the desktop breakpoint, so opening the panel never swaps the scene. Its attention/house row follows its **measured** column: side by side from 720 px — what a 1024 px window already gives it — stacked below. In practice: stacked at 1280 with the panel, side by side at 1440 and 1920. |
+| Focus | Each detail the panel shows — opened, drilled into or stepped back to — moves focus to its `detail-title` heading. Returning to the list (Close, Escape, Back) focuses the origin when it is still shown: device card, reading card (`<layout>:<key>`, as one reading can appear in attention and in the grid) or 2D plan marker. Otherwise focus goes to the “Around your home” heading. |
+| Escape | `escapeAction` decides one action. It does nothing when the event is already handled — the focused camera prevents its own Escape — or when typed in the scene or a text field. Otherwise it cancels a pending confirmation first and closes the detail second. `SwitchControl` is frozen, so the panel activates its existing **Cancel permission** control as a user would; this couples to that label and is documented here. |
+| Rail | `railSelected`: a detail shown beside Home keeps **Overview** current; a detail shown as its own page stays under **Devices & rooms**. |
+| Shared panel fact | `workspacePanel` holds `{ paneled, open }` only — no target, observation or command. Only the focused workspace publishes, because a second workspace can sit above `/house`. |
+| Unavailable target | Before any home is connected, the content says **Not connected** instead of claiming removal. Another home still sees “unavailable”. |
+| Commands | The panel's power control and the Home card share the command store. One request from the card shows accepted, then observed, in the panel, and sends one service (Jest, demo backend). |
+| Motion | The panel appears and closes without animation; nothing depends on motion, so reduced-motion settings need no special path. |

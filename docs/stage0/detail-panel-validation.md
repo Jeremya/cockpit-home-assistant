@@ -118,3 +118,58 @@ Not covered in the browser: another real home with identical IDs. The demo has a
 - Native: no build or device run. The new group adds one Stack level on Android. Native screens, titles and Back are expected to be unchanged, and the Jest route/content suites pass, but TalkBack return focus and hardware Back must be re-accepted on A03's candidate.
 - The panel is a prototype: generic Stack header inside the panel, a plain Close control, focus restored only to device cards (reading/marker origins and title focus are B03). Home still lays itself out from the window width, so at 1280 px its desktop arrangement is squeezed into 696 px. B03 makes Home follow its measured column.
 - The router defect is reported to A with this reproducer and patch; adopting a fix is A's decision. Until then, browser Back to the list remounts the tree and loses the focus return, and Forward after it can be ignored. The current app already has the second problem.
+
+## B03 — panel, focus, keyboard and Home beside it — 2026-10-22
+
+Base: B02 `13a0405`. Rules: [Panel behavior](../design/detail-panel-navigation.md#panel-behavior-b03).
+
+### What changed
+
+| Area | Change |
+| --- | --- |
+| `components/details/DetailPane.tsx` (new) | Panel frame: named non-modal region; Back to previous detail when deeper than one; Close details; bounded body. Unframed in route presentation with identical nesting. |
+| `components/details/DetailTitle.tsx` (new) | `DetailTitle` (focusable heading, `testID="detail-title"`, `tabIndex=-1`), `DetailMessage`, `notConnected`. Both contents use them; a target with no connected home says **Not connected**. |
+| `navigation/DetailWorkspace.web.tsx` | Uses `DetailPane` instead of the B02 prototype button. Publishes `{ paneled, open }` when focused. Focuses the title of every shown detail, restores origin focus or falls back to the list title. Global Escape handler driven by `escapeAction`. |
+| `navigation/workspacePanel.ts` (new) | One bounded external store `{ paneled, open }` read by the workspace Stack header and the rail. |
+| `navigation/detailNavigation.ts` | `escapeAction`. |
+| `app/(workspace)/_layout.tsx` | `headerShown: !paneled`. |
+| `components/shellNavigation.ts` (new), `AppShell.web.tsx` | `railSelected`: Overview stays current while a detail is beside Home. |
+| `components/EntityCard.tsx` | Focus-origin id per placement (`reading`, `<layout>:<key>`). |
+| `screens/HomeScreen.tsx` | Attention/house row follows the measured overview width (≥ 720 px); `wide` for the plan stays on the desktop breakpoint. The “Around your home” heading gets `nativeID="home-list-title"`, `tabIndex=-1`. |
+| `scripts/check-detail-panel.mjs` | Five B03 rows, including one with A's public HA fixture launched exactly as `browser-connection-check.mjs` does. |
+
+No change to commands, `SwitchControl`, `CompactPowerAction`, renderer, camera, Home selection, plan model, sessions or credentials.
+
+### Source checks
+
+- New: `workspacePanel` (5: Escape order and no-op cases, bounded store), `DetailPane` (3: region without `aria-modal`, Close, step back, unframed nesting), content titles and **Not connected** (4), `EntityCard` distinct origins (1), Home measured row and list-title target (2), `railSelected` (7), and `PanelCommand` (1). In `PanelCommand`, the Home card sends On, the panel's control shows the same accepted-then-observed request, pressing it while busy sends nothing, and `callService` runs once (demo backend).
+- Each was seen failing before its implementation, except `PanelCommand`, a regression guard over the existing shared command store.
+- The two B02 binding assertions for “no home yet” now expect **Not connected**.
+- Full Jest: **754 tests / 56 suites**. TypeScript, lint, `format:check`; `test:tooling` **23 / 23**.
+
+### Browser checks — `node scripts/check-detail-panel.mjs`
+
+Isolated public sample export. Chromium 156.0.8078.4. Index hash of the staged `src`/`app`/`scripts`, `4df8da66…c08f`, was identical before and after the runs. All B02 rows run again, plus:
+
+| Row | Result (installed router and with patch) |
+| --- | --- |
+| Panel at 1280 / 1440 / 1920: keyboard Enter on the feeder card | Measured panel **360 / 389 / 440 px**. Focus on the `detail-title` heading; rail Overview; no Stack header link in the panel. |
+| Show all → reading; **Back to previous detail** | Title focused at each step; URLs `/device/demo-sensor.feeder_last?profile=demo` then `/appliance/demo-feeder?profile=demo`. |
+| 40 × Tab from the panel | Focus visits the panel and leaves it; `aria-modal="true"` count 0. |
+| Escape from the panel's first button | `/`, panel closed, focus on the origin card, rail Overview. |
+| Escape with the house model focused (1440, default 3D, `model` camera) | Detail stays open at `/appliance/demo-plug?profile=demo`. |
+| Escape with a pending power permission (A's public HA fixture, public token, exact loopback socket) | First Escape removes **Cancel permission** and keeps the detail and URL; second Escape closes. Fixture `serviceCalls` **0**. |
+
+Totals: **12 / 13** rows with the installed router — the only failure is the Back/Back/Forward row from the router defect, at the same step as in B02 — and **13 / 13** with the proposed patch, applied to the staging copy only. Zero page errors and external requests; server, fixture and browser closed. No household HA, credential or physical service.
+
+### Existing public smoke and limits
+
+`node scripts/check-ui.mjs` (A's runner, unmodified) **passes** on the same tree at 320/430/768/1440. Per width it covers three `/house` marker → reading → Back focus cycles plus the named-row return; the browser HA fixture made 2 simulated and 0 physical service calls. Zero page errors and external requests; developer plan unchanged; server and browser closed.
+
+Limits:
+
+- No native build; native keeps route presentation and its headers. TalkBack and hardware Back remain for A03's candidate.
+- The Escape → **Cancel permission** activation couples to that label because `SwitchControl` is frozen. A label change there must update `DetailWorkspace.web.tsx` and the runner row.
+- A 2D plan marker is a supported focus origin, but no browser row opens the panel from a Home marker: the demo has no default placement. Jest covers Home's `onMarker` → `openPlacement` guards, and the smoke covers `/house` markers.
+- Title focus is deferred by one frame. A user who moves focus within that frame can have it taken back once; the runner waits for it.
+- Real 200 % browser zoom, WebGL fallback, fixture reconnection and sample captures are B04.

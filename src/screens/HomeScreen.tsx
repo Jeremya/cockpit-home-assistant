@@ -71,6 +71,10 @@ function HomeContent({
   identity: string;
 }) {
   const { desktop } = useResponsiveLayout();
+  // Beside the detail panel Home gets a column, not the window: put attention
+  // and the house side by side only where the 1024 px desktop already did.
+  const [overviewWidth, setOverviewWidth] = useState<number | null>(null);
+  const sideBySide = desktop && (overviewWidth ?? Infinity) >= 720;
   const { snapshot, status, preferences, mode, initialized } = useCockpit();
   const [refreshing, setRefreshing] = useState(false);
   const { state: viewState, setState: setHomeState } = useHomeView();
@@ -256,7 +260,7 @@ function HomeContent({
       </CardGrid>
     );
   const attentionSection = snapshot && (
-    <Panel style={[home.attention, desktop && home.attentionAside]}>
+    <Panel style={[home.attention, sideBySide && home.attentionAside]}>
       <View style={styles.row}>
         <View style={home.heading}>
           <Icon
@@ -428,10 +432,13 @@ function HomeContent({
         {initialized && (
           <View
             testID="home-overview"
-            style={[home.overview, desktop && home.wideOverview]}
+            onLayout={(event) =>
+              setOverviewWidth(event.nativeEvent.layout.width)
+            }
+            style={[home.overview, sideBySide && home.wideOverview]}
           >
             {attentionSection}
-            <View style={{ flex: desktop ? 1 : undefined, minWidth: 0 }}>
+            <View style={{ flex: sideBySide ? 1 : undefined, minWidth: 0 }}>
               <HomePlanOverview
                 plan={plan}
                 identity={identity}
@@ -466,9 +473,15 @@ function HomeContent({
         {snapshot && (
           <>
             <View style={home.section}>
-              <Text accessibilityRole="header" style={home.title}>
-                Around your home
-              </Text>
+              <View
+                nativeID="home-list-title"
+                accessible
+                accessibilityRole="header"
+                accessibilityLabel="Around your home"
+                tabIndex={-1}
+              >
+                <Text style={home.title}>Around your home</Text>
+              </View>
               <Text style={home.caption}>
                 {deviceCount} {deviceCount === 1 ? "device" : "devices"} ·{" "}
                 {isAll
