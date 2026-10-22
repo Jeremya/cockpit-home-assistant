@@ -28,6 +28,7 @@
     "build:trial:android": "node scripts/build-trial-android.mjs",
     "test:tooling": "node --test scripts/__tests__/*.test.mjs",
     "check:ui": "node scripts/check-ui.mjs",
+    "check:spatial-ui": "node scripts/check-spatial-ui.mjs",
     "check:public-inputs": "node scripts/check-public-inputs.mjs",
     "check:audit": "node scripts/check-audit.mjs",
     "check:audit:strict": "node scripts/check-audit.mjs --strict",

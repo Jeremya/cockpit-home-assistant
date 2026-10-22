@@ -98,3 +98,17 @@ fingerprint records this reviewed interaction, without changing the dependency
 graph, fixture/network boundaries, runtime-map guard, signing/build configuration,
 glob inputs or the 2026-11-02 expiry. Camera/GPU proofs are separate local tests;
 these clicks do not pretend that CI accepts GPU performance.
+
+## Spatial runner review — 2026-10-22
+
+A02 adds `npm run check:spatial-ui` to `package.json` and a headless
+**Public 3D web lifecycle** job to `public-checks.yml`. The fresh audit
+reproduced `reviewed_inputs_changed` with only these two pinned inputs changed,
+the same 56 entries / three root advisories and unchanged upstream latest
+versions. The new runner and its helper module (`scripts/check-spatial-ui.mjs`,
+`scripts/lib/spatial-ui.mjs`) are added to the reviewed files because, like
+`check:ui`, they run an isolated `npm ci` and export. Exposure is unchanged:
+public sample only, loopback preview, external requests rejected, runtime-map
+guard, no credentials, no lockfile, signing, glob or exception change. The
+2026-11-02 expiry and the strict-release gate stay as they are. See the
+[A02 evidence](../stage0/spatial-browser-validation.md).

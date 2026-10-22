@@ -67,6 +67,10 @@ Nouveau `scripts/check-spatial-ui.mjs`, helpers/tests d’outillage propres à c
 
 Runner sur sample propre, avec puis sans WebGL ; échec intentionnel si sélection ou compteur est faux ; nettoyage des processus même en échec. Tests Node ciblés uniquement pour les nouvelles limites d’outillage. Vérifier `git diff` vide dans le checkout public après export. Preuve dans `docs/stage0/spatial-browser-validation.md` (nouveau).
 
+### État — 22 octobre 2026
+
+**Livré** sur `work/acceptance` : `npm run check:spatial-ui` (headless, raccordé à un job CI) et `-- --headed --performance` (Chrome local). Preuve : [spatial-browser-validation.md](../../stage0/spatial-browser-validation.md). Restent ouverts : premier passage du job GitHub (aucun push), et le correctif séparé de l’interruption de `check:ui` (workspace temporaire laissé sur SIGINT, reproduit).
+
 ## A03 — Intégration des deux fonctionnalités
 
 **Priorité P0 avant livraison · taille M · attend B04 + C04 ; A02 doit être disponible.**

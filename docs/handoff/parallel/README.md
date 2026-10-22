@@ -14,7 +14,7 @@
 | Connexion Chrome | Token uniquement en mémoire ; loader `.local` réservé au développement | Le login produit durable reste à faire (D02) |
 | Détails | Deux routes complètes, aucun panneau latéral implémenté | Le reste utile de D03 est le panneau à contenu partagé |
 | Validation source | **692 Jest / 47 suites**, **23 tests Node**, type/lint/format ; smoke public 320/430/768/1440 et fixture navigateur passent | Dernière preuve locale, pas nouvelle CI distante |
-| 3D Chrome | Mac M4 : médianes 57,8 / 55,1 FPS, sample/privé, deux marqueurs ; zoom Chrome 200 % vérifié | Les mesures de masquage utilisent une visibilité injectée ; le rendu GPU est réellement mesuré |
+| 3D Chrome | Mac M4 : médianes 57,8 / 55,1 FPS, sample/privé, deux marqueurs ; zoom Chrome 200 % vérifié | Les mesures de masquage utilisent une visibilité injectée ; le rendu GPU est réellement mesuré. **A02 :** rejouable via `npm run check:spatial-ui` (CI headless) et `-- --headed --performance` (Mac) |
 | Android | Trial **1010 construit**, source propre `e52ac06`, sample, 3D désactivée | **Pas installé/accepté dans cette passe** ; A01 doit terminer cette recette |
 | Terrain | Ancien cycle de lampe accepté sur Pixel 1009 ; sept jours non observés | Ne pas réutiliser l’ancien consentement ni déclarer M05 terminé |
 

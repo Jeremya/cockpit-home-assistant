@@ -11,6 +11,7 @@ npm ci --include=dev
 npx --no-install playwright install chromium
 npm run test:tooling
 npm run check:ui
+npm run check:spatial-ui
 ```
 
 On a Linux machine without Chromium's system dependencies, use `npx --no-install playwright install --with-deps chromium`. Playwright is pinned in development dependencies and selects its matching browser. A system Chrome installation or Python helper is not required.
@@ -24,6 +25,12 @@ The runner checks widths **320/430/768/1440**, Home → plan → Back, all sampl
 The first smoke exposed missing web `aria-selected` on Home's room tabs. The native selected state remains, and the explicit ARIA attribute now matches the existing floor tabs. The browser assertion protects this behavior. This source change is newer than the accepted R03a APK; no phone was rebuilt or revalidated by F02/R02.
 
 D01 additionally checks wide navigation/active links, first-Tab skip-to-content, preserved room selection across 1024/1280/1920/800 resizing and actual card columns. The closed fixture checks memory-only tokens, default-denied enrollment, two simulated requests, recovery without replay, reload/reconnect with saved grants, and browser Forget cancel/confirm. See [desktop architecture](desktop.md).
+
+## 3D web lifecycle runner (A02)
+
+`check:spatial-ui` reuses the same isolated staging, install, sample export, provenance and runtime-map checks, then exercises the web 3D view headless: default model camera at 1024/1440 and 2D at 1023, scene-scoped keyboard, yaw/zoom bounds, overview, unlinked-room selection, resize, reduced motion, projected marker → detail, inactive route, out-of-viewport suspension, injected document visibility, explicit 2D/3D choice, real WebGL context loss with Retry, and a WebGL-absent fallback. Two public demo markers are written into an isolated context's schema-3 preferences; the sample plan and exact markers are asserted before measuring. Renderer counters must never show two live renderers. Only Three.js context-loss messages emitted during the provoked loss are tolerated; Chromium GL driver performance notices are counted separately; any other console error/warning or page error fails.
+
+`-- --headed --performance` is local only: installed Chrome, named hardware GPU, three openings ≤3 s, 3×10 s drag with median ≥30 FPS, zero idle frames, and Chrome's real 200% zoom from a disposable profile preference. It writes `artifacts/spatial-ui/` only (report plus at most five named PNGs, 10 MiB budget). Results: [A02 evidence](../stage0/spatial-browser-validation.md).
 
 ## Artifacts and cleanup
 
@@ -41,6 +48,7 @@ Browsers and the preview server close on success or failure. Temporary workspace
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tests, protocol and Android JS | Fresh `npm ci`, public input guards, typecheck, lint, formatting, Jest, tooling tests, decoder proof, loopback HA proof, Android Hermes/DOM export, repeated public provenance check and unchanged tracked files |
 | Public UI mobile + desktop      | Fresh install, public guard, matching Chromium installation, isolated sample export/browser smoke and bounded public capture upload                                                                              |
+| Public 3D web lifecycle (headless) | Fresh install, public guard, matching Chromium, isolated sample export and `check:spatial-ui` with software WebGL; uploads its report and three named captures. Not a GPU performance check                   |
 
 `check:public-inputs` is deliberately for a clean public checkout. It rejects tracked secret/generated/native-binary paths, requires each private/generated/artifact path to be ignored, refuses private local inputs and checks that the prepared plan equals the sample. Running it in a private developer checkout should fail; use the isolated `check:ui` there. GitHub checks never need `.env.local`, a token, a reference image or local helpers.
 
