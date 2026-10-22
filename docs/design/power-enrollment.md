@@ -10,6 +10,15 @@ Home → device summary exposes the unique primary switch directly: its reported
 
 A verified Kasa offers **Allow power control**, a cancelable review naming the device, then **Allow this device**. The review explains that the connected load must be safe to switch and that granting permission sends no request. **Revoke power control** is also available offline. Revoking blocks future requests; an already-sent request may still take effect.
 
+**Amendment — D02 browser principal (web only), 2026-10-22:** accepted by the integrator from the [browser sign-in contract](browser-auth.md#5-identity-and-power-permissions); implemented by C03, not before. Browser sign-in makes the Home Assistant user explicit, so on web a grant is usable only under the HA user it was made with:
+
+- Grants stay in preferences schema 3, bound to the `ha:<normalized origin>` profile as above. A separate, non-secret web record `maurice.grantPrincipals.v1` maps each profile to its principal `base64url(SHA-256(hassUrl + "\n" + userId))`; the raw user id is not stored. Schema 3 is unchanged.
+- Every web session, browser sign-in **and** manual token, reads `auth/current_user` before its first synchronization. Failure is a terminal authentication error, not an anonymous session.
+- An unknown previous principal (for example grants made before C03) or a different one revokes **all** grants of that profile through the existing revocation path: prepared targets and unsent work are invalidated first, then the principal is recorded. Plan, favorites, placements, links and visibility are kept. Commands stay unavailable until the principal write succeeds. A crash between the two writes may only cause a second, idempotent revocation; grants are never usable under an unknown principal. The user sees a notice that names the reset.
+- Signing in, refreshing a token or signing out never creates a grant; there is no grant import between clients or users. Revocation stays available offline and in every session.
+- Until C03, browser sign-in sessions refuse `allowSwitch` and `setSwitch` (`not_authorized`) and neither use nor modify stored grants.
+- **Native is unchanged** and keeps per-profile grants without a principal. Known limit: another HA user's token entered on the same phone inherits that phone's grants for the same origin.
+
 ## Stored permission and migration
 
 `PreferencesFile` is now schema **3**, still under the existing `prefs` key. Ordered v1 → v2 → v3 migration preserves every profile, spatial plan, unresolved reference and ordinary preference. The v2 → v3 step initializes `switchEnrollments` to `{}` even if old data contains an undeclared field with that name. Existing households are never automatically enabled.
