@@ -4,7 +4,15 @@ import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
@@ -22,8 +30,13 @@ const output = join(root, "artifacts/detail-panel");
 const routerPatch = process.argv.includes("--with-proposed-router-patch")
   ? join(root, "scripts/fixtures/detail-panel/expo-router-history.patch")
   : null;
+// Public sample captures only, allowlisted and size-bounded like the UI smoke.
+const pictures = [430, 1024, 1280, 1440, "zoom200"].map(
+  (name) => `panel-${name}.png`,
+);
 const controller = new AbortController();
-let browser, server, temporary;
+let browser, server, temporary, workspace, env;
+const fixtures = new Set();
 let stage = "prepare";
 const report = {
   schema: 1,
@@ -42,11 +55,15 @@ const stop = () => {
 };
 process.once("SIGINT", stop);
 process.once("SIGTERM", stop);
-const deadline = setTimeout(stop, 12 * 60_000);
+const deadline = setTimeout(stop, 20 * 60_000);
 
-async function open(width) {
-  const context = await browser.newContext({
-    viewport: { width, height: 932 },
+async function open(
+  width,
+  { height = 932, scale = 1, sockets = [], using = browser } = {},
+) {
+  const context = await using.newContext({
+    viewport: { width, height },
+    deviceScaleFactor: scale,
     serviceWorkers: "block",
   });
   await context.route("**/*", (route) => {
@@ -55,7 +72,9 @@ async function open(width) {
     report.externalRequests++;
     return route.abort();
   });
+  // Only an explicitly started public fixture socket may connect.
   await context.routeWebSocket("**/*", (socket) => {
+    if (sockets.includes(socket.url())) return socket.connectToServer();
     report.externalRequests++;
     socket.close();
   });
@@ -76,6 +95,66 @@ async function demo(page, path = "/") {
     .getByText("Maurice · demo home", { exact: true })
     .first()
     .waitFor();
+}
+// A's closed public HA fixture, launched exactly as browser-connection-check does.
+async function startFixture() {
+  const child = spawn(
+    process.execPath,
+    ["scripts/trial-ha-fixture.mjs", "0", "--power-proof"],
+    { cwd: workspace, env, stdio: ["ignore", "pipe", "pipe"] },
+  );
+  fixtures.add(child);
+  const [bytes] = await once(child.stdout, "data", {
+    signal: AbortSignal.timeout(15_000),
+  });
+  const { port, fixtureOnly } = JSON.parse(String(bytes));
+  assert.equal(fixtureOnly, true);
+  const origin = `http://127.0.0.1:${port}`;
+  return {
+    origin,
+    socket: `ws://127.0.0.1:${port}/api/websocket`,
+    serviceCalls: async () =>
+      (await (await fetch(origin + "/_proof/status")).json()).counters
+        .serviceCalls,
+  };
+}
+async function stopFixtures() {
+  for (const child of fixtures) {
+    child.kill("SIGTERM");
+    await once(child, "exit").catch(() => {});
+    fixtures.delete(child);
+  }
+}
+async function connectFixture(page, fixture) {
+  if (page.url() === "about:blank")
+    await page.goto(server.origin + "/settings", { waitUntil: "networkidle" });
+  else
+    await page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("link", { name: "Connection", exact: true })
+      .click();
+  await page
+    .getByLabel("Home Assistant URL", { exact: true })
+    .fill(fixture.origin);
+  await page
+    .getByLabel("Access token", { exact: true })
+    .fill("maurice-trial-proof");
+  await page
+    .getByRole("switch", { name: "Trust local HTTP network", exact: true })
+    .check();
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page
+    .getByText("Synced with HA", { exact: true })
+    .filter({ visible: true })
+    .waitFor();
+}
+async function noOverflow(page) {
+  assert(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+    "Page must fit the viewport",
+  );
 }
 // Every observation waits for two frames so layout, focus and counters settle.
 async function observe(page) {
@@ -143,12 +222,16 @@ report.panelWidths = {};
 
 try {
   await mkdir(output, { recursive: true });
+  for (const file of pictures)
+    await unlink(join(output, file)).catch((error) => {
+      if (error.code !== "ENOENT") throw error;
+    });
   temporary = await mkdtemp(join(tmpdir(), "maurice-detail-panel-"));
-  const workspace = join(temporary, "project");
+  workspace = join(temporary, "project");
   const cache = join(temporary, "cache");
   await mkdir(cache);
   await copyPublicSource(root, workspace);
-  const env = publicEnvironment(process.env, cache);
+  env = publicEnvironment(process.env, cache);
   const options = { cwd: workspace, env, signal: controller.signal };
   stage = "install";
   await run("npm", ["ci", "--include=dev", "--no-audit", "--no-fund"], options);
@@ -542,69 +625,13 @@ try {
     "Escape with a pending power permission (public HA fixture)",
     "First Escape cancels the confirmation and keeps the detail; the second closes it; no service is sent",
     async (step) => {
-      const fixture = spawn(
-        process.execPath,
-        ["scripts/trial-ha-fixture.mjs", "0", "--power-proof"],
-        { cwd: workspace, env, stdio: ["ignore", "pipe", "pipe"] },
-      );
-      let context;
+      const fixture = await startFixture();
+      const { context, page } = await open(1440, {
+        height: 1000,
+        sockets: [fixture.socket],
+      });
       try {
-        const [bytes] = await once(fixture.stdout, "data", {
-          signal: AbortSignal.timeout(15_000),
-        });
-        const { port, fixtureOnly } = JSON.parse(String(bytes));
-        assert.equal(fixtureOnly, true);
-        const fixtureOrigin = `http://127.0.0.1:${port}`;
-        const fixtureSocket = `ws://127.0.0.1:${port}/api/websocket`;
-        context = await browser.newContext({
-          viewport: { width: 1440, height: 1000 },
-          serviceWorkers: "block",
-        });
-        await context.route("**/*", (route) => {
-          if (new URL(route.request().url()).origin === server.origin)
-            return route.continue();
-          report.externalRequests++;
-          return route.abort();
-        });
-        await context.routeWebSocket("**/*", (socket) => {
-          if (socket.url() === fixtureSocket) socket.connectToServer();
-          else {
-            report.externalRequests++;
-            socket.close();
-          }
-        });
-        const page = await context.newPage();
-        page.setDefaultTimeout(10_000);
-        page.on("pageerror", (error) => {
-          if (report.pageErrors.length < 10)
-            report.pageErrors.push(error.message.slice(0, 500));
-        });
-        await page.goto(server.origin + "/settings", {
-          waitUntil: "networkidle",
-        });
-        await page
-          .getByLabel("Home Assistant URL", { exact: true })
-          .fill(fixtureOrigin);
-        await page
-          .getByLabel("Access token", { exact: true })
-          .fill("maurice-trial-proof");
-        await page
-          .getByRole("switch", {
-            name: "Trust local HTTP network",
-            exact: true,
-          })
-          .check();
-        await page
-          .getByRole("button", { name: "Connect", exact: true })
-          .click();
-        await page
-          .getByText("Synced with HA", { exact: true })
-          .filter({ visible: true })
-          .waitFor();
-        await page
-          .getByRole("navigation", { name: "Main navigation" })
-          .getByRole("link", { name: "Overview", exact: true })
-          .click();
+        await connectFixture(page, fixture);
         await card(page, "Trial plug").click();
         const panel = page.getByTestId("detail-panel");
         await panel
@@ -633,15 +660,198 @@ try {
           assert.equal(s.path, "/");
           assert.equal(s.panel, 0);
         });
-        const status = await (
-          await fetch(fixtureOrigin + "/_proof/status")
-        ).json();
-        report.fixtureServiceCalls = status.counters.serviceCalls;
-        assert.equal(status.counters.serviceCalls, 0, "No service may be sent");
+        report.fixtureServiceCalls = await fixture.serviceCalls();
+        assert.equal(report.fixtureServiceCalls, 0, "No service may be sent");
       } finally {
-        await context?.close();
-        fixture.kill("SIGTERM");
-        await once(fixture, "exit").catch(() => {});
+        await context.close();
+        await stopFixtures();
+      }
+    },
+  );
+  report.recette = {};
+  for (const width of [430, 1024, 1280, 1440])
+    await row(
+      `Recette at ${width} px with the mouse`,
+      width >= 1280
+        ? "Panel beside Home, no overflow, 48 px power targets inside the panel"
+        : "Route presentation, no overflow, 48 px power targets",
+      async (step) => {
+        const { context, page } = await open(width);
+        try {
+          await demo(page);
+          await card(page, "Living room lamp").click();
+          await page.getByTestId("device-summary").waitFor();
+          await step("lamp", page, (s) => {
+            assert.equal(s.path, lampPath);
+            assert.equal(s.panel, width >= 1280 ? 1 : 0);
+            assert.equal(s.visibleHomes, width >= 1280 ? 1 : 0);
+            assert.equal(s.summary, 1);
+          });
+          await noOverflow(page);
+          for (const name of [
+            "Turn Living room lamp on",
+            "Turn Living room lamp off",
+          ]) {
+            const target = page
+              .getByTestId("device-summary")
+              .getByRole("button", { name, exact: true });
+            await target.scrollIntoViewIfNeeded();
+            const box = await target.boundingBox();
+            assert(
+              box.width >= 48 &&
+                box.height >= 48 &&
+                box.x >= 0 &&
+                box.x + box.width <= width + 1,
+              `${name} must fit and be at least 48 px`,
+            );
+          }
+          report.recette[width] = {
+            presentation: width >= 1280 ? "panel" : "route",
+            panelWidth: width >= 1280 ? await panelWidth(page) : null,
+          };
+          await page.screenshot({ path: join(output, `panel-${width}.png`) });
+        } finally {
+          await context.close();
+        }
+      },
+    );
+  await row(
+    "200 % zoom, emulated as a 720 px viewport at device scale 2",
+    "The 1440 px window at 200 % uses route presentation without overflow",
+    async (step) => {
+      const { context, page } = await open(720, { height: 466, scale: 2 });
+      try {
+        await demo(page);
+        await card(page, "Living room lamp").click();
+        await page.getByTestId("device-summary").waitFor();
+        await step("lamp", page, (s) => {
+          assert.equal(s.path, lampPath);
+          assert.equal(s.panel, 0);
+          assert.equal(s.summary, 1);
+        });
+        await noOverflow(page);
+        await page.screenshot({ path: join(output, "panel-zoom200.png") });
+        await page.goBack();
+        await step("Back", page, (s) => {
+          assert.equal(s.path, "/");
+          assert.equal(s.visibleHomes, 1);
+        });
+      } finally {
+        await context.close();
+      }
+    },
+  );
+  await row(
+    "WebGL unavailable",
+    "The durable 2D fallback stays through opening and closing the panel; no renderer",
+    async (step) => {
+      const noWebGl = await chromium.launch({
+        headless: true,
+        args: ["--disable-webgl", "--disable-3d-apis"],
+      });
+      try {
+        const { page } = await open(1440, { using: noWebGl });
+        await demo(page);
+        const fallback = page
+          .getByText("3D view unavailable", { exact: true })
+          .filter({ visible: true });
+        await fallback.waitFor({ timeout: 15_000 });
+        await card(page, "Living room lamp").click();
+        await step("panel open", page, (s) => {
+          assert.equal(s.panel, 1);
+          assert.equal(s.renderers?.live ?? 0, 0);
+        });
+        assert.equal(await fallback.count(), 1);
+        await page.keyboard.press("Escape");
+        await step("closed", page, (s) => {
+          assert.equal(s.path, "/");
+          assert.equal(s.renderers?.live ?? 0, 0);
+        });
+        assert.equal(await fallback.count(), 1);
+      } finally {
+        await noWebGl.close();
+      }
+    },
+  );
+  await row(
+    "Reload, then reconnect the same fixture home",
+    "Not connected after reload; after reconnecting, Back returns to the same target, shown again; no service",
+    async (step) => {
+      const fixture = await startFixture();
+      const { context, page } = await open(1440, { sockets: [fixture.socket] });
+      try {
+        await connectFixture(page, fixture);
+        await card(page, "Trial plug").click();
+        await page.getByTestId("device-summary").waitFor();
+        const detailPath = await page.evaluate(
+          () => location.pathname + location.search,
+        );
+        await page.reload({ waitUntil: "networkidle" });
+        await step("reloaded", page, (s) => {
+          assert.equal(s.path, detailPath);
+          assert.equal(s.panel, 1);
+          assert.equal(s.summary, 0);
+        });
+        assert.equal(
+          await page
+            .getByTestId("detail-panel")
+            .getByText("Not connected", { exact: true })
+            .count(),
+          1,
+        );
+        await connectFixture(page, fixture);
+        await page.goBack();
+        await page.getByTestId("device-summary").waitFor();
+        await step("reconnected, Back", page, (s) => {
+          assert.equal(s.path, detailPath);
+          assert.equal(s.summary, 1);
+        });
+        assert.equal(await fixture.serviceCalls(), 0);
+      } finally {
+        await context.close();
+        await stopFixtures();
+      }
+    },
+  );
+  await row(
+    "Two homes with identical entity IDs",
+    "A detail of home A never shows or operates home B's identical device",
+    async (step) => {
+      const homeA = await startFixture();
+      const homeB = await startFixture();
+      const { context, page } = await open(1440, {
+        sockets: [homeA.socket, homeB.socket],
+      });
+      try {
+        await connectFixture(page, homeA);
+        await card(page, "Trial plug").click();
+        await page.getByTestId("device-summary").waitFor();
+        const detailA = await page.evaluate(
+          () => location.pathname + location.search,
+        );
+        await connectFixture(page, homeB);
+        // Settings replaces itself with "/": record the instances it leaves.
+        await step("home B", page, (s) => assert.equal(s.path, "/"));
+        await page.goBack();
+        await step("home A's detail while B is connected", page, (s) => {
+          assert.equal(s.path, detailA);
+          assert.equal(s.panel, 1);
+          assert.equal(s.summary, 0);
+        });
+        const panel = page.getByTestId("detail-panel");
+        assert.equal(
+          await panel.getByText("Device unavailable", { exact: true }).count(),
+          1,
+        );
+        assert.equal(
+          await panel.getByRole("button", { name: /^Turn Trial plug/ }).count(),
+          0,
+        );
+        assert.equal(await homeA.serviceCalls(), 0);
+        assert.equal(await homeB.serviceCalls(), 0);
+      } finally {
+        await context.close();
+        await stopFixtures();
       }
     },
   );
@@ -661,9 +871,28 @@ try {
   clearTimeout(deadline);
   process.removeListener("SIGINT", stop);
   process.removeListener("SIGTERM", stop);
+  await stopFixtures();
   await browser?.close();
   await server?.close();
   if (temporary) await rm(temporary, { recursive: true, force: true });
+  report.artifacts = [];
+  let bytes = 0;
+  for (const file of pictures) {
+    try {
+      const size = (await stat(join(output, file))).size;
+      bytes += size;
+      report.artifacts.push({ file, bytes: size });
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+  if (bytes > 10 * 1024 * 1024) {
+    for (const { file } of report.artifacts) await unlink(join(output, file));
+    report.artifacts = [];
+    report.result = "failed";
+    report.failure = "Capture budget exceeded; captures removed";
+    process.exitCode = 1;
+  }
   try {
     report.revision = execFileSync("git", ["rev-parse", "HEAD"], {
       encoding: "utf8",

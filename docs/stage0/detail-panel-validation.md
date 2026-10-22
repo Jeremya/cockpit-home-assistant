@@ -173,3 +173,55 @@ Limits:
 - A 2D plan marker is a supported focus origin, but no browser row opens the panel from a Home marker: the demo has no default placement. Jest covers Home's `onMarker` → `openPlacement` guards, and the smoke covers `/house` markers.
 - Title focus is deferred by one frame. A user who moves focus within that frame can have it taken back once; the runner waits for it.
 - Real 200 % browser zoom, WebGL fallback, fixture reconnection and sample captures are B04.
+
+## B04 — recette and handover to A — 2026-10-22
+
+Base: B03 `be9af00`. B04 changes only `scripts/check-detail-panel.mjs`; application source is identical to B03.
+
+### Runner additions
+
+- Recette at **430 / 1024 / 1280 / 1440** with the mouse: presentation route / route / panel / panel. No horizontal overflow. Both power targets are at least 48 px and inside the viewport. Measured panel 360 px at 1280 and 389 px at 1440.
+- **200 % zoom, emulated** as a 720 × 466 CSS-px viewport at device scale 2, which is what a 1440 × 932 window at 200 % gives. Route presentation, no overflow, Back to Home. This is not Chrome's own zoom control; real zoom in the dedicated test profile stays a manual check.
+- **WebGL unavailable** in a separate Chromium with `--disable-webgl --disable-3d-apis`. The “3D view unavailable” fallback stays visible before, during and after the panel; live renderers 0; Escape closes.
+- **Reload and reconnect** on A's public HA fixture. After reload, the panel keeps the URL and says **Not connected**. After reconnecting through Connection, the app lands on `/`, and Back returns to the same target, shown again. Fixture services 0.
+- **Two homes with identical entity IDs**: two fixture instances on distinct loopback ports, so two profiles. Home A's Trial plug detail, revisited while B is connected, says **Device unavailable** and offers no Trial plug power control. Services 0 on both.
+- Fixture helpers launch `scripts/trial-ha-fixture.mjs 0 --power-proof` from the staging copy, exactly as `browser-connection-check.mjs` does, and allow only that exact loopback socket. Fixtures and browsers close in `finally`.
+- Sample captures `panel-{430,1024,1280,1440,zoom200}.png` go to ignored `artifacts/detail-panel/`. They are allowlisted, cleared before each run, and capped at 10 MB together.
+
+### B04 results
+
+Isolated public sample export, Chromium 156.0.8078.4. Staged `src`/`app`/`scripts` index hash `446604d9…5728`, identical before and after both runs.
+
+- **20 / 21 rows** with the installed router. The only failure is the Back/Back/Forward row: the pre-existing router defect, failing at the same step as in B02 and B03.
+- **21 / 21 rows** with the proposed patch, applied to the staging copy only (`08e84113…`).
+- Measured panel: 360 px at 1280, 389 px at 1440 and 440 px at 1920.
+- Zero page errors and zero external requests. Fixture service calls: 0.
+- Sample captures: 430 → 48.7 kB, 1024 → 71.3 kB, 1280 → 135.5 kB, 1440 → 162.7 kB, 200 % → 55.0 kB.
+- Server, fixtures and browsers closed.
+- Application source is unchanged since B03, so B03's passing public smoke and Jest results (**754 / 56**) still apply. `test:tooling` passes again: **23 / 23**.
+
+### Exact API and contract changes, B01–B04
+
+| Kind | Change |
+| --- | --- |
+| Routes | `app/index.tsx`, `app/appliance/[id].tsx`, `app/device/[key].tsx` move to `app/(workspace)/`; URLs unchanged. New `app/(workspace)/_layout.tsx` (`initialRouteName: "index"`, `layout = DetailWorkspace`, `headerShown: !paneled`). The root Stack declares `(workspace)` instead of `index`, `device/[key]` and `appliance/[id]`. |
+| Links | `/device/<key>` gains `?profile=<p>` in every link the app creates. Legacy links bind to the first home shown. `/appliance/<id>?profile=<p>` is unchanged. |
+| `services/deviceNavigation.ts` | `openDeviceSummary(profile, id, open?)`, `openReading(profile, key, open?)`: optional opener after the same validation. New types `DeviceDestination`, `ReadingDestination`. |
+| Components | New `DeviceSummaryContent`, `ReadingDetailContent`, `DetailPane`, `DetailTitle`, `DetailMessage`, `notConnected`, `detailColumns`, `detailGap`. `EntityCard` gains `onOpenReading?` and a focus-origin `nativeID`; `DeviceSummaryCard` gains a focus-origin `nativeID`. |
+| Navigation | New `navigation/detailNavigation.ts`: `DetailTarget`, `detailHref`, `detailTargetFromRoute`, `detailLayout`, `focusOriginId`, `focusOriginOf`, `EscapeContext`, `escapeAction`. New `navigation/workspacePanel.ts`: `publishWorkspacePanel`, `useWorkspacePanel`. New `navigation/DetailWorkspace(.web).tsx` with `useHomeInWorkspace`. New `components/shellNavigation.ts` `railSelected`. |
+| Screens | `DeviceSummaryScreen` and `DeviceDetailScreen` become route adapters; the reading adapter accepts `profile`. `HomeScreen` arranges by measured overview width and exposes `home-list-title`. `AppShell.web` uses `railSelected`. |
+| Test IDs | `device-summary` moves from the ScrollView to the content root. New: `device-summary-columns`, `reading-detail`, `detail-title`, `detail-panel`. |
+| Scripts | New `scripts/check-detail-panel.mjs [--with-proposed-router-patch]` and `scripts/fixtures/detail-panel/expo-router-history.patch`. `package.json`, workflows, `check-ui.mjs`, `browser-connection-check.mjs` and `trial-ha-fixture.mjs` are unchanged. |
+
+Unchanged and not depended on beyond their public behavior: commands, `SwitchControl`, `CompactPowerAction`, renderer, camera, Home selection, plan model, sessions, credentials and `SettingsScreen`.
+
+### Handover to A (integration owner)
+
+1. **Wiring**: add `check:detail-panel` → `node scripts/check-detail-panel.mjs` to `package.json`/CI if wanted. Review the public-input fingerprints for the new script and fixture patch.
+2. **Router defect**: decide on `scripts/fixtures/detail-panel/expo-router-history.patch` (adopt it in `patches/`, report it upstream, or choose another remedy). The installed router fails one row of `check-detail-panel` (Back/Back/Forward), and the same sequence fails on today's flat app. With the patch the runner passes in full.
+3. **A02 spatial runner** (`2d6a8e3`, stage `marker-detail` at 1440 px) expects a marker's detail to release the scene (`noScene`). With the workspace, a detail opened from Home at 1280 px and above appears in the panel, while Home and its single scene stay. That is the B contract: “la maison reste visible sur desktop”. Proposed adjustment:
+   - At 1440, expect `detail-panel` visible, one live renderer, and Escape/Close back to Home with no new renderer (with the patch).
+   - Keep the `noScene` assertion for 1024, where the detail uses route presentation.
+4. **C's callback route**: once C02 is merged, add `<Stack.Screen name="auth-callback" options={{ headerShown: false }} />` to `app/_layout.tsx` (C's request; not added on this branch because the route does not exist here).
+5. **Observed, not changed (C owns `SettingsScreen`)**: after connecting, Settings calls `router.replace("/")`. Coming from a detail, it replaces `/settings` with a second `(workspace)` instance, which means a second Home, hidden under the first. The flat app before B did the same with a second `index`. `router.dismissTo("/")` would return to the existing workspace instead; that is C's choice.
+6. **Native**: A03's candidate must re-accept TalkBack return focus and hardware Back with the new nested Stack level. Native keeps route presentation; no panel code runs there.
