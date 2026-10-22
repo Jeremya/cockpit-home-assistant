@@ -1,5 +1,7 @@
 # D01 — Chrome desktop with shared application code
 
+**Reading note — 2026-10-22:** this document records D01 and the manual-token mode. Shared Home/selection and the measured desktop model camera have since shipped locally through UX08; follow the [current parallel handoff](../handoff/parallel/README.md) for execution. The detail panel and persistent OAuth sign-in remain future B/C work. The historical “Next work” list below is not the current task queue.
+
 The user selected Chrome desktop on 2026-10-19. D01 extends the existing Expo/React Native Web app. Routes, screens, device cards, observations, preferences, plan geometry, HA transport, command tracking and power enrollment stay shared with Android. There is one SessionManager per running client; this does not synchronize phone and browser storage.
 
 ## Layout and navigation

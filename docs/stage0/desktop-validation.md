@@ -276,3 +276,28 @@ Tests de contrôleur : transitions terminées, retargeting, annulation manuelle,
 resize conservant yaw/zoom, overview réinitialisant, bornes et reduced motion.
 La régression Home vérifie sélection + choix explicite lors des breakpoints.
 L’acceptation native et la semaine d’usage appartiennent à UX09.
+
+### Checkpoint final et relais — 22 octobre 2026
+
+Le code UX08 est commité en **`e52ac06`**. Vérifications locales finales : **692
+Jest / 47 suites**, **23 tests d’outillage**, TypeScript/lint/format passent.
+Le smoke public sur cette source propre passe à 320/430/768/1440, avec fixture
+HA navigateur, contrôle de dépendances du bundle web, zéro requête externe et
+zéro service physique ; le plan développeur est inchangé. La recette sélectionne
+explicitement 2D pour ses parcours SVG, y compris après son reload de persistance.
+L’audit frais passe **avec les trois exceptions existantes**, expiration inchangée
+au 2 novembre. La recette UX07 sur le défaut 3D final mesure un pic de 1 renderer
+vivant (7 créations, 6 destructions avant fermeture), fallback/retry/sélection et
+cycle simulé utilisables.
+
+**Trial 1010 est construit, pas installé/accepté dans cette passe.** Source propre
+`e52ac067242959a89b5321cfae7b57b8eba7b8a3`, plan sample, arm64,
+3D désactivée, power default-denied après enrollment explicite. Le builder a
+vérifié release non debuggable, bundle embarqué, absence du dev launcher et backup
+désactivé. APK SHA-256 :
+`007c552b9f854ae5defc8df9ced9c6ff20d65cdeb66cd7f29cbdc7e7a8832fb4`.
+Le préflight Seeker Android 16/Trial 1007 a retrouvé une session HA ready, sans
+service physique. Le manifeste/baseline sont locaux ; la recette restante passe
+à [l’agent A](../handoff/parallel/A-validation.md). Le [nouveau backlog parallèle](../handoff/parallel/README.md)
+distingue cette recette, le panneau de détail et l’auth web. Aucun push, nouvelle
+CI distante, nouvelle écoute TalkBack ni sept jours d’usage ne sont attestés ici.

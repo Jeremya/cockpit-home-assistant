@@ -1,5 +1,7 @@
 # Prochaines étapes — une interface Maurice commune
 
+**Suite opérationnelle — 22 octobre : [backlog pour 2 ou 3 agents Opus 5.5](parallel/README.md).** Les lots UX00–UX08 ci-dessous sont déjà livrés localement. Le nouveau découpage répartit recette/intégration (A), panneau partagé (B) et auth web (C), avec ownership et prompts. Trial 1010 est construit depuis `e52ac06`, pas encore installé/accepté. Ne pas relancer UX00.
+
 Préparé le **20 octobre 2026** à partir du code présent dans ce workspace. Ce dossier est le point d'entrée pour le prochain modèle. Il découpe M02/M03 et la partie spatiale de D03/M04 ; il ne crée pas un second backlog produit.
 
 **Point de revue — 21 octobre : UX00–UX03 sont revus et committés localement**, y compris le correctif de lecture primaire `4fc81b2`. UX04 est configuré dans le profil Chrome dédié ; UX05–UX08 sont implémentés et vérifiés ; la maquette est maintenant le défaut de Chrome large après mesures sur le Mac M4. [Preuves et limites](../stage0/desktop-validation.md). Aucun push, nouveau résultat CI distant ou APK n’est implicite.
@@ -19,7 +21,7 @@ Décisions pour cette séquence :
 
 Ces décisions remplacent, pour l'exécution des lots ci-dessous, les propositions « tuiles desktop seulement », « téléphone inchangé » et « tout D03 en une fois » de la [spec D03 du 19 octobre](../superpowers/specs/2026-10-19-desktop-workspace-design.md). La navigation en panneau reste un chantier ultérieur. Aucun lot futur n'est implémenté par ce document.
 
-## État de départ à ne pas confondre avec une livraison distante
+## Historique : état de départ au 20 octobre, désormais consolidé
 
 Au moment de la préparation :
 
@@ -29,7 +31,7 @@ Au moment de la préparation :
 - Dernière vérification de ces modifications : **41 tests Jest / 4 suites + 2 tests HTTP**, TypeScript/lint/format ciblés, Chrome sur cinq formats, sélection SVG/clavier, connexion réelle HA **en lecture seule**. Ce n'est pas le total de toute la suite ni une CI complète.
 - Aucune nouvelle CI distante ni nouvelle acceptation APK n'est attestée par cette préparation.
 
-Un modèle dans **ce workspace** voit les modifications locales. Un clone distant ne les voit pas tant qu'elles n'ont pas été transmises. Commencer par UX00 et contrôler les fichiers, pas seulement les SHA. Le [registre desktop](../stage0/desktop-validation.md) distingue les preuves.
+Un modèle dans **ce workspace** voit les modifications locales. Un clone distant ne les voit pas tant qu'elles n'ont pas été transmises. Cet état est historique : UX00–UX08 sont maintenant commités. Pour reprendre, contrôler les fichiers et suivre le nouveau dossier parallèle. Le [registre desktop](../stage0/desktop-validation.md) distingue les preuves.
 
 ## Ordre et taille des changements
 
@@ -103,7 +105,9 @@ Après le lot : tests ciblés prescrits, TypeScript/lint/format. Pour une intég
 
 Pas besoin de réinstaller les dépendances ni de reconstruire un APK pour chaque changement de style. UX09 possède la vérification native du candidat. Les tests qui ouvrent un port peuvent demander une exécution hors sandbox ; un refus de bind n'est pas un bug du produit.
 
-## Prompt à copier au prochain modèle
+## Prompt pour une reprise de recette seule (UX09)
+
+Pour lancer B/C en parallèle, utiliser les trois prompts du [nouveau point d’entrée](parallel/README.md#prompts-à-donner-aux-agents). Ce prompt-ci concerne seulement la recette matérielle restante.
 
 ```text
 Poursuis UX09 uniquement, selon
@@ -113,8 +117,9 @@ Commence par comparer git status aux fichiers attendus ; ne refais pas les
 fonctionnalités déjà présentes. Lis seulement le contexte commun, le ticket,
 ses fichiers et ses tests. Exécute le lot et ses validations nécessaires.
 N'implémente pas le lot suivant dans le même changement.
-Ne teste aucun appareil réel, ne publie aucun secret/plan privé et ne pousse
-pas sans instruction de livraison. Termine par : changements, vérifications
+Les tests démo/fixture sur le téléphone autorisé sont permis ; un nouveau cycle
+physique exige une autorisation spécifique. Ne publie aucun secret/plan privé
+et ne pousse pas sans instruction de livraison. Termine par : changements, vérifications
 exactes, limites, et prochain lot. Mets à jour les liens d'état pertinents.
 ```
 

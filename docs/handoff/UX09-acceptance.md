@@ -2,6 +2,8 @@
 
 Statut : après UX03 + UX04 ; inclure UX08 si l'on distribue la maquette. M04/M05, sans nouveau développement fonctionnel.
 
+**Relais du 22 octobre :** [A01](parallel/A-validation.md#a01--recette-du-candidat-1010) possède la recette de Trial 1010 (source propre `e52ac06`, sample, 3D fermée). Le build est terminé ; aucune installation/acceptation de ce binaire n’est attestée. A03 acceptera un nouveau candidat après les travaux parallèles B/C. Le journal local est préparé mais la semaine n’a pas commencé.
+
 ## Préparation
 
 1. Lire `docs/design/internal-trial.md`, `docs/stage0/power-enrollment-validation.md`, `docs/stage0/spatial-view-validation.md`.
