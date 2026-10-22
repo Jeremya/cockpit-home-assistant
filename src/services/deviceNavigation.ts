@@ -3,6 +3,7 @@ import { useCockpit } from "../core/store";
 import { deviceSummaries } from "../core/deviceSummaries";
 import { isVisible } from "../core/selectors";
 import { resolveAlias } from "../preferences/types";
+import { detailHref } from "../navigation/detailNavigation";
 
 /** A destination that passed the current-home checks at the moment of the tap. */
 export type DeviceDestination = {
@@ -16,13 +17,11 @@ export type ReadingDestination = {
   entityKey: string;
 };
 
-const pushDeviceSummary = ({ profileId, deviceId }: DeviceDestination) =>
-  router.push({
-    pathname: "/appliance/[id]",
-    params: { id: deviceId, profile: profileId },
-  });
-const pushReading = ({ entityKey }: ReadingDestination) =>
-  router.push({ pathname: "/device/[key]", params: { key: entityKey } });
+// Every detail is its own Stack entry: one URL and one Back step per opening.
+const pushDeviceSummary = (destination: DeviceDestination) =>
+  router.push(detailHref(destination));
+const pushReading = (destination: ReadingDestination) =>
+  router.push(detailHref(destination));
 
 /** Revalidate delayed UI callbacks against the current home and visible membership.
  * An injected opener presents the destination elsewhere; it never skips this check. */

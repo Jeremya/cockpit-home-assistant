@@ -422,7 +422,7 @@ test("current markers navigate through placement validation without clearing sel
   act(() => screen.UNSAFE_getByType(HomePlanOverview).props.onMarker("stable"));
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/device/[key]",
-    params: { key: "stable" },
+    params: { key: "stable", profile: "demo" },
   });
   expect(
     within(screen.getByLabelText("Filter devices by area")).getByRole("tab", {

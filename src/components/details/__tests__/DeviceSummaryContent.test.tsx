@@ -113,7 +113,7 @@ test("without an injected callback a reading keeps its existing route", () => {
   fireEvent.press(screen.getByLabelText("Vendor battery, low"));
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/device/[key]",
-    params: { key: "reading-6" },
+    params: { key: "reading-6", profile: "public-home" },
   });
 });
 test.each([

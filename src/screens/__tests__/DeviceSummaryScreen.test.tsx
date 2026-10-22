@@ -70,7 +70,7 @@ test("one feeder card opens its profile-scoped summary; individual eligible read
   fireEvent.press(detail.getByLabelText("Vendor battery, low"));
   expect(router.push).toHaveBeenLastCalledWith({
     pathname: "/device/[key]",
-    params: { key: "reading-6" },
+    params: { key: "reading-6", profile: "public-home" },
   });
 });
 test("favorites represent eligible members once; filtering a room still includes the favored device", () => {
@@ -134,7 +134,7 @@ test("callbacks revalidate removed and hidden membership and stable-key aliases"
   openReading("public-home", "old");
   expect(router.push).toHaveBeenLastCalledWith({
     pathname: "/device/[key]",
-    params: { key: "reading-0" },
+    params: { key: "reading-0", profile: "public-home" },
   });
   jest.mocked(router.push).mockClear();
   const hidden = Object.fromEntries(

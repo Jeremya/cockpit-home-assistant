@@ -83,7 +83,7 @@ test("delayed placement navigation revalidates removal, floor, visibility, alias
   open();
   expect(router.push).toHaveBeenLastCalledWith({
     pathname: "/device/[key]",
-    params: { key: "stable" },
+    params: { key: "stable", profile: "demo" },
   });
   jest.mocked(router.push).mockClear();
   useCockpit.setState({

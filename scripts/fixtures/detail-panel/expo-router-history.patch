@@ -1,0 +1,28 @@
+diff -ru a/node_modules/expo-router/build/fork/createMemoryHistory.js b/node_modules/expo-router/build/fork/createMemoryHistory.js
+--- a/node_modules/expo-router/build/fork/createMemoryHistory.js
++++ b/node_modules/expo-router/build/fork/createMemoryHistory.js
+@@ -169,6 +169,11 @@
+         // Here we normalize it so that only external changes (e.g. user pressing back/forward) trigger the listener
+         listen(listener) {
+             const onPopState = () => {
++                // PROPOSED B02: a browser Back/Forward moves the current entry; replace() must write there.
++                const current = items.findIndex((item) => item.id === window.history.state?.id);
++                if (current > -1) {
++                    index = current;
++                }
+                 if (pending.length) {
+                     // This was triggered by `history.go(n)`, we shouldn't call the listener
+                     return;
+diff -ru a/node_modules/expo-router/build/fork/useLinking.js b/node_modules/expo-router/build/fork/useLinking.js
+--- a/node_modules/expo-router/build/fork/useLinking.js
++++ b/node_modules/expo-router/build/fork/useLinking.js
+@@ -283,7 +283,8 @@
+                     previousStateRef.current = rootState;
+                     // END FORK
+                 }
+-                history.replace({ path, state });
++                // PROPOSED B02: record the keyed root state, so returning here keeps the mounted navigators.
++                history.replace({ path, state: rootState?.key ? rootState : state });
+             }
+         }
+         const onStateChange = async () => {

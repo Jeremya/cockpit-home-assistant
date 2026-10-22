@@ -33,7 +33,7 @@ export default function RootLayout() {
             }}
           >
             <Stack.Screen
-              name="index"
+              name="(workspace)"
               options={{ title: "Home", headerShown: false }}
             />
             <Stack.Screen name="settings" options={{ title: "Connection" }} />
@@ -45,11 +45,6 @@ export default function RootLayout() {
             <Stack.Screen
               name="house-place"
               options={{ title: "Place device" }}
-            />
-            <Stack.Screen name="device/[key]" options={{ title: "Device" }} />
-            <Stack.Screen
-              name="appliance/[id]"
-              options={{ title: "Device readings" }}
             />
             <Stack.Screen
               name="entities"

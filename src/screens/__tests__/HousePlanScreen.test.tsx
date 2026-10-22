@@ -77,7 +77,7 @@ test("placed markers and their list share stable navigation and isolate floors",
   fireEvent.press(screen.getByTestId("plan-marker-stable"));
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/device/[key]",
-    params: { key: "stable" },
+    params: { key: "stable", profile: "demo" },
   });
   fireEvent.press(screen.getByRole("button", { name: "Reposition Test lamp" }));
   expect(router.push).toHaveBeenCalledWith({
@@ -364,7 +364,7 @@ test("a linked room lists the devices of its HA area and opens them", async () =
   );
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/device/[key]",
-    params: { key: expect.stringContaining("fridge") },
+    params: { key: expect.stringContaining("fridge"), profile: "demo" },
   });
   expect(screen.queryByRole("button", { name: "Open Front door" })).toBeNull();
   fireEvent.press(screen.getByRole("button", { name: "Explore Living room" }));

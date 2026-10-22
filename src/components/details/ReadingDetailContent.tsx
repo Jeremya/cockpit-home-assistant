@@ -33,7 +33,7 @@ export function ReadingDetailContent({
   const { snapshot, preferences, profileId: current } = useCockpit();
   const resolved = resolveAlias(entityKey, preferences.identities.aliases);
   const entity =
-    current === profileId
+    current !== null && current === profileId
       ? Object.values(snapshot?.entities ?? {}).find(
           (item) => item.key === resolved,
         )
