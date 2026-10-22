@@ -1,6 +1,9 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { openReading } from "../services/deviceNavigation";
+import {
+  openReading,
+  type ReadingDestination,
+} from "../services/deviceNavigation";
 import { useCockpit } from "../core/store";
 import { kindLabel, primaryValue } from "../core/presentation";
 import { colors } from "./ui";
@@ -10,10 +13,13 @@ export const EntityCard = memo(function EntityCard({
   entityId,
   now,
   layout = "row",
+  onOpenReading,
 }: {
   entityId: string;
   now?: number;
   layout?: "row" | "tile" | "compact";
+  /** Presents a revalidated reading elsewhere; the route remains the default. */
+  onOpenReading?: (destination: ReadingDestination) => void;
 }) {
   const entity = useCockpit((state) => state.snapshot?.entities[entityId]);
   const config = useCockpit((state) => state.snapshot?.config);
@@ -32,7 +38,9 @@ export const EntityCard = memo(function EntityCard({
       accessibilityRole="button"
       accessibilityLabel={`${entity.name}, ${value}${ready ? "" : ", cached"}`}
       accessibilityHint={`Opens observed state and device details. ${assessment.explanation}`}
-      onPress={() => profileId && openReading(profileId, entity.key)}
+      onPress={() =>
+        profileId && openReading(profileId, entity.key, onOpenReading)
+      }
       style={({ pressed }) => [
         card.container,
         tile ? card.tile : card.row,
