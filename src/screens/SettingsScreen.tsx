@@ -20,6 +20,11 @@ import {
   loadLocalConnection,
 } from "../services/localConnection";
 import {
+  browserSignIn,
+  browserSignInAvailable,
+} from "../services/auth/browserAuth";
+import type { CompatibilityBlock } from "../services/auth/compatibility";
+import {
   Body,
   Button,
   Label,
@@ -28,10 +33,25 @@ import {
   colors,
   styles,
 } from "../components/ui";
+const signInHelp: Record<CompatibilityBlock, string> = {
+  invalid_url:
+    "Enter the Home Assistant address only, such as https://home.example.com.",
+  http_not_trusted:
+    "Confirm that you trust this local network before using HTTP.",
+  mixed_content:
+    "This page uses HTTPS, so the browser blocks an HTTP Home Assistant. Use the HTTPS address of Home Assistant, or an access token.",
+  insecure_app:
+    "Browser sign-in needs Maurice on HTTPS or on localhost. Use an access token on this address.",
+  unsupported: "Browser sign-in is available in the web app only.",
+};
 export function SettingsScreen() {
   const browserSession = credentialPersistence === "page";
   const profileId = useCockpit((state) => state.profileId);
   const mode = useCockpit((state) => state.mode);
+  // Re-render when a session starts or ends; the sign-in itself is not stored.
+  useCockpit((state) => state.status.kind);
+  const signedIn = mode === "homeAssistant" && session.browserSession;
+  const [signedOut, setSignedOut] = useState("");
   const [url, setUrl] = useState(
     profileId?.startsWith("ha:") ? profileId.slice(3) : "",
   );
@@ -60,6 +80,36 @@ export function SettingsScreen() {
           : "Could not load the local connection.",
       );
     } finally {
+      setBusy(false);
+    }
+  };
+  const signIn = async () => {
+    setError("");
+    setSignedOut("");
+    const compatible = browserSignIn.compatibility({
+      url,
+      allowInsecureHttp: trust,
+    });
+    if (compatible.kind === "blocked") {
+      setError(signInHelp[compatible.reason]);
+      return;
+    }
+    setBusy(true);
+    try {
+      const started = await browserSignIn.begin({
+        url: compatible.hassUrl,
+        allowInsecureHttp: trust,
+        returnTo: "/",
+      });
+      // On success the page is already leaving for Home Assistant.
+      if (started.kind === "blocked") {
+        setError(signInHelp[started.reason]);
+        setBusy(false);
+      }
+    } catch {
+      setError(
+        "Could not start the sign-in. Check that this browser allows site data for Maurice.",
+      );
       setBusy(false);
     }
   };
@@ -135,6 +185,42 @@ export function SettingsScreen() {
             placeholderTextColor={colors.muted}
             style={styles.input}
           />
+          {url.trim().startsWith("http:") && (
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Body>
+                  {browserSignInAvailable
+                    ? "I trust this local network; the sign-in and the token will be sent unencrypted."
+                    : "I trust this local network; the token will be sent unencrypted."}
+                </Body>
+              </View>
+              <Switch
+                accessibilityLabel="Trust local HTTP network"
+                value={trust}
+                onValueChange={setTrust}
+              />
+            </View>
+          )}
+          {browserSignInAvailable && (
+            <>
+              <Button
+                title={
+                  busy
+                    ? "Opening Home Assistant…"
+                    : "Sign in with Home Assistant"
+                }
+                disabled={busy}
+                onPress={() => void signIn()}
+              />
+              <Body>
+                Opens your Home Assistant login page. This sign-in stays in
+                memory for this page only: reloading asks you to sign in again,
+                whatever you choose on that page. Power control is not available
+                with browser sign-in yet.
+              </Body>
+              <Text style={styles.sectionTitle}>Or use an access token</Text>
+            </>
+          )}
           <Text style={{ color: colors.text }}>Long-lived access token</Text>
           <TextInput
             accessibilityLabel="Access token"
@@ -161,21 +247,6 @@ export function SettingsScreen() {
             dedicated household user. Use the address you open Home Assistant
             with. For a local connection, use the same household network.
           </Body>
-          {url.trim().startsWith("http:") && (
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Body>
-                  I trust this local network; the token will be sent
-                  unencrypted.
-                </Body>
-              </View>
-              <Switch
-                accessibilityLabel="Trust local HTTP network"
-                value={trust}
-                onValueChange={setTrust}
-              />
-            </View>
-          )}
           {!!error && (
             <Text accessibilityRole="alert" style={styles.error}>
               {error}
@@ -196,6 +267,7 @@ export function SettingsScreen() {
             }}
           />
         </Panel>
+        {!!signedOut && <Body>{signedOut}</Body>}
         <Button
           title="Explore demo home"
           disabled={busy}
@@ -229,7 +301,33 @@ export function SettingsScreen() {
                 router.replace("/");
               }}
             />
-            {mode === "homeAssistant" && (
+            {signedIn && (
+              <Button
+                title="Sign out"
+                secondary
+                onPress={() =>
+                  confirmAction({
+                    title: "Sign out?",
+                    message:
+                      "Ends this browser sign-in and asks Home Assistant to revoke it. Preferences are kept.",
+                    confirmLabel: "Sign out",
+                    onConfirm: () => {
+                      void session
+                        .signOut()
+                        .then((result) =>
+                          setSignedOut(
+                            result?.kind === "revoked"
+                              ? "Signed out."
+                              : "Signed out on this page, but Home Assistant could not confirm the revocation. Remove this sign-in in Home Assistant under Profile → Security.",
+                          ),
+                        )
+                        .catch(() => setError("Could not sign out."));
+                    },
+                  })
+                }
+              />
+            )}
+            {mode === "homeAssistant" && !signedIn && (
               <Button
                 title="Forget this Home Assistant"
                 secondary

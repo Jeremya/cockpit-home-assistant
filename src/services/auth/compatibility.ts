@@ -6,7 +6,12 @@ export interface AppContext {
   secureContext: boolean;
 }
 export type CompatibilityBlock =
-  "invalid_url" | "http_not_trusted" | "mixed_content" | "insecure_app";
+  | "invalid_url"
+  | "http_not_trusted"
+  | "mixed_content"
+  | "insecure_app"
+  /** Native apps keep the access token path; browser sign-in is web-only. */
+  | "unsupported";
 export type Compatibility =
   | { kind: "compatible"; hassUrl: string }
   | { kind: "blocked"; reason: CompatibilityBlock };

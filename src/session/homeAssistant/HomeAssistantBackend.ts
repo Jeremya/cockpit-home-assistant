@@ -2,6 +2,8 @@ import {
   createConnection,
   createLongLivedTokenAuth,
   ERR_INVALID_AUTH,
+  getUser,
+  type Auth,
   type Connection,
 } from "home-assistant-js-websocket";
 import type {
@@ -31,7 +33,8 @@ import {
   type RawEntity,
 } from "./entityStream";
 import { mapSnapshot } from "./mapSnapshot";
-import { validateSettings } from "./url";
+import { validateOrigin, validateSettings } from "./url";
+import type { BrowserSignIn } from "../../services/auth/authorization";
 
 export function withDeadline<T>(
   promise: Promise<T>,
@@ -54,7 +57,9 @@ export function withDeadline<T>(
 }
 interface BackendOptions {
   identities?: IdentityMetadata;
-  connect?: (settings: ConnectionSettings) => Promise<Connection>;
+  connect?: (
+    settings: ConnectionSettings | BrowserSignIn,
+  ) => Promise<Connection>;
   syncTimeout?: number;
   metadataTimeout?: number;
 }
@@ -103,15 +108,29 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     devices: stale(),
     areas: stale(),
   };
-  private settings: ConnectionSettings;
+  private settings: { url: string; allowInsecureHttp: boolean };
+  private credential:
+    { kind: "token"; token: string } | { kind: "browser"; auth: Auth };
+  private userId?: string;
   constructor(
-    settings: ConnectionSettings,
+    private input: ConnectionSettings | BrowserSignIn,
     private sessionId: string,
     private options: BackendOptions = {},
   ) {
     super();
-    this.settings = validateSettings(settings);
+    if ("authorization" in input) {
+      this.settings = validateOrigin(input);
+      this.credential = { kind: "browser", auth: input.authorization.auth };
+    } else {
+      const settings = validateSettings(input);
+      this.settings = settings;
+      this.credential = { kind: "token", token: settings.token };
+    }
     this.identities = options.identities ?? emptyIdentity();
+  }
+  /** HA user of a browser sign-in, checked before its first synchronization. */
+  get verifiedUserId(): string | undefined {
+    return this.userId;
   }
   start(): Promise<void> {
     if (this.startPromise) return this.startPromise;
@@ -138,12 +157,15 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     this.emitStatus({ kind: "connecting" });
     try {
       this.emitStatus({ kind: "authenticating" });
-      const connection = await (this.options.connect?.(this.settings) ??
+      const connection = await (this.options.connect?.(this.input) ??
         createConnection({
-          auth: createLongLivedTokenAuth(
-            this.settings.url,
-            this.settings.token,
-          ),
+          auth:
+            this.credential.kind === "browser"
+              ? this.credential.auth
+              : createLongLivedTokenAuth(
+                  this.settings.url,
+                  this.credential.token,
+                ),
           connectTimeout: 10_000,
         }));
       this.connecting = false;
@@ -331,7 +353,40 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
       .catch(() => undefined);
     return operation;
   }
+  private async verifyUser(): Promise<void> {
+    const connection = this.connection;
+    if (!connection?.connected || this.stopped) throw this.unreachable();
+    const transportGeneration = this.transportGeneration;
+    const timeout: SessionError = { code: "sync_timeout", phase: "initial" };
+    let user: unknown;
+    try {
+      user = await withDeadline(
+        getUser(connection),
+        this.options.metadataTimeout ?? 10_000,
+        timeout,
+      );
+    } catch (error) {
+      if (error === timeout) throw error;
+      if (
+        this.stopped ||
+        transportGeneration !== this.transportGeneration ||
+        !connection.connected
+      )
+        throw new SyncCancelled("disconnected");
+      throw { code: "auth_invalid" } satisfies SessionError;
+    }
+    if (transportGeneration !== this.transportGeneration)
+      throw new SyncCancelled("disconnected");
+    const id =
+      user && typeof user === "object" && "id" in user ? user.id : undefined;
+    if (typeof id !== "string" || !id)
+      throw { code: "auth_invalid" } satisfies SessionError;
+    this.userId = id;
+  }
   private async refreshUntilCurrent(): Promise<void> {
+    // A sign-in whose user is unknown never reaches a snapshot or ready.
+    if (this.credential.kind === "browser" && !this.userId)
+      await this.verifyUser();
     let revision: number;
     do {
       revision = this.registryRevision;
@@ -665,7 +720,13 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
   getCameraImageRequest(entityId: string) {
     return {
       uri: `${this.settings.url}/api/camera_proxy/${encodeURIComponent(entityId)}`,
-      headers: { Authorization: `Bearer ${this.settings.token}` },
+      headers: {
+        Authorization: `Bearer ${
+          this.credential.kind === "browser"
+            ? this.credential.auth.accessToken
+            : this.credential.token
+        }`,
+      },
     };
   }
 }

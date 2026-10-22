@@ -1,6 +1,6 @@
 # D02 — Browser sign-in contract (C01)
 
-Decided on 2026-10-22 by agent C for the [parallel wave](../handoff/parallel/C-web-auth.md), on top of `0733657`. C01 adds this contract, a bounded prototype under `src/services/auth/` and a public fixture. **No runtime behavior changes:** nothing imports the prototype yet, Settings, `SessionManager`, the backend, the manual token path, the native SecureStore path, the demo and the `.local` development loader are untouched. C02 wires the in-memory sign-in; C03 adds opt-in persistence after the integrator has reviewed this document and documented the M01 extension below.
+Decided on 2026-10-22 by agent C for the [parallel wave](../handoff/parallel/C-web-auth.md), on top of `0733657`. C01 added this contract, a bounded prototype under `src/services/auth/` and a public fixture, without runtime change. **C02 is implemented (in memory only)**, see [C02 status](#c02-status-in-memory-sign-in); the manual token path, the native SecureStore path, the demo and the `.local` development loader keep their behavior. C03 adds opt-in persistence after the integrator has reviewed this document and documented the M01 extension below.
 
 ## Verified facts
 
@@ -55,7 +55,7 @@ The HA URL is normalized with the existing `normalizeUrl` rule and keeps the exp
 | `https:` hosted | `https:` | Supported | Chrome may ask for local-network access when HA resolves to a private address; refusal surfaces as a network error with help. Not run in C01 |
 | `https:` hosted | `http:` (any host, including loopback) | **Blocked: `mixed_content`** | Token fetch and `ws://` are mixed content; one rule, no loopback exception |
 | `http:` LAN address (e.g. `http://192.168.1.10:8081`) | any | **Blocked: `insecure_app`** | No Web Crypto (PKCE) outside a secure context, and a refresh token kept on a cleartext origin is exposed to injected script |
-| any | HA < 2026.10 | Rejected after sign-in | Older servers ignore PKCE; the existing version check refuses the session. C02 must then revoke the refresh token it just received |
+| any | HA < 2026.10 | Rejected after sign-in | Older servers ignore PKCE; the existing version check refuses the session, and C02 then revokes the refresh token it just received |
 
 `/auth-callback` must load directly. The Expo development server does this; a static web export needs a single-page fallback for that path (hosting requirement for A, see Requests).
 
@@ -75,7 +75,7 @@ HA's own `storeToken=true` is ignored: it is HA's frontend preference, not conse
 
 ## 4. Callback route and return
 
-C02 creates `app/auth-callback.tsx`. On mount it synchronously replaces the history entry with `/auth-callback` (no query) before any await, never logs or renders the parameters, consumes the transaction, exchanges, connects, then `router.replace(returnTo)`. A failed callback shows a short reason and a **Sign in again** action, never an automatic redirect, so no loop. Cross-origin requests from that page only see the origin under the default referrer policy. Registering a header option for the route in `app/_layout.tsx` belongs to B/the integrator; Expo Router serves the file without it.
+`app/auth-callback.tsx` reads the address synchronously on mount and replaces the history entry with `/auth-callback` before any await. Expo Router then writes its initial address back once the root navigator mounts (it runs after the screen's effects), so the screen also clears `code`, `state` and `storeToken` through its own `navigation.setParams`; all writes are `replaceState`, so no history entry keeps them. It never logs or renders the parameters, consumes the transaction, exchanges, connects, then `router.replace(returnTo)`. `router.*` cannot be used before the root navigator is ready ("Attempted to navigate before mounting the Root Layout"), even when `useRootNavigationState()` already has a key. A failed callback shows a short reason and a **Sign in again** action, never an automatic redirect, so no loop. Cross-origin requests from that page only see the origin under the default referrer policy. Registering a header option for the route in `app/_layout.tsx` belongs to B/the integrator; Expo Router serves the file without it.
 
 `internalDestination` (prototype) accepts only a same-origin string path ≤ 512 characters whose first segment is a known route (`""`, `settings`, `entities`, `house`, `house-links`, `house-place`, `device`, `appliance`, `diagnostics`), rejects `//`, backslashes, control characters and dot segments (raw or encoded), keeps the query opaque and drops the fragment; anything else becomes `/`. `auth-callback` is never a destination. The query is not interpreted, so the future panel syntax of B passes through unchanged. A test fails if an allowed segment has no route file.
 
@@ -84,7 +84,7 @@ C02 creates `app/auth-callback.tsx`. On mount it synchronously replaces the hist
 The profile stays `ha:<normalized origin>`, so plan, favorites, placements and preferences are shared by every sign-in to the same origin, as with the manual token. Power grants (preferences schema 3) are bound to that profile, not to an HA user. Browser sign-in makes the HA user explicit, so this contract adds a principal rule:
 
 - After every browser sign-in, the backend calls `auth/current_user` on the new connection **before** the first synchronization; failure is a terminal authentication error. The principal is `base64url(SHA-256(hassUrl + "\n" + userId))`; the raw user id is not stored.
-- **C02 (memory only): power control is unavailable in a browser-sign-in session.** `SessionManager` refuses `setSwitch` (`not_authorized`) and `allowSwitch` while the principal rule is not durable. Stored grants are neither used, modified nor removed; plan and favorites work normally; a session notice explains it. Sign-in alone never grants anything.
+- **C02 (memory only): power control is unavailable in a browser-sign-in session.** `SessionManager` refuses `setSwitch` (`not_authorized`) and `allowSwitch` while the principal rule is not durable. Stored grants are neither used nor created, and are not modified by signing in; **Revoke power control** keeps working because a revocation is always safe. Plan and favorites work normally. Settings says so before sign-in, and a session notice (shown in Diagnostics) repeats it. Sign-in alone never grants anything. Known transitional wording: the shared `SwitchControl` (not C-owned) answers a refused **Allow this device** with its generic "Permission could not be saved" message; C03 removes the restriction rather than this wording.
 - **C03 (after A documents the M01 extension):** a non-secret record `maurice.grantPrincipals.v1`, separate from the preferences schema, maps each web profile to the principal under which its grants were made. Grants are usable only when the current principal matches. An unknown previous principal (migration from manual sign-in) or a different one revokes that profile's grants through the existing revocation path (targets invalidated first), keeps plan and favorites, records the new principal and shows a notice. Commands stay disabled until that write succeeds. The rule then also applies to the manual token on web (the same `auth/current_user` check), so a later manual session cannot inherit another user's grants. Native is unchanged.
 
 ## 6. Scope
@@ -126,9 +126,32 @@ No household instance, token, account or device was used. The container and its 
 
 Not proven by C01: a hosted HTTPS deployment, Chrome's local-network prompt, a real certificate, the browser UI, persistence and multiple tabs. Those belong to C02–C04.
 
+## C02 status (in-memory sign-in)
+
+Implemented on 2026-10-22 on `work/web-auth`. Built interfaces, where they refine the proposal above:
+
+- `services/auth/signIn.ts`: `createBrowserSignIn(env)` with the `window` parts injected (`compatibility`, `begin`, `complete`); `browserAuth.web.ts` binds it lazily to `window`, `browserAuth.ts` is the native stub (`unsupported`). Consumers import `services/auth/browserAuth`.
+- `services/auth/authorization.ts`: `BrowserAuthorization` wraps the official `Auth` with one refresh in flight. `close()` drops both tokens from memory first, then revokes once and returns `revoked`/`unconfirmed`; afterwards refresh rejects with `ERR_INVALID_AUTH` and a late refresh cannot restore a token. `BrowserSignIn = {url, allowInsecureHttp, authorization}`.
+- `SessionManager.connect(BrowserSignIn)` beside the unchanged token and demo inputs; same `ha:<origin>` profile, nothing written to the credentials journal. `signOut()` tears down and invalidates targets before revocation; `browserSession` tells Settings which action to offer. Replacing a browser session (another connect), Forget, and terminal `auth_invalid`/`ha_version_unsupported` errors end and revoke it; Retry after Disconnect reuses it; an ended sign-in cannot reconnect.
+- `HomeAssistantBackend` accepts a `BrowserSignIn`: `createConnection` with that `Auth`, `auth/current_user` before the first synchronization (`verifiedUserId`), HA error or missing id → terminal `auth_invalid`, stall → retried `sync_timeout`, disconnect → the client's reconnect. The camera header reads the current access token. Token mode is unchanged.
+- **Memory hygiene:** a memory sign-in has no other owner than its page, so on `pagehide` (not for the back-forward cache) the page sends a revocation beacon for it. Without this, each reload would leave a valid refresh token in HA's user profile. C03 must not register remembered sessions for this beacon.
+- Settings (web): **Sign in with Home Assistant** after the address and the trust switch, help per blocked pair, **Or use an access token** for the unchanged form, **Sign out** instead of **Forget this Home Assistant** during a browser session, with the revocation result. Labels used by A's browser check are unchanged.
+
+C02 evidence:
+
+| Check | Result |
+| --- | --- |
+| `npx jest` (full) | All suites pass, including `services/auth`, backend, `SessionManager`, `AuthCallbackScreen` and `SettingsScreen` tests |
+| Real backend and official client against the fixture (`session.integration.test.ts`, no mocks) | Ready with fresh observations and verified user; one refresh before the socket when expired; revoked → terminal `auth_invalid` without WebSocket authentication; `2026.9.0` → `ha_version_unsupported` without snapshot |
+| Real Chrome (Playwright) against `expo start --web` on `localhost:8094` and the fixture, other origins aborted (one-off script, becomes C04) | PKCE parameters sent; landing on `/` without code/state; fixture observations shown; no fixture token in localStorage, sessionStorage, cookies or console; no IndexedDB; Back reaches the authorize page without a code; reload asks to connect again and the beacon revoked the token; replaying the captured callback is refused without a second exchange and leaves a clean address; **Sign out** revokes; no page error; no external request |
+
+| `npm run check:ui` (A's public smoke) on the C02 working tree | Passed: 4 widths, desktop layout, and A's manual-token browser check unchanged (memory only, reload requires the token, preferences and exact grant survive, native Forget cancel/confirm), 0 page errors, 0 external requests, sample plan unchanged |
+
+Not proven by C02: persistence and multiple tabs (C03), hosted HTTPS, a real HA instance in the browser flow (C01 already drove HA's real authorize page), and the integrated build.
+
 ## Requests to A (integrator)
 
-1. Review this contract's limits and interfaces before C03 (C02 does not depend on it).
+1. Review this contract's limits and interfaces, and the C02 status, before C03.
 2. Document the **M01 extension** of section 5 (principal binding, migration that revokes grants once, and the same check for the manual token on web) in `power-enrollment.md` before C03. Until then, C02 keeps power control unavailable in browser sessions.
 3. Hosting: any static web export used for acceptance must serve the app at `/auth-callback` (single-page fallback).
 4. Runners: `scripts/__tests__/web-auth-fixture.test.mjs` is already matched by `test:tooling`, and the Jest tests by the default `testMatch`; no `package.json` change is required. C04 will ask to wire `scripts/check-web-auth.mjs`.

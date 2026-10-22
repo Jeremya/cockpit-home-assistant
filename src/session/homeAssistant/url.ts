@@ -23,14 +23,21 @@ export function normalizeUrl(input: string): string {
   }
   return url.origin;
 }
-export function validateSettings(
-  input: ConnectionSettings,
-): ConnectionSettings {
+export function validateOrigin(input: {
+  url: string;
+  allowInsecureHttp: boolean;
+}): { url: string; allowInsecureHttp: boolean } {
   const url = normalizeUrl(input.url);
   if (url.startsWith("http:") && !input.allowInsecureHttp)
     throw new Error(
       "Confirm that you trust this local network before using HTTP.",
     );
+  return { url, allowInsecureHttp: input.allowInsecureHttp };
+}
+export function validateSettings(
+  input: ConnectionSettings,
+): ConnectionSettings {
+  const { url } = validateOrigin(input);
   if (!input.token.trim())
     throw new Error("Enter a Home Assistant access token.");
   return { ...input, url, token: input.token.trim() };

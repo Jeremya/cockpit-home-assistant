@@ -1,5 +1,3 @@
-import { spawn, type ChildProcess } from "node:child_process";
-import { join } from "node:path";
 import { Auth } from "home-assistant-js-websocket";
 import { beginTransaction, consumeCallback } from "../authTransaction";
 import {
@@ -7,35 +5,22 @@ import {
   revokeRefreshToken,
 } from "../tokenEndpoint";
 import { nodeFetch } from "./nodeFetch";
+import { authorizeAsHomeAssistant, startFixture } from "./fixtureProcess";
 
 const appOrigin = "http://localhost:8094";
-let fixture: ChildProcess;
+let fixture: Awaited<ReturnType<typeof startFixture>>;
 let origin: string;
 const expoFetch = globalThis.fetch;
 
 beforeAll(async () => {
   // The official Auth class refreshes through global fetch.
   globalThis.fetch = nodeFetch;
-  fixture = spawn(
-    process.execPath,
-    [
-      join(__dirname, "../../../../scripts/lib/web-auth-fixture.mjs"),
-      "--serve",
-    ],
-    { stdio: ["ignore", "pipe", "inherit"] },
-  );
-  origin = await new Promise<string>((resolve, reject) => {
-    fixture.stdout!.once("data", (bytes) => {
-      const ready = JSON.parse(String(bytes));
-      if (ready.fixtureOnly === true) resolve(ready.origin);
-      else reject(new Error("Unexpected fixture"));
-    });
-    fixture.once("exit", () => reject(new Error("Fixture exited")));
-  });
+  fixture = await startFixture();
+  origin = fixture.origin;
 });
 afterAll(() => {
   globalThis.fetch = expoFetch;
-  fixture.kill("SIGTERM");
+  fixture.stop();
 });
 
 function pageStorage() {
@@ -48,39 +33,7 @@ function pageStorage() {
   };
 }
 
-/** What HA's authorize page does: login flow with the forwarded challenge, then redirect. */
-async function authorizeAsHomeAssistant(
-  authorizeUrl: string,
-  username: string,
-) {
-  const authorize = new URL(authorizeUrl);
-  const params = Object.fromEntries(authorize.searchParams);
-  const flow = await nodeFetch(`${origin}/auth/login_flow`, {
-    method: "POST",
-    body: JSON.stringify({
-      client_id: params.client_id,
-      handler: ["homeassistant", null],
-      redirect_uri: params.redirect_uri,
-      code_challenge: params.code_challenge,
-      code_challenge_method: params.code_challenge_method,
-    }),
-  }).then((response) => response.json());
-  const step = await nodeFetch(`${origin}/auth/login_flow/${flow.flow_id}`, {
-    method: "POST",
-    body: JSON.stringify({
-      client_id: params.client_id,
-      username,
-      password: "public-fixture-password",
-    }),
-  }).then((response) => response.json());
-  const callback = new URL(params.redirect_uri!);
-  callback.searchParams.set("code", step.result);
-  callback.searchParams.set("state", params.state!);
-  return callback.href;
-}
-
-const stats = () =>
-  nodeFetch(`${origin}/_fixture/status`).then((response) => response.json());
+const stats = () => fixture.stats();
 
 test("browser sign-in reaches tokens once, for the chosen instance only", async () => {
   const storage = pageStorage();

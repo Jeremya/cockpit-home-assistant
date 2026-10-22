@@ -16,7 +16,16 @@ import {
 } from "../preferences/types";
 import { DemoBackend } from "./demo/DemoBackend";
 import { HomeAssistantBackend } from "./homeAssistant/HomeAssistantBackend";
-import { profileIdFor, validateSettings } from "./homeAssistant/url";
+import {
+  profileIdFor,
+  validateOrigin,
+  validateSettings,
+} from "./homeAssistant/url";
+import type {
+  BrowserAuthorization,
+  BrowserSignIn,
+} from "../services/auth/authorization";
+import type { RevocationResult } from "../services/auth/tokenEndpoint";
 import { houseForMode } from "../spatial/plans";
 import { resetSpatial, seedSpatial } from "../spatial/profilePlan";
 import type { HomeBackend } from "./types";
@@ -42,6 +51,9 @@ import type {
   CancellationReason,
 } from "../commands/types";
 
+type ConnectInput = ConnectionSettings | { demo: true } | BrowserSignIn;
+const BROWSER_POWER_NOTICE =
+  "Power control is not available with browser sign-in yet. Use an access token to switch devices.";
 interface EligibleCommand {
   kind: "eligible";
   target: CommandTarget;
@@ -55,7 +67,11 @@ export class SessionManager {
   private listeners: (() => void)[] = [];
   private foreground = true;
   private boot?: Promise<void>;
-  private attempt?: ConnectionSettings | { demo: true };
+  private attempt?: ConnectInput;
+  /** Page memory is the only owner of a browser sign-in. */
+  private browser?: BrowserAuthorization;
+  /** Until grants are bound to an HA user (C03), browser sessions cannot switch. */
+  private powerUnavailable = false;
   private savedSettings?: ConnectionSettings;
   private commandEligibility = 0;
   private commandReady = false;
@@ -203,6 +219,7 @@ export class SessionManager {
     intent: CommandIntent,
   ): CommandRefusal | undefined {
     if (intent.kind !== "setSwitch") return;
+    if (this.powerUnavailable) return refuse("not_authorized");
     const state = useCockpit.getState();
     const grant = state.preferences.switchEnrollments[eligible.entity.key];
     if (
@@ -386,18 +403,32 @@ export class SessionManager {
         : {}),
     });
   }
-  async connect(input: ConnectionSettings | { demo: true }) {
-    const settings = "demo" in input ? undefined : validateSettings(input);
+  async connect(input: ConnectInput) {
+    const browser = "authorization" in input ? input : undefined;
+    if (browser?.authorization.closed)
+      throw new Error("This sign-in has ended. Sign in again.");
+    const settings =
+      "demo" in input || "authorization" in input
+        ? undefined
+        : validateSettings(input);
+    const origin = browser ? validateOrigin(browser).url : settings?.url;
+    const replaced =
+      this.browser !== browser?.authorization ? this.browser : undefined;
+    this.browser = browser?.authorization;
+    this.powerUnavailable = !!browser;
     this.teardown(true, true);
-    this.attempt = settings ?? { demo: true };
+    // A replaced browser sign-in has no other owner: after its targets, revoke it.
+    void replaced?.close();
+    this.attempt = settings ?? browser ?? { demo: true };
     const generation = this.generation;
-    const profileId = settings ? profileIdFor(settings.url) : "demo";
+    const profileId = origin ? profileIdFor(origin) : "demo";
     useCockpit.setState({
       status: { kind: "connecting" },
-      mode: settings ? "homeAssistant" : "demo",
+      mode: origin ? "homeAssistant" : "demo",
       profileId,
       notices: [],
     });
+    if (browser) this.notice(BROWSER_POWER_NOTICE);
     let loaded: Awaited<ReturnType<PreferencesStorage["load"]>>;
     try {
       loaded = await this.preferences.load();
@@ -421,7 +452,7 @@ export class SessionManager {
     const stored = file.profiles[profileId] ?? emptyPreferences();
     const spatial = seedSpatial(
       stored.spatial,
-      houseForMode(settings ? "homeAssistant" : "demo"),
+      houseForMode(origin ? "homeAssistant" : "demo"),
     );
     const prefs = { ...stored, spatial };
     // Persisted with the first snapshot, so a failed attempt never creates a profile;
@@ -432,8 +463,9 @@ export class SessionManager {
       preferences: prefs,
       preferencesLoadedFor: profileId,
     });
-    const backend = settings
-      ? new HomeAssistantBackend(settings, String(generation), {
+    const connection = settings ?? browser;
+    const backend = connection
+      ? new HomeAssistantBackend(connection, String(generation), {
           identities: prefs.identities,
         })
       : new DemoBackend(String(generation));
@@ -463,6 +495,12 @@ export class SessionManager {
     this.listeners = [
       backend.onStatus((status) => {
         if (generation !== this.generation) return;
+        // Terminal auth or version errors end the sign-in; no silent reuse.
+        if (browser && status.kind === "error" && !status.retrying) {
+          if (this.attempt === browser) this.attempt = undefined;
+          if (this.browser === browser.authorization) this.browser = undefined;
+          void browser.authorization.close();
+        }
         this.commandReady = status.kind === "ready";
         if (status.kind !== "ready") this.invalidateCommands("not_ready");
         this.commandTracker.onStatus(status);
@@ -511,9 +549,24 @@ export class SessionManager {
   disconnect() {
     this.teardown(false);
   }
-  async forget() {
+  /** Whether the current or last attempt is a browser sign-in still held. */
+  get browserSession(): boolean {
+    return !!this.browser;
+  }
+  /** Ends a browser sign-in: local use and targets first, then revocation. */
+  async signOut(): Promise<RevocationResult | undefined> {
+    const authorization = this.browser;
+    this.browser = undefined;
     this.teardown();
     this.attempt = undefined;
+    return authorization?.close();
+  }
+  async forget() {
+    const authorization = this.browser;
+    this.browser = undefined;
+    this.teardown();
+    this.attempt = undefined;
+    await authorization?.close();
     // Wait for queued saves before choosing the actual persisted profile to remove.
     const saved = await this.credentials.load();
     if (saved) await this.credentials.forget(saved.url);
@@ -554,6 +607,7 @@ export class SessionManager {
   }
   /** Call only after explicit UI confirmation; this grants permission, sends no service. */
   async allowSwitch(target: CommandTarget): Promise<boolean> {
+    if (this.powerUnavailable) return false;
     const eligible = this.resolveCommand(target);
     const state = useCockpit.getState();
     if (

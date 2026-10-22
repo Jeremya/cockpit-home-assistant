@@ -86,3 +86,105 @@ test("conformance failures never print token values", () => {
     "Expected '<redacted>' to equal '<redacted>' (status 400)",
   );
 });
+
+function socketSession(origin, accessToken) {
+  const socket = new WebSocket(
+    `${origin.replace(/^http/, "ws")}/api/websocket`,
+  );
+  const replies = new Map();
+  const events = [];
+  let id = 0;
+  const ready = new Promise((resolve, reject) => {
+    socket.addEventListener("message", ({ data }) => {
+      const message = JSON.parse(String(data));
+      if (message.type === "auth_required")
+        socket.send(
+          JSON.stringify({ type: "auth", access_token: accessToken }),
+        );
+      else if (message.type === "auth_ok") resolve(message);
+      else if (message.type === "auth_invalid")
+        reject(new Error("auth_invalid"));
+      else if (message.type === "event") events.push(message);
+      else replies.get(message.id)?.(message);
+    });
+  });
+  const send = (message) =>
+    new Promise((resolve) => {
+      const current = ++id;
+      replies.set(current, resolve);
+      socket.send(JSON.stringify({ id: current, ...message }));
+    });
+  return { ready, send, events, close: () => socket.close() };
+}
+
+test("the fixture serves the snapshot messages Maurice reads, and no service", async () => {
+  const fixture = await startWebAuthFixture();
+  const tokens = fixture.issueTokens({
+    clientId: "http://localhost:8094/",
+    username: PUBLIC_USERS[0].username,
+  });
+  const session = socketSession(fixture.origin, tokens.access_token);
+  try {
+    assert.equal((await session.ready).ha_version, "2026.10.1");
+    const config = await session.send({ type: "get_config" });
+    assert.deepEqual(config.result.unit_system, { temperature: "°C" });
+    for (const type of [
+      "config/entity_registry/list",
+      "config/device_registry/list",
+      "config/area_registry/list",
+    ])
+      assert.ok((await session.send({ type })).result.length > 0, type);
+    const subscribed = await session.send({ type: "subscribe_entities" });
+    assert.equal(subscribed.success, true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.ok(Object.keys(session.events[0].event.a).length >= 2);
+    const call = await session.send({
+      type: "call_service",
+      domain: "switch",
+      service: "turn_on",
+      target: { entity_id: "switch.fixture_plug" },
+    });
+    assert.equal(call.success, false);
+    assert.equal(fixture.stats().serviceCalls, 1);
+  } finally {
+    session.close();
+    await fixture.close();
+  }
+});
+
+test("the fixture version and token lifetime are configurable", async () => {
+  const fixture = await startWebAuthFixture({
+    version: "2026.9.0",
+    accessTokenLifetime: 1,
+  });
+  try {
+    const tokens = fixture.issueTokens({
+      clientId: "http://localhost:8094/",
+      username: PUBLIC_USERS[0].username,
+    });
+    assert.equal(tokens.expires_in, 1);
+    const session = socketSession(fixture.origin, tokens.access_token);
+    assert.equal((await session.ready).ha_version, "2026.9.0");
+    session.close();
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("the authorize page mirrors HA: login flow with the challenge, then code and state", async () => {
+  const fixture = await startWebAuthFixture();
+  try {
+    const response = await fetch(
+      `${fixture.origin}/auth/authorize?response_type=code&client_id=x`,
+    );
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type"), /^text\/html/);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    const page = await response.text();
+    assert.match(page, /code_challenge/);
+    assert.match(page, /location\.assign/);
+    assert.doesNotMatch(page, /maurice-fixture-(access|refresh)-/);
+  } finally {
+    await fixture.close();
+  }
+});

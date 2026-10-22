@@ -39,6 +39,91 @@ const CORS_PATHS = new Set([
 export const redactSecrets = (text) =>
   String(text).replace(/[A-Za-z0-9._~+/=-]{24,}/g, "<redacted>");
 
+/** A small public home: one room, a reading and a power plug no one may switch. */
+const HOME = Object.freeze({
+  areas: [{ area_id: "fixture-living", name: "Fixture living room" }],
+  devices: [
+    {
+      id: "fixture-plug",
+      name: "Fixture plug",
+      area_id: "fixture-living",
+      manufacturer: "TP-Link",
+      model: "HS103",
+    },
+  ],
+  registry: [
+    {
+      id: "fixture-switch-registry",
+      entity_id: "switch.fixture_plug",
+      device_id: "fixture-plug",
+      area_id: null,
+      platform: "tplink",
+      entity_category: null,
+      hidden_by: null,
+      disabled_by: null,
+      name: null,
+    },
+    {
+      id: "fixture-temperature-registry",
+      entity_id: "sensor.fixture_temperature",
+      device_id: null,
+      area_id: "fixture-living",
+      platform: "demo",
+      entity_category: null,
+      hidden_by: null,
+      disabled_by: null,
+      name: null,
+    },
+  ],
+  states: {
+    "switch.fixture_plug": { s: "off", a: { friendly_name: "Fixture plug" } },
+    "sensor.fixture_temperature": {
+      s: "21.5",
+      a: {
+        friendly_name: "Fixture temperature",
+        device_class: "temperature",
+        unit_of_measurement: "°C",
+        state_class: "measurement",
+      },
+    },
+  },
+});
+
+/** Same steps as HA's authorize page: login flow with the challenge, then redirect. */
+const AUTHORIZE_PAGE = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer">
+<title>Public fixture sign-in</title></head>
+<body><main><h1>Public fixture sign-in</h1>
+<p>Test accounts only. Never enter a household password here.</p>
+<form id="login"><label>Username <input name="username" autocomplete="off"></label>
+<label>Password <input name="password" type="password" autocomplete="off"></label>
+<button type="submit">Log in</button></form><p id="error" role="alert"></p></main>
+<script>
+const query = new URLSearchParams(location.search);
+document.getElementById("login").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.target);
+  const flow = await fetch("/auth/login_flow", { method: "POST", body: JSON.stringify({
+    client_id: query.get("client_id"), handler: ["homeassistant", null],
+    redirect_uri: query.get("redirect_uri"),
+    ...(query.get("code_challenge") ? { code_challenge: query.get("code_challenge"),
+      code_challenge_method: query.get("code_challenge_method") } : {}) }) });
+  const start = await flow.json();
+  if (!flow.ok) return void (document.getElementById("error").textContent = start.message);
+  const step = await fetch("/auth/login_flow/" + start.flow_id, { method: "POST",
+    body: JSON.stringify({ client_id: query.get("client_id"),
+      username: form.get("username"), password: form.get("password") }) });
+  const result = await step.json();
+  if (result.type !== "create_entry")
+    return void (document.getElementById("error").textContent = result.message ?? "Invalid username or password");
+  let target = query.get("redirect_uri");
+  target += (target.includes("?") ? "&" : "?") + "code=" + encodeURIComponent(result.result);
+  if (query.get("state")) target += "&state=" + encodeURIComponent(query.get("state"));
+  location.assign(target);
+});
+</script></body></html>
+`;
+
 const s256 = (verifier) =>
   createHash("sha256").update(verifier, "ascii").digest("base64url");
 
@@ -100,6 +185,7 @@ export async function startWebAuthFixture({
     refreshGrants: 0,
     revocations: 0,
     wsAuthentications: 0,
+    serviceCalls: 0,
   };
   const sockets = new Set();
 
@@ -279,6 +365,14 @@ export async function startWebAuthFixture({
           code_challenge_methods_supported: ["S256"],
           response_types_supported: ["code"],
         });
+      if (pathname === "/auth/authorize" && request.method === "GET") {
+        response.writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+        });
+        response.end(AUTHORIZE_PAGE);
+        return;
+      }
       if (request.method !== "POST") return send(405);
       const body = await readBody(request);
       if (pathname === "/auth/token") {
@@ -393,9 +487,54 @@ export async function startWebAuthFixture({
             result: value,
           }),
         );
+      const nowSeconds = now() / 1000;
       if (message.type === "ping")
         socket.send(JSON.stringify({ id: message.id, type: "pong" }));
-      else if (message.type === "auth/current_user")
+      else if (message.type === "get_config")
+        result({ unit_system: { temperature: "°C" } });
+      else if (message.type === "config/area_registry/list") result(HOME.areas);
+      else if (message.type === "config/device_registry/list")
+        result(HOME.devices);
+      else if (message.type === "config/entity_registry/list")
+        result(HOME.registry);
+      else if (
+        [
+          "supported_features",
+          "subscribe_events",
+          "unsubscribe_events",
+        ].includes(message.type)
+      )
+        result(null);
+      else if (message.type === "subscribe_entities") {
+        result(null);
+        socket.send(
+          JSON.stringify({
+            id: message.id,
+            type: "event",
+            event: {
+              a: Object.fromEntries(
+                Object.entries(HOME.states).map(([id, state]) => [
+                  id,
+                  { ...state, lc: nowSeconds },
+                ]),
+              ),
+            },
+          }),
+        );
+      } else if (message.type === "call_service") {
+        counters.serviceCalls++;
+        socket.send(
+          JSON.stringify({
+            id: message.id,
+            type: "result",
+            success: false,
+            error: {
+              code: "service_not_allowed",
+              message: "The public fixture executes no service",
+            },
+          }),
+        );
+      } else if (message.type === "auth/current_user")
         result({
           id: user.id,
           name: user.name,
@@ -716,7 +855,14 @@ if (
 ) {
   const [mode, target] = process.argv.slice(2);
   if (mode === "--serve") {
-    const fixture = await startWebAuthFixture();
+    const option = (name) => {
+      const index = process.argv.indexOf(name);
+      return index === -1 ? undefined : process.argv[index + 1];
+    };
+    const fixture = await startWebAuthFixture({
+      version: option("--version") ?? FIXTURE_HA_VERSION,
+      accessTokenLifetime: Number(option("--access-lifetime") ?? 1800),
+    });
     console.log(JSON.stringify({ origin: fixture.origin, fixtureOnly: true }));
     for (const signal of ["SIGINT", "SIGTERM"])
       process.on(
