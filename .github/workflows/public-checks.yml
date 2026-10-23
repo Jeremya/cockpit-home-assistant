@@ -193,5 +193,6 @@ jobs:
             artifacts/web-auth/report.json
             artifacts/web-auth/settings-remembered.png
             artifacts/web-auth/signed-out-elsewhere.png
+            artifacts/web-auth/a03-signed-out.png
           retention-days: 7
           if-no-files-found: warn
