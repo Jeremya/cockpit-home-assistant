@@ -42,6 +42,15 @@ Un cycle physique est **facultatif pour avancer A02/B/C**, obligatoire pour déc
 
 Rapport avec source, hash APK, appareil/OS, mode de plan, fonctionnalités activées, checks passés/échoués/non exécutés et restauration. Une ligne en attente n’est pas un succès. Pixel et 3D native restent hors acceptation de ce binaire. Si appareil indisponible, documenter cela puis commencer A02.
 
+### État — 22 octobre 2026 : non exécuté
+
+- **Préflight en lecture seule à 10 h 53 CDT :** Seeker Android 16, Trial 1007 (`0.1.0-trial.7`) installé, déverrouillé et au premier plan ; police 1.0, TalkBack inactif, veille 60 s, écran maintenu sur secteur (`15`), Wi-Fi, aucun `adb reverse`. Le SHA de l’APK 1010 local correspond à celui du manifeste.
+- L’utilisateur a autorisé la recette complète **sans lampe**, TalkBack restant à demander à part. Le Seeker a été débranché avant la baseline : un Pixel 9 Pro a été visible un moment, sans être utilisé ; puis plus aucun appareil après 25 min d’attente. **Rien n’a été installé ni modifié sur un téléphone.** Cette autorisation est consommée : il faut la redemander.
+- Helper privé préparé, `.local/a01/native.py` : le numéro de série est découvert à l’exécution et jamais affiché ; la commande passe par la carte Home ; la restauration se fait via `.local/ha-token`. Il n’a jamais tourné sur un appareil : les attentes de libellés seront corrigées au premier passage, et ces corrections ne compteront pas comme des réussites.
+- Le fixture répond désormais à `auth/current_user` (`e4090d6`), sans effet sur Trial 1010.
+
+**Reprise.** Brancher et déverrouiller le Seeker, accepter l’invite de débogage USB et redemander l’autorisation du cycle. Lancer ensuite `node scripts/trial-ha-fixture.mjs 18129 --power-proof` et une seconde instance sur `18130` pour le changement d’origine. Exécuter, depuis le dépôt principal : `python3 .local/a01/native.py` `baseline` → `install` → `standalone` → `demo` → `fonts` → `fixture-connect` → `fixture-suite` → `identity` → `restore` → `logs`. Écrire le rapport public `docs/stage0/ux09-candidate-validation.md` sans numéro de série. TalkBack (écoute humaine) et un cycle physique éventuel restent des autorisations séparées.
+
 ## A02 — Rendre les preuves 3D reproductibles
 
 **Priorité P1 · taille M · prêt maintenant · aucun besoin HA/téléphone.**
@@ -83,6 +92,27 @@ Runner sur sample propre, avec puis sans WebGL ; échec intentionnel si sélecti
 6. Mettre à jour les index `docs/README.md`, `docs/BACKLOG.md`, ce dossier et les preuves, avec SHA et limites. Les preuves GPU privées restent privées. Ne pas lancer de push ou distribution hors autorisation de livraison.
 
 Terminé : candidat intégré identifiable, parcours communs et nouveaux flux acceptés sur les clients nommés, limites exactes listées. Si un défaut est trouvé, ouvrir un correctif borné à son auteur ; ne pas empiler une nouvelle fonctionnalité.
+
+### Notes d’intégration reçues — 22 octobre 2026
+
+- **B (B01–B04 `f76a589`…`f058cd7`).** À ≥1280 px, un détail ouvert depuis Home s’affiche dans le panneau et la scène reste vivante. Il faut donc adapter l’étape `marker-detail` de `check:spatial-ui` :
+  - à 1440 px : panneau visible, `live == 1`, Close puis Escape ;
+  - Escape depuis le titre du panneau, jamais depuis la scène focalisée ;
+  - focus rendu à « Around your home » ;
+  - relire la position des marqueurs après le rétrécissement du canvas ;
+  - à 1024 px : route complète, `noScene` ;
+  - recalculer ensuite l’empreinte d’audit.
+- **Patch Expo Router (B).** Les deux hunks ne touchent que le web : le natif charge `useLinking.native.js`. Il est adopté en `patches/expo-router+57.0.28.patch` seulement si :
+  - la recette passe de 20/21 sans le patch à 21/21 avec ;
+  - `check:ui`, `check:spatial-ui` et Jest restent inchangés ;
+  - patch-package s’applique proprement depuis `npm ci` ;
+  - une revue d’audit l’ajoute aux fichiers revus.
+
+  Sinon, documenter Back/Back/Forward comme défaut web connu. Aucun signalement en amont sans l’accord de l’utilisateur.
+- **Raccords.** `check:detail-panel` à brancher dans `package.json`/CI avec revue des empreintes. Ajouter `<Stack.Screen name="auth-callback" options={{ headerShown: false }} />` en fusionnant C02.
+- **C.** C02 ne s’intègre pas sans C03 : il refuse la commande en session navigateur avec un libellé générique. La règle de principal est documentée dans `power-enrollment.md` (`5b26bed`). Depuis Settings, `dismissTo("/")` remplace `router.replace("/")` (C03).
+- **Natif.** Le groupe de routes ajoute un niveau de Stack. Il faut ré-accepter le retour de focus TalkBack et le bouton Back matériel sur le nouveau candidat.
+- **Outillage.** `check:ui` interrompu par SIGINT laisse son workspace temporaire (reproduit en A02) : correctif séparé, avec revue d’audit.
 
 ## A04 — Sept jours et décision suivante
 
