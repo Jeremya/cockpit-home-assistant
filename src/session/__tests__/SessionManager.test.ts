@@ -29,6 +29,7 @@ import { profileIdFor } from "../homeAssistant/url";
 import sample from "../../spatial/sample-plan.json";
 import { parseHousePlan, type HousePlan } from "../../spatial/model";
 import { emptyIdentity, emptyPreferences } from "../../preferences/types";
+import { BrowserAuthorization } from "../../services/auth/authorization";
 
 jest.mock("../homeAssistant/HomeAssistantBackend", () => ({
   HomeAssistantBackend: jest.fn(),
@@ -1601,4 +1602,127 @@ describe("M01 scoped power authorization", () => {
     manager.updatePreferences((p) => ({ ...p, switchEnrollments: {} }));
     expect(useCockpit.getState().preferences.switchEnrollments).toBe(grants);
   });
+});
+
+function browserSignIn(url = a.url) {
+  const revoke = jest.fn(async () => new Response("", { status: 200 }));
+  return {
+    revoke,
+    signIn: {
+      url,
+      allowInsecureHttp: false,
+      authorization: new BrowserAuthorization(
+        {
+          hassUrl: url,
+          clientId: "https://maurice.example/",
+          access_token: "public-access",
+          refresh_token: "public-refresh",
+          expires_in: 1800,
+          expires: Date.now() + 1_800_000,
+        },
+        { fetch: revoke as unknown as typeof fetch },
+      ),
+    },
+  };
+}
+test("a browser sign-in opens the same home profile without saving any credential", async () => {
+  const { credentials, backends } = setup();
+  const { signIn } = browserSignIn();
+  await manager.connect(signIn);
+  expect(HomeAssistantBackend).toHaveBeenCalledWith(
+    signIn,
+    expect.any(String),
+    expect.any(Object),
+  );
+  expect(useCockpit.getState()).toMatchObject({
+    mode: "homeAssistant",
+    profileId: profileIdFor(a.url),
+    preferencesLoadedFor: profileIdFor(a.url),
+    status: { kind: "ready" },
+  });
+  backends[0]!.snapshot(snapshot());
+  expect(await credentials.load()).toBeNull();
+  expect(useCockpit.getState().notices).toEqual([]);
+  const published = JSON.stringify(useCockpit.getState());
+  expect(published).not.toContain("public-access");
+  expect(published).not.toContain("public-refresh");
+});
+test("Retry keeps a browser sign-in; replacing it signs it out", async () => {
+  setup();
+  const { signIn, revoke } = browserSignIn();
+  await manager.connect(signIn);
+  manager.disconnect();
+  await manager.retry();
+  expect(HomeAssistantBackend).toHaveBeenLastCalledWith(
+    signIn,
+    expect.any(String),
+    expect.any(Object),
+  );
+  expect(signIn.authorization.closed).toBe(false);
+  await manager.connect({ demo: true });
+  expect(signIn.authorization.closed).toBe(true);
+  await Promise.resolve();
+  expect(revoke).toHaveBeenCalledTimes(1);
+});
+test.each<SessionError>([
+  { code: "auth_invalid" },
+  { code: "ha_version_unsupported", haVersion: "2026.9.0" },
+])(
+  "a terminal %j ends the browser sign-in instead of retrying it",
+  async (error) => {
+    setup([error]);
+    const { signIn, revoke } = browserSignIn();
+    await expect(manager.connect(signIn)).rejects.toEqual(error);
+    expect(signIn.authorization.closed).toBe(true);
+    await Promise.resolve();
+    expect(revoke).toHaveBeenCalledTimes(1);
+    const constructed = jest.mocked(HomeAssistantBackend).mock.calls.length;
+    await manager.retry();
+    expect(jest.mocked(HomeAssistantBackend).mock.calls.length).toBe(
+      constructed,
+    );
+  },
+);
+test("an ended sign-in can never reconnect", async () => {
+  setup();
+  const { signIn } = browserSignIn();
+  await signIn.authorization.close();
+  await expect(manager.connect(signIn)).rejects.toThrow("Sign in again");
+  expect(HomeAssistantBackend).not.toHaveBeenCalled();
+});
+test("signing out ends local use first and reports the revocation", async () => {
+  const { prefStore } = setup();
+  const { signIn, revoke } = browserSignIn();
+  await manager.connect(signIn);
+  jest.mocked(HomeAssistantBackend).mock.results[0]!.value.snapshot(snapshot());
+  const target = manager.commands.capture("stable-lamp");
+  let closedWhenRevoked: boolean | undefined;
+  revoke.mockImplementationOnce(async () => {
+    closedWhenRevoked =
+      signIn.authorization.closed && useCockpit.getState().profileId === null;
+    return new Response("", { status: 200 });
+  });
+  expect(await manager.signOut()).toEqual({ kind: "revoked" });
+  expect(closedWhenRevoked).toBe(true);
+  expect(useCockpit.getState()).toMatchObject({
+    status: { kind: "idle" },
+    profileId: null,
+    snapshot: null,
+  });
+  if (target.kind === "captured")
+    expect(manager.commands.setSwitch(target.target, true).kind).toBe(
+      "refused",
+    );
+  expect(prefStore.values.size).toBeGreaterThan(0);
+  const constructed = jest.mocked(HomeAssistantBackend).mock.calls.length;
+  await manager.retry();
+  expect(jest.mocked(HomeAssistantBackend).mock.calls.length).toBe(constructed);
+});
+test("Forget also signs out a browser session", async () => {
+  setup();
+  const { signIn, revoke } = browserSignIn();
+  await manager.connect(signIn);
+  await manager.forget();
+  expect(signIn.authorization.closed).toBe(true);
+  expect(revoke).toHaveBeenCalledTimes(1);
 });

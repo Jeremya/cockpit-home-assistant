@@ -3,6 +3,7 @@ import type {
   EntityRecord,
   HomeConfig,
   HomeSnapshot,
+  SessionError,
 } from "../core/types";
 import { useCockpit } from "../core/store";
 import { Credentials } from "../services/credentials";
@@ -16,7 +17,19 @@ import {
 } from "../preferences/types";
 import { DemoBackend } from "./demo/DemoBackend";
 import { HomeAssistantBackend } from "./homeAssistant/HomeAssistantBackend";
-import { profileIdFor, validateSettings } from "./homeAssistant/url";
+import {
+  profileIdFor,
+  validateOrigin,
+  validateSettings,
+} from "./homeAssistant/url";
+import type {
+  BrowserAuthorization,
+  BrowserSignIn,
+} from "../services/auth/authorization";
+import type { RevocationResult } from "../services/auth/tokenEndpoint";
+import type { AuthMessage } from "../services/auth/authChannel";
+import { principalFor } from "../services/auth/principals";
+import type { WebAuth } from "../services/auth/webAuth";
 import { houseForMode } from "../spatial/plans";
 import { resetSpatial, seedSpatial } from "../spatial/profilePlan";
 import type { HomeBackend } from "./types";
@@ -42,6 +55,28 @@ import type {
   CancellationReason,
 } from "../commands/types";
 
+type ConnectInput = ConnectionSettings | { demo: true } | BrowserSignIn;
+const notices = {
+  rememberFailed:
+    "This browser could not remember the sign-in. You stay signed in on this page only.",
+  rememberedEnded:
+    "The sign-in this browser remembered is no longer valid. Sign in again.",
+  rememberedDiscarded:
+    "The sign-in this browser remembered could not be read and was removed. Sign in again.",
+  rememberedUnreadable:
+    "The sign-in this browser remembered could not be read. Sign in again.",
+  signedOutElsewhere: "Signed out of Home Assistant in another tab.",
+  signOutNotSaved:
+    "This browser could not delete its remembered sign-in; Home Assistant was asked to revoke it.",
+  resetUnknownUser:
+    "Power permissions for this home were reset because the Home Assistant user who allowed them is unknown. Allow devices again if needed.",
+  resetOtherUser:
+    "Power permissions for this home were reset because a different Home Assistant user signed in.",
+  resetElsewhere:
+    "Power permissions for this home were reset in another tab because a different Home Assistant user signed in. Reconnect to use power control here.",
+  principalNotSaved:
+    "Power control is unavailable: this browser could not save which Home Assistant user may use it. Reconnect to try again.",
+};
 interface EligibleCommand {
   kind: "eligible";
   target: CommandTarget;
@@ -55,7 +90,14 @@ export class SessionManager {
   private listeners: (() => void)[] = [];
   private foreground = true;
   private boot?: Promise<void>;
-  private attempt?: ConnectionSettings | { demo: true };
+  private attempt?: ConnectInput;
+  /** Page memory owns a browser sign-in, unless this browser remembers it. */
+  private browser?: BrowserAuthorization;
+  private browserProfile?: string;
+  private browserListeners = new Set<() => void>();
+  /** Web: grants are usable only once this session's HA user is bound to them. */
+  private powerGate: "open" | "pending" | "blocked" = "open";
+  private principal?: string;
   private savedSettings?: ConnectionSettings;
   private commandEligibility = 0;
   private commandReady = false;
@@ -83,7 +125,10 @@ export class SessionManager {
   constructor(
     private credentials: Credentials,
     private preferences: PreferencesStorage,
-  ) {}
+    private web?: WebAuth,
+  ) {
+    web?.channel.subscribe(this.onAuthMessage);
+  }
   private captureCommandTarget(key: string): CaptureResult {
     const { profileId, status } = useCockpit.getState();
     const snapshot = this.commandSnapshot;
@@ -203,6 +248,7 @@ export class SessionManager {
     intent: CommandIntent,
   ): CommandRefusal | undefined {
     if (intent.kind !== "setSwitch") return;
+    if (this.powerGate !== "open") return refuse("not_authorized");
     const state = useCockpit.getState();
     const grant = state.preferences.switchEnrollments[eligible.entity.key];
     if (
@@ -357,9 +403,34 @@ export class SessionManager {
       );
       return;
     }
+    const restored = this.savedSettings
+      ? undefined
+      : await this.restoreRemembered();
     useCockpit.setState({ initialized: true });
-    if (generation === this.generation && this.savedSettings)
-      await this.connect(this.savedSettings).catch(() => undefined);
+    // A newer connection (such as a sign-in callback) wins over the restore.
+    if (generation !== this.generation) {
+      restored?.authorization.release();
+      return;
+    }
+    const target = this.savedSettings ?? restored;
+    if (target) await this.connect(target).catch(() => undefined);
+  }
+  private async restoreRemembered(): Promise<BrowserSignIn | undefined> {
+    const store = this.web?.store;
+    if (!store) return undefined;
+    let latest: Awaited<ReturnType<typeof store.latest>>;
+    try {
+      latest = await store.latest();
+    } catch {
+      this.notice(notices.rememberedUnreadable);
+      return undefined;
+    }
+    const restored = latest.session && this.web!.restore(latest.session);
+    if (latest.session && !restored)
+      void store.remove(latest.session.profileId).catch(() => undefined);
+    if (latest.discarded || (latest.session && !restored))
+      this.notice(notices.rememberedDiscarded);
+    return restored;
   }
   private teardown(clear = true, preserveCommandOutcomes = false) {
     this.generation++;
@@ -386,15 +457,41 @@ export class SessionManager {
         : {}),
     });
   }
-  async connect(input: ConnectionSettings | { demo: true }) {
-    const settings = "demo" in input ? undefined : validateSettings(input);
+  async connect(input: ConnectInput) {
+    const browser = "authorization" in input ? input : undefined;
+    if (browser?.authorization.closed)
+      throw new Error("This sign-in has ended. Sign in again.");
+    const settings =
+      "demo" in input || "authorization" in input
+        ? undefined
+        : validateSettings(input);
+    const origin = browser ? validateOrigin(browser).url : settings?.url;
+    const profileId = origin ? profileIdFor(origin) : "demo";
+    const store = this.web?.store;
+    const remember =
+      browser?.remember && !browser.authorization.remembered
+        ? // Read first: a sign-out anywhere after this point wins over the write.
+          (store?.signOutSeq(profileId) ?? Promise.reject(new Error()))
+        : undefined;
+    remember?.catch(() => undefined);
+    const replaced =
+      this.browser !== browser?.authorization ? this.browser : undefined;
+    this.browser = browser?.authorization;
+    this.browserProfile = browser ? profileId : undefined;
+    const bindUser = !!this.web && !!origin;
+    this.powerGate = bindUser ? "pending" : "open";
+    this.principal = undefined;
     this.teardown(true, true);
-    this.attempt = settings ?? { demo: true };
+    // A replaced browser sign-in has no other owner: after its targets, revoke
+    // it, unless this browser still remembers it.
+    if (replaced?.remembered) replaced.release();
+    else void replaced?.close();
+    this.browserChanged();
+    this.attempt = settings ?? browser ?? { demo: true };
     const generation = this.generation;
-    const profileId = settings ? profileIdFor(settings.url) : "demo";
     useCockpit.setState({
       status: { kind: "connecting" },
-      mode: settings ? "homeAssistant" : "demo",
+      mode: origin ? "homeAssistant" : "demo",
       profileId,
       notices: [],
     });
@@ -421,7 +518,7 @@ export class SessionManager {
     const stored = file.profiles[profileId] ?? emptyPreferences();
     const spatial = seedSpatial(
       stored.spatial,
-      houseForMode(settings ? "homeAssistant" : "demo"),
+      houseForMode(origin ? "homeAssistant" : "demo"),
     );
     const prefs = { ...stored, spatial };
     // Persisted with the first snapshot, so a failed attempt never creates a profile;
@@ -432,15 +529,30 @@ export class SessionManager {
       preferences: prefs,
       preferencesLoadedFor: profileId,
     });
-    const backend = settings
-      ? new HomeAssistantBackend(settings, String(generation), {
+    const connection = settings ?? browser;
+    const backend = connection
+      ? new HomeAssistantBackend(connection, String(generation), {
           identities: prefs.identities,
+          ...(bindUser
+            ? {
+                verifyUser: true,
+                onUser: (userId: string) =>
+                  this.bindPrincipal(
+                    generation,
+                    profileId,
+                    origin!,
+                    userId,
+                    browser,
+                  ),
+              }
+            : {}),
         })
       : new DemoBackend(String(generation));
     this.backend = backend;
     this.commandTracker.start(profileId, String(generation));
     let saved = false;
     let saving: Promise<void> | undefined;
+    let remembering = !!remember;
     const persist = (): Promise<void> => {
       if (!settings || saved || generation !== this.generation)
         return Promise.resolve();
@@ -463,12 +575,27 @@ export class SessionManager {
     this.listeners = [
       backend.onStatus((status) => {
         if (generation !== this.generation) return;
+        // Terminal auth or version errors end the sign-in; no silent reuse.
+        if (browser && status.kind === "error" && !status.retrying) {
+          if (this.attempt === browser) this.attempt = undefined;
+          if (this.browser === browser.authorization) {
+            this.browser = undefined;
+            this.browserProfile = undefined;
+          }
+          this.endSignIn(browser.authorization, profileId);
+          this.browserChanged();
+        }
         this.commandReady = status.kind === "ready";
         if (status.kind !== "ready") this.invalidateCommands("not_ready");
         this.commandTracker.onStatus(status);
         useCockpit.setState({ status });
         // Initial offline failures can recover after start() has already rejected.
         if (status.kind === "ready") void persist().catch(() => undefined);
+        // Remembered only once the user is verified and a fresh snapshot arrived.
+        if (status.kind === "ready" && remembering) {
+          remembering = false;
+          void this.rememberSignIn(browser!, profileId, remember!);
+        }
       }),
       backend.onSnapshot((snapshot) => {
         if (generation !== this.generation) return;
@@ -511,9 +638,54 @@ export class SessionManager {
   disconnect() {
     this.teardown(false);
   }
+  /** Whether the current or last attempt is a browser sign-in still held. */
+  get browserSession(): "memory" | "remembered" | undefined {
+    if (!this.browser) return undefined;
+    return this.browser.remembered ? "remembered" : "memory";
+  }
+  /** For `useSyncExternalStore`: `browserSession` changed. */
+  subscribeBrowser = (listener: () => void) => {
+    this.browserListeners.add(listener);
+    return () => {
+      this.browserListeners.delete(listener);
+    };
+  };
+  private browserChanged() {
+    this.browserListeners.forEach((listener) => listener());
+  }
+  /**
+   * Ends a browser sign-in: local use and targets first, then this browser's
+   * record and the other tabs, then revocation.
+   */
+  async signOut(): Promise<RevocationResult | undefined> {
+    const profileId = this.browserProfile;
+    const authorization = this.endBrowser();
+    if (profileId) await this.forgetRemembered(profileId);
+    return authorization?.close();
+  }
+  /** Keeps this page signed in; it is revoked when the page closes. */
+  async stopRemembering(): Promise<boolean> {
+    const authorization = this.browser;
+    const profileId = this.browserProfile;
+    const store = this.web?.store;
+    if (!authorization?.remembered || !profileId || !store) return false;
+    authorization.remembered = false;
+    this.browserChanged();
+    try {
+      await store.remove(profileId);
+      return true;
+    } catch {
+      // The record may still hold this token: unload must not revoke it.
+      if (!authorization.closed) authorization.remembered = true;
+      this.browserChanged();
+      return false;
+    }
+  }
   async forget() {
-    this.teardown();
-    this.attempt = undefined;
+    const profileId = useCockpit.getState().profileId ?? this.browserProfile;
+    const authorization = this.endBrowser();
+    if (profileId?.startsWith("ha:")) await this.forgetRemembered(profileId);
+    await authorization?.close();
     // Wait for queued saves before choosing the actual persisted profile to remove.
     const saved = await this.credentials.load();
     if (saved) await this.credentials.forget(saved.url);
@@ -554,6 +726,20 @@ export class SessionManager {
   }
   /** Call only after explicit UI confirmation; this grants permission, sends no service. */
   async allowSwitch(target: CommandTarget): Promise<boolean> {
+    if (this.powerGate !== "open") return false;
+    // Another tab may have bound this home to another HA user meanwhile.
+    if (this.web && useCockpit.getState().mode === "homeAssistant") {
+      const generation = this.generation;
+      const stored = await this.web.principals
+        .get(target.profileId)
+        .catch(() => undefined);
+      if (generation !== this.generation || this.powerGate !== "open")
+        return false;
+      if (stored !== this.principal) {
+        this.principalChangedElsewhere();
+        return false;
+      }
+    }
     const eligible = this.resolveCommand(target);
     const state = useCockpit.getState();
     if (
@@ -621,7 +807,13 @@ export class SessionManager {
     );
   }
   /** Revocation also works offline and invalidates prepared actions before publication. */
-  async revokeSwitch(profileId: string, entityKey: string): Promise<boolean> {
+  revokeSwitch(profileId: string, entityKey: string): Promise<boolean> {
+    return this.revokeSwitches(profileId, (key) => key !== entityKey);
+  }
+  private async revokeSwitches(
+    profileId: string,
+    keep: (entityKey: string) => boolean,
+  ): Promise<boolean> {
     const state = useCockpit.getState();
     if (
       state.profileId !== profileId ||
@@ -629,8 +821,8 @@ export class SessionManager {
     )
       return false;
     const grants = Object.fromEntries(
-      Object.entries(state.preferences.switchEnrollments).filter(
-        ([key]) => key !== entityKey,
+      Object.entries(state.preferences.switchEnrollments).filter(([key]) =>
+        keep(key),
       ),
     );
     this.invalidateCommands("session_changed");
@@ -658,5 +850,180 @@ export class SessionManager {
     useCockpit.setState((state) => ({
       notices: [...new Set([...state.notices, message])],
     }));
+  }
+  /** Ends this page's browser sign-in locally; the caller decides on revocation. */
+  private endBrowser(message?: string) {
+    const authorization = this.browser;
+    this.browser = undefined;
+    this.browserProfile = undefined;
+    this.teardown();
+    this.attempt = undefined;
+    if (message) this.notice(message);
+    this.browserChanged();
+    return authorization;
+  }
+  /** Terminal error: revoke, and drop the record only if it still holds this token. */
+  private endSignIn(authorization: BrowserAuthorization, profileId: string) {
+    const token = authorization.refreshToken;
+    const remembered = authorization.remembered;
+    void authorization.close();
+    if (!remembered || !token) return;
+    void this.web?.store?.remove(profileId, token).catch(() => undefined);
+    this.notice(notices.rememberedEnded);
+  }
+  private async forgetRemembered(profileId: string) {
+    if (!this.web) return;
+    try {
+      await this.web.store?.signOut(profileId);
+    } catch {
+      this.notice(notices.signOutNotSaved);
+    }
+    this.web.channel.post({ type: "signed-out", profileId });
+  }
+  private async rememberSignIn(
+    browser: BrowserSignIn,
+    profileId: string,
+    signOutSeq: Promise<number>,
+  ) {
+    const { authorization } = browser;
+    const store = this.web?.store;
+    const current = () =>
+      this.browser === authorization && !authorization.closed;
+    const failed = () => {
+      authorization.remembered = false;
+      if (current()) this.notice(notices.rememberFailed);
+      this.browserChanged();
+    };
+    const principal = this.principal;
+    let seq: number;
+    try {
+      seq = await signOutSeq;
+    } catch {
+      failed();
+      return;
+    }
+    const refreshToken = authorization.refreshToken;
+    const clientId = authorization.auth.data.clientId;
+    if (!current() || !refreshToken) return;
+    if (!store || !principal || !clientId) {
+      failed();
+      return;
+    }
+    // Before the write: a page closing meanwhile must not revoke what it keeps.
+    authorization.remembered = true;
+    let result: Awaited<ReturnType<typeof store.remember>>;
+    try {
+      result = await store.remember(
+        {
+          version: 1,
+          profileId,
+          hassUrl: authorization.hassUrl,
+          clientId,
+          allowInsecureHttp: browser.allowInsecureHttp,
+          principal,
+          refreshToken,
+          rememberedAt: Date.now(),
+        },
+        seq,
+      );
+    } catch {
+      failed();
+      return;
+    }
+    if (result.kind === "signed_out") {
+      authorization.remembered = false;
+      if (current()) this.endBrowser(notices.signedOutElsewhere);
+      void authorization.close();
+      return;
+    }
+    if (result.replaced)
+      void this.web!.revoke(
+        result.replaced.hassUrl,
+        result.replaced.refreshToken,
+      ).catch(() => undefined);
+    this.browserChanged();
+  }
+  /**
+   * Web rule (M01 amendment): grants are usable only under the HA user they
+   * were made with. Runs before the first synchronization; refusing throws.
+   */
+  private async bindPrincipal(
+    generation: number,
+    profileId: string,
+    hassUrl: string,
+    userId: string,
+    browser?: BrowserSignIn,
+  ): Promise<void> {
+    const web = this.web!;
+    let principal: string;
+    try {
+      principal = await principalFor(hassUrl, userId);
+    } catch {
+      if (generation === this.generation)
+        this.blockPower(notices.principalNotSaved);
+      return;
+    }
+    if (
+      browser?.rememberedPrincipal &&
+      browser.rememberedPrincipal !== principal
+    )
+      throw { code: "auth_invalid" } satisfies SessionError;
+    if (generation !== this.generation) return;
+    this.principal = principal;
+    const stored = await web.principals.get(profileId).catch(() => undefined);
+    if (generation !== this.generation) return;
+    if (stored !== principal) {
+      const reset =
+        Object.keys(useCockpit.getState().preferences.switchEnrollments)
+          .length > 0;
+      // Targets and unsent work first, then the grants; the principal last,
+      // so a crash in between can only lead to another, empty revocation.
+      if (reset && !(await this.revokeSwitches(profileId, () => false))) {
+        if (generation === this.generation) this.blockPower();
+        return;
+      }
+      if (generation !== this.generation) return;
+      if (reset)
+        this.notice(stored ? notices.resetOtherUser : notices.resetUnknownUser);
+      try {
+        await web.principals.set(profileId, principal);
+      } catch {
+        if (generation === this.generation)
+          this.blockPower(notices.principalNotSaved);
+        return;
+      }
+      web.channel.post({ type: "principal-changed", profileId, principal });
+      if (generation !== this.generation) return;
+    }
+    if (this.powerGate === "pending") this.powerGate = "open";
+  }
+  private blockPower(message?: string) {
+    this.powerGate = "blocked";
+    this.invalidateCommands("session_changed");
+    if (message) this.notice(message);
+  }
+  private onAuthMessage = (message: AuthMessage) => {
+    if (message.type === "signed-out") {
+      if (this.browser && this.browserProfile === message.profileId)
+        void this.endBrowser(notices.signedOutElsewhere)?.close();
+      return;
+    }
+    // A pending session compares the stored principal itself.
+    if (
+      this.backend &&
+      this.powerGate === "open" &&
+      this.principal &&
+      message.principal !== this.principal &&
+      useCockpit.getState().profileId === message.profileId
+    )
+      this.principalChangedElsewhere();
+  };
+  private principalChangedElsewhere() {
+    this.blockPower(notices.resetElsewhere);
+    // That tab already revoked them on disk; this page must not write them back.
+    const { preferences } = useCockpit.getState();
+    useCockpit.setState({
+      preferences: { ...preferences, switchEnrollments: {} },
+    });
   }
 }
