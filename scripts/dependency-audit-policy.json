@@ -33,7 +33,7 @@
     "scripts/check-spatial-ui.mjs": "3a3368d88f082e060c0c89c1d061b99a030de10f967794436593a2158c08e011",
     "scripts/lib/spatial-ui.mjs": "66abebd47f54afbed6ad73759c683c2afd1414532162819481abe96e5080c305",
     "patches/expo-router+57.0.28.patch": "e019a5b301ffbd95b2dde62ccd62ad7b12ab942ff8af59877f542a99702ddb60",
-    "scripts/check-detail-panel.mjs": "01228a42e2adf5ff9efc8f8de9b0d7eab9e3153aced71983e7d2ea1975fbd4f3"
+    "scripts/check-detail-panel.mjs": "5fdf732a15fafc554857f0cc3d7841fe101719442391aad2032b4a21e302dc03"
   },
   "exceptions": [
     {

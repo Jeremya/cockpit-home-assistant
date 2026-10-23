@@ -129,17 +129,18 @@ contrat de B :
 
 Les positions des marqueurs sont relues une fois la taille du canvas stable.
 
-Deux effets du nouvel espace de travail sont mesurés, pas masqués :
+Après la fusion, deux effets du nouvel espace de travail ont été mesurés :
 
 - Home calcule sa disposition en deux passes (largeur mesurée). Le contrôle du
-  contour attend donc la convergence du cadrage.
-- Franchir le seuil du panneau (par exemple 1440→1024, 1024→1023, →430) remonte
-  `HomeScreen` : l’état local (plan déplié, focus) repart à zéro et le renderer
-  est recréé. Le parcours crée 17 renderers au lieu de 10, avec un **pic
-  toujours à 1**. Le runner laisse l’espace de travail se re-mesurer après
-  chaque redimensionnement.
+  contour attend donc la convergence du cadrage, et le runner laisse l’espace de
+  travail se re-mesurer après chaque redimensionnement.
+- Franchir le seuil du panneau remontait `HomeScreen` : l’état local était perdu
+  et le parcours créait 17 renderers au lieu de 10, avec un pic toujours à 1.
+  **B l’a corrigé** (`d7ac3fc`) : un seul Home pour les deux présentations, et
+  un panneau seulement à partir de 1224 px. Sur l’arbre intégré (`d7ac3fc` +
+  correctif Settings), le même parcours revient à **10 créations, pic 1**.
 
-Résultat sur l’arbre intégré : 3 passages consécutifs sur 3 en headless.
+Résultat sur l’arbre intégré : 3/3 avant le correctif de B, puis 2/2 après.
 
 ## Limites
 

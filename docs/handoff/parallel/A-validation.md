@@ -135,6 +135,8 @@ Sur l’arbre intégré :
 
 **Mise à jour :** C a rétabli `router.replace("/")` (`e893965`, intégré en `590aec0`). Sur cet arbre : `check:detail-panel` **21/21**, `check:ui` passe, Jest **959/70**, typecheck, lint et format passent. C04 part de `590aec0`.
 
+**Mise à jour (B) :** `957e366` et `d7ac3fc` sont intégrés : un seul Home quel que soit le seuil, panneau à partir de 1224 px, runner sans option de patch et interruption propre. `check:detail-panel` **22/22**, `check:ui` passe, `check:spatial-ui` passe 2/2 (10 renderers créés, pic 1), Jest **960/70**, outillage 35/35. Runner ré-épinglé, audit `passed-with-exceptions`.
+
 **Reste avant A03 terminé :**
 
 1. C04 et `check:web-auth`, à brancher ensuite sur `package.json`, la CI et l’audit.
