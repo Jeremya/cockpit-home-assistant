@@ -161,6 +161,9 @@ async function observe(page) {
   return {
     path: await page.evaluate(() => location.pathname + location.search),
     homes: await page.getByTestId("home-overview").count(),
+    markedHomes: await page
+      .locator('[data-testid="home-overview"][data-runner-home]')
+      .count(),
     visibleHomes: await visible("home-overview"),
     panel: await visible("detail-panel"),
     summary: await visible("device-summary"),
@@ -199,6 +202,11 @@ async function row(name, expected, check) {
 }
 const card = (page, name) =>
   page.getByRole("button", { name: `Open device: ${name}`, exact: true });
+// A remounted Home renders a new overview node without this mark.
+const markHome = (page) =>
+  page.getByTestId("home-overview").evaluateAll((nodes) => {
+    for (const node of nodes) node.dataset.runnerHome = "1";
+  });
 const lampPath = "/appliance/demo-plug?profile=demo";
 const feederPath = "/appliance/demo-feeder?profile=demo";
 const readingPath = "/device/demo-sensor.feeder_last?profile=demo";
@@ -413,22 +421,29 @@ try {
     },
   );
   await row(
-    "Resize 1440 → 430 → 1024 → 1440 with a detail open",
-    "Same URL and session; route presentation when narrow, panel when wide; at most one live renderer",
+    "Resize 1440 → 430 → 1010 → 1024 → 1440 with a detail open",
+    "Same URL, session and Home; a panel only in the desktop layout; Home's renderer released while the detail covers it",
     async (step) => {
       const { context, page } = await open(1440);
       try {
         await demo(page);
+        await markHome(page);
         await card(page, "Living room lamp").click();
         await step("1440", page, (s) => assert.equal(s.panel, 1));
-        for (const width of [430, 1024, 1440]) {
+        const start = await observe(page);
+        for (const width of [430, 1010, 1024, 1440]) {
           await page.setViewportSize({ width, height: 932 });
           await step(String(width), page, (s) => {
             assert.equal(s.path, lampPath);
             assert.equal(s.summary, 1);
             assert.equal(s.panel, width === 1440 ? 1 : 0);
             assert.equal(s.visibleHomes, width === 1440 ? 1 : 0);
-            assert(s.renderers.live <= 1 && s.renderers.peakLive <= 1);
+            assert.equal(s.homes, 1);
+            assert.equal(s.markedHomes, 1, "Resizing must keep Home");
+            assert.equal(s.renderers.live, width === 1440 ? 1 : 0);
+            // A covered Home never draws, not even for one stale layout.
+            if (width !== 1440) assert.equal(created(s), created(start));
+            assert(s.renderers.peakLive <= 1);
           });
         }
         assert.equal(
@@ -438,6 +453,34 @@ try {
           0,
           "Resizing must not lose the session",
         );
+      } finally {
+        await context.close();
+      }
+    },
+  );
+  await row(
+    "Resize across the panel and desktop thresholds with Home shown",
+    "One Home throughout; no new renderer while the desktop layout stays; no panel without a detail",
+    async (step) => {
+      const { context, page } = await open(1440);
+      try {
+        await demo(page);
+        await markHome(page);
+        const start = await observe(page);
+        // Compact Home defaults to 2D, so only the desktop widths keep the scene.
+        const desktop = [1223, 1100, 1024];
+        for (const width of [...desktop, 1023, 1010, 430, 1440]) {
+          await page.setViewportSize({ width, height: 932 });
+          await step(String(width), page, (s) => {
+            assert.equal(s.path, "/");
+            assert.equal(s.panel, 0);
+            assert.equal(s.visibleHomes, 1);
+            assert.equal(s.markedHomes, 1, "Resizing must keep Home");
+            if (desktop.includes(width))
+              assert.equal(created(s), created(start));
+            assert(s.renderers.peakLive <= 1);
+          });
+        }
       } finally {
         await context.close();
       }

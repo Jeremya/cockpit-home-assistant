@@ -10,12 +10,13 @@ export type DetailLayout = { kind: "panel"; width: number } | { kind: "route" };
 
 const panel = { min: 360, max: 440, share: 0.32, homeMin: 640 };
 
-/** A side panel only where the measured workspace keeps Home readable beside it. */
+/** A side panel only in the web desktop layout, where the measured workspace
+ * keeps Home readable beside it. A compact window never gets one. */
 export function detailLayout(
   width: number,
-  { web, hostsHome }: { web: boolean; hostsHome: boolean },
+  { desktop, hostsHome }: { desktop: boolean; hostsHome: boolean },
 ): DetailLayout {
-  if (!web || !hostsHome) return { kind: "route" };
+  if (!desktop || !hostsHome) return { kind: "route" };
   const size = Math.min(
     panel.max,
     Math.max(panel.min, Math.round(width * panel.share)),

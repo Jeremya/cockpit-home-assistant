@@ -244,3 +244,39 @@ Base: A's integration tree `13bb790` (B01–B04, the adopted router patch `6c041
 - Process-group Ctrl-C while the browser rows ran: exit 1, report `failedStage: "browser"`, `failure: "This operation was aborted"`, 7 rows passed and 1 interrupted, staging directory removed, no fixture or browser process left, `serverAndBrowserClosed: true`.
 
 Local exports for probes use the runner's isolated `TMPDIR` (`publicEnvironment`), never the shared Metro cache.
+
+## One Home across presentations — 2026-10-22
+
+A's integration measured a `HomeScreen` remount whenever the workspace crossed the panel threshold (1440→1024, 1024→1023, →430). Local state was lost (plan disclosure, focus, scroll) and the renderer was recreated: 17 renderers instead of 10 on A's spatial path. B owns the fix; it changes only B's files.
+
+### Measured before the change (`13bb790`, detail open, 1440 → 430 → 1440)
+
+| Window | Rail | Presentation | Same Home |
+| --- | --- | --- | --- |
+| 1440 / 1300 / 1224 | yes | panel 389 / 360 / 360 px | yes |
+| 1223 / 1100 / 1024 | yes | route | **no** |
+| 1023 / 1010 / 1000 | no | **panel 360 px** | **no** |
+| 999 / 900 / 768 / 430 | no | route | **no** |
+| back to 1440 | yes | panel | **no**, renderer recreated |
+
+Two defects: Home moved between the layout and the `index` screen, and the panel reappeared at 1000–1023 px, where the workspace has room because the rail is gone but Home is compact.
+
+### What changed
+
+- `detailLayout(width, { desktop, hostsHome })`: `desktop` replaces `web`. The panel exists only in the web desktop layout (≥ 1024 px, with the rail), so it appears in one place only, from 1224 px. One unit test was added, watched failing first.
+- `DetailWorkspace.web.tsx` renders the one Home whenever the Stack's base is `index`, in both presentations; `index` renders nothing on web. Home's `NavigationProvider` gets the workspace's navigation beside the panel and the `index` route's in route presentation, so focus, `useFocusEffect` and renderer release behave as before. Only context values and styles change at a crossing.
+- A width measured on the other side of the rail is stale. The workspace remeasures before paint when `desktop` changes and stays a route meanwhile. Without this, 1010 → 1024 with a detail open drew one frame of panel on the old width and created a renderer.
+- Native and `DetailWorkspace.tsx` are unchanged.
+
+### Runner rows, written first and seen failing
+
+- **Resize 1440 → 430 → 1010 → 1024 → 1440 with a detail open**, extended: one Home throughout (a mark on its overview node survives), no panel at 1010, live renderers 0 while the detail covers Home, and no renderer created at any route width. Failed before the change with “Resizing must keep Home” at 430, then at 1024 on the stale-width frame.
+- **Resize across the panel and desktop thresholds with Home shown** (new): 1223 → 1100 → 1024 → 1023 → 1010 → 430 → 1440. Same Home throughout, no panel, and no new renderer while the window stays desktop. Compact Home defaults to 2D, so returning to 1440 creates the 3D renderer again; that is Home's own responsive behavior. Failed before the change with “Resizing must keep Home” at 1223.
+
+### Results
+
+- `check-detail-panel`: **20 / 22** rows. Both resize rows pass. The only failures are the two fixture rows from Settings' `dismissTo("/")`, unchanged and owned by C (see above). Zero page errors and external requests.
+- With a detail open, 1440 → 430 → 1010 → 1024 → 1440: same Home, no panel below 1224 px, live 0 at every route width, no renderer created until the panel shows Home again.
+- A's `check:ui` (unmodified) **passes** at 320/430/768/1440, where Home now sits in the workspace rather than the `index` screen. Covers markers, focus returns and the browser HA fixture with 2 simulated and 0 physical services.
+- A's `check:spatial-ui` (unmodified) **passes**: marker → panel at 1440 keeps the scene, Escape and Close return, 1024 releases the renderer. Its path now creates **10 renderers instead of 17**, peak 1.
+- Jest **959 / 70**, TypeScript, lint, `format:check` and `test:tooling` **35 / 35** pass.
