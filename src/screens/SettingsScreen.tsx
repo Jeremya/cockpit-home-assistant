@@ -126,8 +126,7 @@ export function SettingsScreen() {
       const origin = normalizeUrl(url);
       await session.connect({ url: origin, token, allowInsecureHttp: trust });
       setToken("");
-      // Back to the Home already below, rather than a second one on top.
-      router.dismissTo("/");
+      router.replace("/");
     } catch (failure) {
       setError(
         failure instanceof Error
@@ -303,7 +302,7 @@ export function SettingsScreen() {
             setBusy(true);
             void session
               .connect({ demo: true })
-              .then(() => router.dismissTo("/"))
+              .then(() => router.replace("/"))
               .catch(() => setError("Could not load demo."))
               .finally(() => setBusy(false));
           }}

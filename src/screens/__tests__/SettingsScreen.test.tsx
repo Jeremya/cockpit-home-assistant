@@ -215,12 +215,19 @@ test("session notices, such as a power permission reset, are shown here", () => 
   ).toBeTruthy();
 });
 
-test("a successful connection returns to the existing Home instead of stacking one", async () => {
-  jest.mocked(session.connect).mockResolvedValue(undefined);
-  const screen = render(<SettingsScreen />);
-  fillAddress(screen, "https://home.example");
-  fireEvent.changeText(screen.getByLabelText("Access token"), "public-token");
-  fireEvent.press(screen.getByRole("button", { name: "Connect" }));
-  await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith("/"));
-  expect(router.replace).not.toHaveBeenCalled();
-});
+test.each([
+  ["Connect", "Connect"],
+  ["Explore demo home", "Explore demo home"],
+])(
+  "after %s, Home replaces Settings so browser Back still reaches the previous detail",
+  async (_, button) => {
+    jest.mocked(session.connect).mockResolvedValue(undefined);
+    const screen = render(<SettingsScreen />);
+    fillAddress(screen, "https://home.example");
+    fireEvent.changeText(screen.getByLabelText("Access token"), "public-token");
+    fireEvent.press(screen.getByRole("button", { name: button }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    // dismissTo would pop the workspace stack and drop that detail entry.
+    expect(router.dismissTo).not.toHaveBeenCalled();
+  },
+);
