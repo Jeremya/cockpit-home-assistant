@@ -31,7 +31,8 @@
     "patches/query-string+7.1.3.patch": "4243811b237ee15497eabf949651f47db8bfecb01dbc1885b14a2c70c8821282",
     "scripts/lib/browser-connection-check.mjs": "63412149fcf81b6f1f893713a5582c73de90e8984dd338139c8cbf2530049572",
     "scripts/check-spatial-ui.mjs": "3a3368d88f082e060c0c89c1d061b99a030de10f967794436593a2158c08e011",
-    "scripts/lib/spatial-ui.mjs": "66abebd47f54afbed6ad73759c683c2afd1414532162819481abe96e5080c305"
+    "scripts/lib/spatial-ui.mjs": "66abebd47f54afbed6ad73759c683c2afd1414532162819481abe96e5080c305",
+    "patches/expo-router+57.0.28.patch": "e019a5b301ffbd95b2dde62ccd62ad7b12ab942ff8af59877f542a99702ddb60"
   },
   "exceptions": [
     {
