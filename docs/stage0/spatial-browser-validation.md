@@ -116,6 +116,31 @@ amont inchangées. Les empreintes sont mises à jour et le runner + sa lib sont
 ajoutés aux fichiers revus ; `check:audit` repasse `passed-with-exceptions`,
 expiration **2026-11-02 inchangée**. Ce n'est pas un audit strict.
 
+## Intégration du panneau de détail (B01–B04)
+
+Après fusion de `work/detail-panel`, l’étape `marker-detail` reflète le
+contrat de B :
+
+- à 1440 px, le marqueur ouvre le détail **dans le panneau** ; Home et sa scène
+  restent (même renderer, `live == 1`) ;
+- Escape depuis le titre du panneau, puis le bouton **Close details**, ramènent
+  à Home ; le focus revient à « Around your home » ;
+- à 1024 px, le détail reste une route complète qui libère le renderer.
+
+Les positions des marqueurs sont relues une fois la taille du canvas stable.
+
+Deux effets du nouvel espace de travail sont mesurés, pas masqués :
+
+- Home calcule sa disposition en deux passes (largeur mesurée). Le contrôle du
+  contour attend donc la convergence du cadrage.
+- Franchir le seuil du panneau (par exemple 1440→1024, 1024→1023, →430) remonte
+  `HomeScreen` : l’état local (plan déplié, focus) repart à zéro et le renderer
+  est recréé. Le parcours crée 17 renderers au lieu de 10, avec un **pic
+  toujours à 1**. Le runner laisse l’espace de travail se re-mesurer après
+  chaque redimensionnement.
+
+Résultat sur l’arbre intégré : 3 passages consécutifs sur 3 en headless.
+
 ## Limites
 
 - Le job GitHub n'a **pas** tourné : aucun push. La parité Linux est prouvée en

@@ -136,6 +136,13 @@ async function noOverflow(target) {
     "Page must fit the viewport",
   );
 }
+/** Resizes, then lets the workspace re-measure: crossing the detail panel
+ * threshold mounts Home elsewhere, with fresh local UI state. */
+async function resize(target, width, height = 1000) {
+  await target.setViewportSize({ width, height });
+  await settle(target);
+  await settle(target);
+}
 /** Waits for the compact disclosure, so a resize cannot race the check. */
 async function expandCompactPlan(target) {
   const toggle = target.getByRole("button", {
@@ -235,16 +242,23 @@ async function assertFixtureScene(target, floor) {
   );
   return current;
 }
+/** Home may lay out in two passes after a resize; the fit must converge. */
 async function cornersInside(target) {
-  const current = await probe(target);
-  for (const corner of current.floorCorners)
-    assert(
-      corner.x > 0 &&
-        corner.x < current.size.width &&
-        corner.y > 0 &&
-        corner.y < current.size.height,
-      "Floor outline must stay inside the canvas",
-    );
+  await expect
+    .poll(
+      async () => {
+        const current = await probe(target);
+        return current.floorCorners.every(
+          (corner) =>
+            corner.x > 0 &&
+            corner.x < current.size.width &&
+            corner.y > 0 &&
+            corner.y < current.size.height,
+        );
+      },
+      { message: "Floor outline must stay inside the canvas" },
+    )
+    .toBe(true);
 }
 /** Samples animatedCamera every frame while `action` runs. */
 async function animationDuring(target, action) {
@@ -298,14 +312,14 @@ async function functional() {
     await assertFixtureScene(page, floor);
     // Headless CI normally reports a software renderer: functional, not GPU.
     report.browser.webglRenderer = await webglRenderer(page);
-    await page.setViewportSize({ width: 1024, height: 1000 });
+    await resize(page, 1024);
     await ready(page);
     await expect(scene(page)).toHaveAttribute("data-camera-mode", "model");
-    await page.setViewportSize({ width: 1023, height: 1000 });
+    await resize(page, 1023);
     await expandCompactPlan(page);
     await expect(tab(plan, "2D plan")).toHaveAttribute("aria-selected", "true");
     await noScene(page);
-    await page.setViewportSize({ width: 1440, height: 1000 });
+    await resize(page, 1440);
     await ready(page);
     checks.defaultView = { model3dAt: [1024, 1440], compact2dAt: 1023 };
 
@@ -336,7 +350,7 @@ async function functional() {
     near(await yaw(), modelCamera.yaw, "overview yaw");
     near(await zoom(), modelCamera.minZoom, "overview zoom");
     for (const width of [1024, 1280, 1440]) {
-      await page.setViewportSize({ width, height: 1000 });
+      await resize(page, width);
       await ready(page);
       await cornersInside(page);
       await noOverflow(page);
@@ -362,13 +376,13 @@ async function functional() {
     await expect.poll(zoom).toBeGreaterThan(modelCamera.minZoom);
     await ready(page);
     const before = (await probe(page)).modelCamera;
-    await page.setViewportSize({ width: 1280, height: 1000 });
+    await resize(page, 1280);
     await ready(page);
     const after = await probe(page);
     near(after.modelCamera.yaw, before.yaw, "yaw across resize");
     near(after.modelCamera.zoomFactor, before.zoomFactor, "zoom across resize");
     assert.equal(after.selection, floor.rooms[1], "selection across resize");
-    await page.setViewportSize({ width: 1440, height: 1000 });
+    await resize(page, 1440);
     await ready(page);
     await scene(page).focus();
     await page.keyboard.press("Escape");
@@ -413,20 +427,63 @@ async function functional() {
 
     stage = "marker-detail";
     const home = page.url();
-    const lamp = (await assertFixtureScene(page, floor)).markers.find(
-      (marker) => marker.key === fixtureMarkers[0],
-    );
-    const canvas = await scene(page).locator("canvas").boundingBox();
-    await page.mouse.click(canvas.x + lamp.x, canvas.y + lamp.y);
-    await expect(
-      page.getByText("Observation details", { exact: true }),
-    ).toBeVisible();
-    assert.notEqual(page.url(), home, "Marker must open its detail route");
+    const panel = page.getByTestId("detail-panel");
+    const details = page.getByText("Observation details", { exact: true });
+    // Positions are re-read each time: the panel resizes Home's canvas.
+    const openLamp = async () => {
+      await expect
+        .poll(async () => {
+          const before = (await probe(page)).size;
+          await settle(page);
+          const after = (await probe(page)).size;
+          return before.width === after.width && before.height === after.height;
+        })
+        .toBe(true);
+      await ready(page);
+      const lamp = (await assertFixtureScene(page, floor)).markers.find(
+        (marker) => marker.key === fixtureMarkers[0],
+      );
+      const canvas = await scene(page).locator("canvas").boundingBox();
+      await page.mouse.click(canvas.x + lamp.x, canvas.y + lamp.y);
+      await expect(details).toBeVisible();
+      assert.notEqual(page.url(), home, "Marker must open its detail URL");
+    };
+    // Wide desktop: the detail opens beside Home and the same scene stays.
+    const kept = await counters(page);
+    for (const close of ["Escape", "Close details"]) {
+      await openLamp();
+      await expect(panel).toBeVisible();
+      await ready(page);
+      if (close === "Escape") {
+        await expect(panel.getByTestId("detail-title")).toBeFocused();
+        await page.keyboard.press("Escape");
+      } else
+        await panel.getByRole("button", { name: close, exact: true }).click();
+      await expect(panel).toBeHidden();
+      assert.equal(page.url(), home, "Closing returns to Home");
+      await expect(page.locator("#home-list-title")).toBeFocused();
+      await ready(page);
+      assert.equal(
+        (await counters(page)).created,
+        kept.created,
+        "The panel must keep Home's renderer",
+      );
+    }
+    // Narrow desktop: a full route releases Home's renderer.
+    await resize(page, 1024);
+    await ready(page);
+    await openLamp();
+    await expect(panel).toBeHidden();
     await noScene(page);
     await page.goBack();
+    await resize(page, 1440);
     await ready(page);
     await assertFixtureScene(page, floor);
-    checks.markerToDetail = { detailOpened: true, rendererReleased: true };
+    checks.markerToDetail = {
+      panelAt1440KeepsScene: true,
+      closedByEscapeAndButton: true,
+      routeAt1024ReleasesRenderer: true,
+    };
 
     stage = "inactive-route";
     const nav = page.getByRole("navigation", { name: "Main navigation" });
@@ -459,12 +516,12 @@ async function functional() {
       .toBe(true);
     const parked = await counters(page);
     // A resize would draw a visible scene; out of view it must not.
-    await page.setViewportSize({ width: 1280, height: 1000 });
+    await resize(page, 1280);
     await page.waitForTimeout(1200);
     const suspended = await counters(page);
     assert.equal(suspended.frames, parked.frames, "Frames while out of view");
     assert.equal(suspended.live, 1, "Scroll keeps the renderer allocated");
-    await page.setViewportSize({ width: 1440, height: 1000 });
+    await resize(page, 1440);
     await tab(plan, "3D view").scrollIntoViewIfNeeded();
     await ready(page);
     await expect
@@ -490,18 +547,18 @@ async function functional() {
     stage = "explicit-choice";
     await tab(plan, "2D plan").click();
     await noScene(page);
-    await page.setViewportSize({ width: 1023, height: 1000 });
+    await resize(page, 1023);
     await expandCompactPlan(page);
     await expect(tab(plan, "2D plan")).toHaveAttribute("aria-selected", "true");
-    await page.setViewportSize({ width: 1440, height: 1000 });
+    await resize(page, 1440);
     await expect(tab(plan, "2D plan")).toHaveAttribute("aria-selected", "true");
     await noScene(page);
-    await page.setViewportSize({ width: 430, height: 932 });
+    await resize(page, 430, 932);
     await expandCompactPlan(page);
     await tab(plan, "3D view").click();
     await ready(page);
     await expect(scene(page)).toHaveAttribute("data-camera-mode", "orbit");
-    await page.setViewportSize({ width: 1440, height: 1000 });
+    await resize(page, 1440);
     await ready(page);
     await expect(scene(page)).toHaveAttribute("data-camera-mode", "model");
     checks.explicitChoice = { kept2d: true, compact3dOrbit: true };
@@ -523,7 +580,7 @@ async function functional() {
     await tab(plan, "Floor 2").click();
     await tab(plan, "2D plan").click();
     await tab(plan, "3D view").click();
-    await page.setViewportSize({ width: 1280, height: 1000 });
+    await resize(page, 1280);
     await nav.getByRole("link", { name: "Connection", exact: true }).click();
     await page.goBack();
     await expect(
