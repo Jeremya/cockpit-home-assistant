@@ -108,7 +108,7 @@ The new flow is web-only. The manual token form stays available and in memory on
 | C01 (this commit) | `src/services/auth/{authTransaction,compatibility,returnTo,tokenEndpoint}.ts`, tests, `scripts/lib/web-auth-fixture.mjs`, `scripts/__tests__/web-auth-fixture.test.mjs` | Pure modules with injected storage, crypto, clock and fetch |
 | C02 | `services/auth/browserAuth.web.ts` + neutral `browserAuth.ts`, `services/auth/authorization.ts`, `app/auth-callback.tsx`, `SessionManager`, `HomeAssistantBackend`, `SettingsScreen`, fixture WebSocket snapshot and authorize page | `browserAuth.begin(...)`, `browserAuth.complete(href)`; `session.connect({url, allowInsecureHttp, authorization})` alongside the token form; backend option for an `Auth` source and principal check |
 | C03 (built) | `services/auth/{authStore,authChannel,principals,webAuth}.ts`, `services/auth/webAuthRuntime.web.ts` + native `webAuthRuntime.ts`, `SessionManager`, `HomeAssistantBackend`, Settings | `bootstrap()` restores a remembered session; `session.signOut()`, `session.stopRemembering()`, `session.browserSession` + `subscribeBrowser`; see C03 status |
-| C04 | `scripts/check-web-auth.mjs`, `docs/stage0/browser-auth-validation.md` | Browser recette with two contexts and a profile restart |
+| C04 (built) | `scripts/check-web-auth.mjs`, fixture `POST /_fixture/drop-sockets`, `docs/stage0/browser-auth-validation.md` | Staged browser recette: 11 rows with contexts, tabs and a disposable on-disk profile restart; see the [validation ledger](../stage0/browser-auth-validation.md) |
 
 `core/types.ts` needs no change for C02: an invalid sign-in reuses `auth_invalid`. `useCockpit`, the command facade, `commandStore` and `useSwitchCommand` stay as they are.
 
