@@ -115,3 +115,32 @@ test("page unload closes locally and hands over one revocation beacon", () => {
   expect(authorization.auth.data.refresh_token).toBe("");
   expect(authorization.closeForUnload()).toBeUndefined();
 });
+
+test("a remembered authorization survives unload, and a memory one again does not", () => {
+  const authorization = new BrowserAuthorization(data, { fetch: jest.fn() });
+  authorization.remembered = true;
+  expect(authorization.closeForUnload()).toBeUndefined();
+  expect(authorization.closed).toBe(false);
+  expect(authorization.refreshToken).toBe("public-refresh");
+  authorization.remembered = false;
+  expect(authorization.closeForUnload()?.url).toBe(
+    "https://home.example.com/auth/revoke",
+  );
+  expect(authorization.refreshToken).toBeUndefined();
+});
+
+test("releasing ends local use without revoking what the browser remembers", async () => {
+  const revoke = jest.fn(async () => new Response("", { status: 200 }));
+  const authorization = new BrowserAuthorization(data, {
+    fetch: revoke as unknown as typeof fetch,
+  });
+  authorization.release();
+  expect(authorization.closed).toBe(true);
+  expect(authorization.auth.data.refresh_token).toBe("");
+  expect(authorization.refreshToken).toBeUndefined();
+  expect(await authorization.close()).toEqual({ kind: "unconfirmed" });
+  expect(revoke).not.toHaveBeenCalled();
+  await expect(authorization.auth.refreshAccessToken()).rejects.toBe(
+    ERR_INVALID_AUTH,
+  );
+});

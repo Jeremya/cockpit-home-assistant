@@ -1,6 +1,13 @@
 import { ERR_INVALID_AUTH } from "home-assistant-js-websocket";
 import { HomeAssistantBackend } from "../../../session/homeAssistant/HomeAssistantBackend";
+import { SessionManager } from "../../../session/SessionManager";
+import { useCockpit } from "../../../core/store";
+import { Credentials } from "../../credentials";
+import { memoryStorage } from "../../credentialStorage.web";
+import { PreferencesStorage } from "../../../preferences/storage";
 import type { HomeSnapshot } from "../../../core/types";
+import { createAuthChannel } from "../authChannel";
+import { GrantPrincipals } from "../principals";
 import { BrowserAuthorization, type BrowserSignIn } from "../authorization";
 import { beginTransaction, consumeCallback } from "../authTransaction";
 import {
@@ -31,6 +38,7 @@ async function fixture(args: string[] = []) {
 async function signIn(
   origin: string,
   expired = false,
+  user = "alice",
 ): Promise<BrowserSignIn & { refreshToken: string }> {
   const values = new Map<string, string>();
   const deps = {
@@ -49,7 +57,7 @@ async function signIn(
   );
   if (started.kind !== "redirect") throw new Error(started.reason);
   const verified = consumeCallback(
-    await authorizeAsHomeAssistant(started.authorizeUrl, "alice"),
+    await authorizeAsHomeAssistant(started.authorizeUrl, user),
     deps,
   );
   if (verified.kind !== "verified") throw new Error(verified.reason);
@@ -160,5 +168,92 @@ test("a Home Assistant older than 2026.10 is refused after sign-in", async () =>
     expect(backend.verifiedUserId).toBeUndefined();
   } finally {
     backend.stop();
+  }
+});
+
+test("a remembered sign-in restored from its refresh token alone refreshes once, then synchronizes", async () => {
+  const home = await fixture();
+  const first = await signIn(home.origin);
+  // The page closed while this browser remembered it: no revocation.
+  first.authorization.release();
+  const restored = new BrowserAuthorization(
+    {
+      hassUrl: home.origin,
+      clientId: `${appOrigin}/`,
+      access_token: "",
+      refresh_token: first.refreshToken,
+      expires_in: 0,
+      expires: 0,
+    },
+    { fetch: nodeFetch },
+  );
+  const backend = new HomeAssistantBackend(
+    { url: home.origin, allowInsecureHttp: true, authorization: restored },
+    "two",
+  );
+  try {
+    await backend.start();
+    expect(backend.status.kind).toBe("ready");
+    expect(backend.verifiedUserId).toBe("fixture-user-alice");
+    expect(await home.stats()).toMatchObject({
+      refreshGrants: 1,
+      wsAuthentications: 1,
+      activeRefreshTokens: 1,
+    });
+  } finally {
+    backend.stop();
+  }
+});
+
+test("through the real backend, power grants follow the verified HA user", async () => {
+  const home = await fixture();
+  const manager = new SessionManager(
+    new Credentials(memoryStorage(), memoryStorage(), () => "id"),
+    new PreferencesStorage(memoryStorage()),
+    {
+      channel: createAuthChannel(undefined),
+      principals: new GrantPrincipals(memoryStorage()),
+      restore: () => undefined,
+      revoke: async () => ({ kind: "revoked" }),
+    },
+  );
+  const plug = () => {
+    const key =
+      useCockpit.getState().snapshot!.entities["switch.fixture_plug"]!.key;
+    const captured = manager.commands.capture(key);
+    if (captured.kind !== "captured") throw new Error(captured.reason);
+    return captured.target;
+  };
+  const ready = () =>
+    new Promise<void>((resolve) => {
+      const check = () => {
+        if (
+          useCockpit.getState().status.kind === "ready" &&
+          useCockpit.getState().snapshot
+        ) {
+          unsubscribe();
+          resolve();
+        }
+      };
+      const unsubscribe = useCockpit.subscribe(check);
+      check();
+    });
+  try {
+    await manager.connect(await signIn(home.origin, false, "alice"));
+    await ready();
+    expect(await manager.allowSwitch(plug())).toBe(true);
+    await manager.connect(await signIn(home.origin, false, "bob"));
+    await ready();
+    expect(useCockpit.getState().preferences.switchEnrollments).toEqual({});
+    expect(useCockpit.getState().notices).toEqual([
+      "Power permissions for this home were reset because a different Home Assistant user signed in.",
+    ]);
+    expect(manager.commands.setSwitch(plug(), true)).toMatchObject({
+      kind: "refused",
+      reason: "not_authorized",
+    });
+    expect((await home.stats()).serviceCalls).toBe(0);
+  } finally {
+    manager.disconnect();
   }
 });

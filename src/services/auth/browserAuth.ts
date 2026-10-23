@@ -6,4 +6,5 @@ export const browserSignIn: BrowserSignInFlow = {
   compatibility: () => ({ kind: "blocked", reason: "unsupported" }),
   begin: async () => ({ kind: "blocked", reason: "unsupported" }),
   complete: async () => ({ kind: "failed", reason: "unsupported" }),
+  restore: () => undefined,
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -48,10 +48,15 @@ export function SettingsScreen() {
   const browserSession = credentialPersistence === "page";
   const profileId = useCockpit((state) => state.profileId);
   const mode = useCockpit((state) => state.mode);
-  // Re-render when a session starts or ends; the sign-in itself is not stored.
-  useCockpit((state) => state.status.kind);
-  const signedIn = mode === "homeAssistant" && session.browserSession;
+  const notices = useCockpit((state) => state.notices);
+  // The sign-in itself is never in the cockpit store.
+  const browserState = useSyncExternalStore(
+    session.subscribeBrowser,
+    () => session.browserSession,
+  );
+  const signedIn = mode === "homeAssistant" && !!browserState;
   const [signedOut, setSignedOut] = useState("");
+  const [remember, setRemember] = useState(false);
   const [url, setUrl] = useState(
     profileId?.startsWith("ha:") ? profileId.slice(3) : "",
   );
@@ -100,6 +105,7 @@ export function SettingsScreen() {
         url: compatible.hassUrl,
         allowInsecureHttp: trust,
         returnTo: "/",
+        remember,
       });
       // On success the page is already leaving for Home Assistant.
       if (started.kind === "blocked") {
@@ -120,7 +126,8 @@ export function SettingsScreen() {
       const origin = normalizeUrl(url);
       await session.connect({ url: origin, token, allowInsecureHttp: trust });
       setToken("");
-      router.replace("/");
+      // Back to the Home already below, rather than a second one on top.
+      router.dismissTo("/");
     } catch (failure) {
       setError(
         failure instanceof Error
@@ -144,6 +151,9 @@ export function SettingsScreen() {
         <Title>Settings</Title>
         <Panel>
           <Text style={styles.sectionTitle}>Home Assistant</Text>
+          {notices.map((notice) => (
+            <Body key={notice}>{notice}</Body>
+          ))}
           <Body>
             Your devices stay connected through your own Home Assistant.{" "}
             {browserSession
@@ -203,6 +213,22 @@ export function SettingsScreen() {
           )}
           {browserSignInAvailable && (
             <>
+              <View style={styles.row}>
+                <View style={{ flex: 1 }}>
+                  <Body>
+                    Remember this browser: reloading reconnects without signing
+                    in again. Anyone using this browser profile, and any script
+                    running on this Maurice address, can use this sign-in; it is
+                    not protected like the phone&apos;s secure storage. Not for
+                    a shared computer.
+                  </Body>
+                </View>
+                <Switch
+                  accessibilityLabel="Remember this browser"
+                  value={remember}
+                  onValueChange={setRemember}
+                />
+              </View>
               <Button
                 title={
                   busy
@@ -213,10 +239,11 @@ export function SettingsScreen() {
                 onPress={() => void signIn()}
               />
               <Body>
-                Opens your Home Assistant login page. This sign-in stays in
-                memory for this page only: reloading asks you to sign in again,
-                whatever you choose on that page. Power control is not available
-                with browser sign-in yet.
+                Opens your Home Assistant login page. Without Remember this
+                browser, the sign-in stays in memory for this page only:
+                reloading asks you to sign in again, whatever you choose on that
+                page. Power permissions you allow belong to the Home Assistant
+                user who signs in.
               </Body>
               <Text style={styles.sectionTitle}>Or use an access token</Text>
             </>
@@ -276,7 +303,7 @@ export function SettingsScreen() {
             setBusy(true);
             void session
               .connect({ demo: true })
-              .then(() => router.replace("/"))
+              .then(() => router.dismissTo("/"))
               .catch(() => setError("Could not load demo."))
               .finally(() => setBusy(false));
           }}
@@ -302,6 +329,31 @@ export function SettingsScreen() {
               }}
             />
             {signedIn && (
+              <Body>
+                {browserState === "remembered"
+                  ? "This browser remembers this sign-in: reloading reconnects until you sign out or stop remembering it."
+                  : "You are signed in for this page only: reloading asks you to sign in again."}
+              </Body>
+            )}
+            {signedIn && browserState === "remembered" && (
+              <Button
+                title="Stop remembering this browser"
+                secondary
+                onPress={() => {
+                  setSignedOut("");
+                  void session
+                    .stopRemembering()
+                    .then((stopped) =>
+                      setSignedOut(
+                        stopped
+                          ? "This browser no longer remembers the sign-in. This page stays signed in until it is closed."
+                          : "This browser could not forget the sign-in. Try again, or sign out.",
+                      ),
+                    );
+                }}
+              />
+            )}
+            {signedIn && (
               <Button
                 title="Sign out"
                 secondary
@@ -309,7 +361,7 @@ export function SettingsScreen() {
                   confirmAction({
                     title: "Sign out?",
                     message:
-                      "Ends this browser sign-in and asks Home Assistant to revoke it. Preferences are kept.",
+                      "Ends this browser sign-in in every tab, forgets it in this browser and asks Home Assistant to revoke it. Preferences are kept.",
                     confirmLabel: "Sign out",
                     onConfirm: () => {
                       void session
@@ -334,7 +386,7 @@ export function SettingsScreen() {
                 onPress={() =>
                   confirmAction({
                     title: "Forget connection?",
-                    message: `Removes the token from ${browserSession ? "this page" : "this phone"}. Preferences are kept. Revoke the token separately in Home Assistant.`,
+                    message: `Removes the token from ${browserSession ? "this page, and any sign-in this browser remembers for this Home Assistant" : "this phone"}. Preferences are kept. Revoke the token separately in Home Assistant.`,
                     confirmLabel: "Forget",
                     onConfirm: () => {
                       void session

@@ -14,6 +14,10 @@ export interface BrowserSignIn {
   url: string;
   allowInsecureHttp: boolean;
   authorization: BrowserAuthorization;
+  /** The user asked this browser to remember the sign-in (C03). */
+  remember?: boolean;
+  /** Restored from this browser: the principal it was remembered under. */
+  rememberedPrincipal?: string;
 }
 
 /** Official Auth with one refresh in flight; once closed it holds no token. */
@@ -40,6 +44,8 @@ class SessionAuth extends Auth {
 export class BrowserAuthorization {
   readonly auth: Auth;
   readonly hassUrl: string;
+  /** Held by the browser's auth store, so page unload must not revoke it. */
+  remembered = false;
   private revocation?: Promise<RevocationResult>;
   constructor(
     data: AuthData,
@@ -50,6 +56,11 @@ export class BrowserAuthorization {
   }
   get closed() {
     return (this.auth as SessionAuth).closed;
+  }
+  /** For the auth store only; undefined once local use has ended. */
+  get refreshToken(): string | undefined {
+    const auth = this.auth as SessionAuth;
+    return (!auth.closed && auth.data.refresh_token) || undefined;
   }
   /** Ends local use, then returns the refresh token it held, at most once. */
   private end(): string | undefined {
@@ -71,8 +82,14 @@ export class BrowserAuthorization {
       : Promise.resolve({ kind: "unconfirmed" });
     return this.revocation;
   }
+  /** Ends local use only, for a sign-in this browser still remembers. */
+  release() {
+    this.end();
+    this.revocation ??= Promise.resolve({ kind: "unconfirmed" });
+  }
   /** For pagehide: no awaiting is possible, so the caller sends a beacon. */
   closeForUnload(): { url: string; body: URLSearchParams } | undefined {
+    if (this.remembered) return undefined;
     const token = this.end();
     if (!token) return undefined;
     this.revocation = Promise.resolve({ kind: "unconfirmed" });

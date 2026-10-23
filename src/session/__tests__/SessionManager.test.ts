@@ -1625,8 +1625,6 @@ function browserSignIn(url = a.url) {
     },
   };
 }
-const browserPowerNotice =
-  "Power control is not available with browser sign-in yet. Use an access token to switch devices.";
 test("a browser sign-in opens the same home profile without saving any credential", async () => {
   const { credentials, backends } = setup();
   const { signIn } = browserSignIn();
@@ -1644,42 +1642,10 @@ test("a browser sign-in opens the same home profile without saving any credentia
   });
   backends[0]!.snapshot(snapshot());
   expect(await credentials.load()).toBeNull();
-  expect(useCockpit.getState().notices).toEqual([browserPowerNotice]);
+  expect(useCockpit.getState().notices).toEqual([]);
   const published = JSON.stringify(useCockpit.getState());
   expect(published).not.toContain("public-access");
   expect(published).not.toContain("public-refresh");
-});
-test("a browser session neither uses, grants nor changes stored power permissions", async () => {
-  const { prefStore, preferences } = await connected();
-  const stored = prefStore.values.get([...prefStore.values.keys()][0]!);
-  const { signIn } = browserSignIn();
-  await manager.connect(signIn);
-  const browserBackend = jest.mocked(HomeAssistantBackend).mock.results.at(-1)!
-    .value as ControlledBackend;
-  browserBackend.snapshot(snapshot());
-  expect(
-    Object.keys(useCockpit.getState().preferences.switchEnrollments),
-  ).toEqual(["stable-lamp"]);
-  expect(manager.commands.setSwitch("stable-lamp", true)).toMatchObject({
-    kind: "refused",
-    reason: "not_authorized",
-  });
-  expect(browserBackend.callService).not.toHaveBeenCalled();
-  expect(await manager.allowSwitch(capture())).toBe(false);
-  await Promise.resolve();
-  expect(prefStore.values.get([...prefStore.values.keys()][0]!)).toBe(stored);
-  expect(
-    Object.keys(
-      (await preferences.load()).file.profiles[profileIdFor(a.url)]!
-        .switchEnrollments,
-    ),
-  ).toEqual(["stable-lamp"]);
-  await manager.connect(a);
-  jest
-    .mocked(HomeAssistantBackend)
-    .mock.results.at(-1)!
-    .value.snapshot(snapshot());
-  expect(manager.commands.setSwitch("stable-lamp", true).kind).toBe("started");
 });
 test("Retry keeps a browser sign-in; replacing it signs it out", async () => {
   setup();

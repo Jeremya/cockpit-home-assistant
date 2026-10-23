@@ -1,12 +1,14 @@
 import {
   beginTransaction,
   CALLBACK_PATH,
+  clientIdFor,
   consumeCallback,
   type BeginResult,
   type CallbackRejection,
   type TransactionStorage,
 } from "./authTransaction";
 import { BrowserAuthorization, type BrowserSignIn } from "./authorization";
+import type { RememberedSession } from "./authStore";
 import { browserAuthCompatibility, type Compatibility } from "./compatibility";
 import {
   exchangeAuthorizationCode,
@@ -45,7 +47,8 @@ export function createBrowserSignIn(env: BrowserEnvironment) {
     origin: env.location.origin,
     secureContext: env.isSecureContext,
   });
-  // Memory sign-ins die with the page; revoke them rather than leave them valid.
+  // Memory sign-ins die with the page; revoke them rather than leave them
+  // valid. A remembered one is skipped while the browser still holds it.
   const live = new Set<BrowserAuthorization>();
   let unloadWatched = false;
   const revokeOnUnload = (authorization: BrowserAuthorization) => {
@@ -57,8 +60,8 @@ export function createBrowserSignIn(env: BrowserEnvironment) {
       for (const item of live) {
         const beacon = item.closeForUnload();
         if (beacon) env.sendBeacon(beacon.url, beacon.body);
+        if (item.closed) live.delete(item);
       }
-      live.clear();
     });
   };
   const failed = (reason: SignInFailure): SignInResult => ({
@@ -76,6 +79,7 @@ export function createBrowserSignIn(env: BrowserEnvironment) {
       url: string;
       allowInsecureHttp: boolean;
       returnTo?: string;
+      remember?: boolean;
     }): Promise<BeginResult> {
       const started = await beginTransaction(input, {
         storage: env.sessionStorage,
@@ -124,8 +128,33 @@ export function createBrowserSignIn(env: BrowserEnvironment) {
           url: transaction.hassUrl,
           allowInsecureHttp: transaction.allowInsecureHttp,
           authorization,
+          remember: transaction.remember,
         },
         returnTo: transaction.returnTo,
+      };
+    },
+    /** No request here: the official client refreshes before authenticating. */
+    restore(session: RememberedSession): BrowserSignIn | undefined {
+      if (session.clientId !== clientIdFor(env.location.origin))
+        return undefined;
+      const authorization = new BrowserAuthorization(
+        {
+          hassUrl: session.hassUrl,
+          clientId: session.clientId,
+          access_token: "",
+          refresh_token: session.refreshToken,
+          expires_in: 0,
+          expires: 0,
+        },
+        { fetch: env.fetch },
+      );
+      authorization.remembered = true;
+      revokeOnUnload(authorization);
+      return {
+        url: session.hassUrl,
+        allowInsecureHttp: session.allowInsecureHttp,
+        authorization,
+        rememberedPrincipal: session.principal,
       };
     },
   };

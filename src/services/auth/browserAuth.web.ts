@@ -24,4 +24,5 @@ export const browserSignIn: BrowserSignInFlow = {
   compatibility: (input) => current().compatibility(input),
   begin: (input) => current().begin(input),
   complete: () => current().complete(),
+  restore: (session) => current().restore(session),
 };

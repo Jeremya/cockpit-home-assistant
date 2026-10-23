@@ -195,7 +195,11 @@ test("registry events arriving during a refresh cause a follow-up reload", async
 });
 function make(
   fake: FakeConnection,
-  options: { syncTimeout?: number; metadataTimeout?: number } = {},
+  options: {
+    syncTimeout?: number;
+    metadataTimeout?: number;
+    verifyUser?: boolean;
+  } = {},
 ) {
   return new HomeAssistantBackend(
     { url: "https://home.example", token: "secret", allowInsecureHttp: false },
@@ -708,6 +712,94 @@ test("the manual token path does not change: no user check, same header", async 
     expect(backend.getCameraImageRequest("camera.door").headers).toEqual({
       Authorization: "Bearer secret",
     });
+  } finally {
+    backend.stop();
+  }
+});
+test("on web, a manual token is checked against its HA user the same way", async () => {
+  const fake = new FakeConnection();
+  const order: string[] = [];
+  const original = fake.sendMessagePromise.bind(fake);
+  jest.spyOn(fake, "sendMessagePromise").mockImplementation(async (message) => {
+    order.push(message.type);
+    return message.type === "auth/current_user"
+      ? { id: "user-1" }
+      : original(message);
+  });
+  const backend = make(fake, { verifyUser: true });
+  try {
+    await backend.start();
+    expect(order[0]).toBe("auth/current_user");
+    expect(backend.verifiedUserId).toBe("user-1");
+    expect(backend.getCameraImageRequest("camera.door").headers).toEqual({
+      Authorization: "Bearer secret",
+    });
+  } finally {
+    backend.stop();
+  }
+  const refused = new FakeConnection();
+  withUser(refused, async () => null);
+  const unknown = make(refused, { verifyUser: true });
+  try {
+    await expect(unknown.start()).rejects.toEqual({ code: "auth_invalid" });
+  } finally {
+    unknown.stop();
+  }
+});
+test("the verified user is handed over once, before the first synchronization", async () => {
+  const fake = new FakeConnection();
+  const order: string[] = [];
+  const original = fake.sendMessagePromise.bind(fake);
+  jest.spyOn(fake, "sendMessagePromise").mockImplementation(async (message) => {
+    order.push(message.type);
+    return message.type === "auth/current_user"
+      ? { id: "user-1" }
+      : original(message);
+  });
+  let release!: () => void;
+  const onUser = jest.fn(
+    (_userId: string) =>
+      new Promise<void>((resolve) => {
+        order.push("onUser");
+        release = resolve;
+      }),
+  );
+  const backend = new HomeAssistantBackend(browserSignIn(), "one", {
+    connect: async () => fake as unknown as Connection,
+    onUser,
+  });
+  const snapshots = jest.fn();
+  backend.onSnapshot(snapshots);
+  try {
+    const starting = backend.start();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onUser).toHaveBeenCalledWith("user-1");
+    expect(order).toEqual(["auth/current_user", "onUser"]);
+    expect(snapshots).not.toHaveBeenCalled();
+    release();
+    await starting;
+    expect(backend.status.kind).toBe("ready");
+    await backend.resync();
+    expect(onUser).toHaveBeenCalledTimes(1);
+  } finally {
+    backend.stop();
+  }
+});
+test("the session may refuse the verified user, which is terminal", async () => {
+  const fake = new FakeConnection();
+  withUser(fake, async () => ({ id: "user-2" }));
+  const backend = new HomeAssistantBackend(browserSignIn(), "one", {
+    connect: async () => fake as unknown as Connection,
+    onUser: async () => {
+      throw { code: "auth_invalid" };
+    },
+  });
+  const snapshots = jest.fn();
+  backend.onSnapshot(snapshots);
+  try {
+    await expect(backend.start()).rejects.toEqual({ code: "auth_invalid" });
+    expect(backend.status).toMatchObject({ kind: "error", retrying: false });
+    expect(snapshots).not.toHaveBeenCalled();
   } finally {
     backend.stop();
   }

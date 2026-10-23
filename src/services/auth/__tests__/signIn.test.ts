@@ -1,4 +1,5 @@
 import { TRANSACTION_KEY } from "../authTransaction";
+import type { RememberedSession } from "../authStore";
 import { createBrowserSignIn, type BrowserEnvironment } from "../signIn";
 
 const origin = "http://localhost:8094";
@@ -185,4 +186,58 @@ test("an authorization already signed out sends no beacon", async () => {
   await result.signIn.authorization.close();
   unload(false);
   expect(env.sendBeacon).not.toHaveBeenCalled();
+});
+
+test("the remember choice made before the redirect comes back with the sign-in", async () => {
+  for (const remember of [true, undefined]) {
+    const { env, signIn } = environment();
+    await signIn.begin({ url: hassUrl, allowInsecureHttp: true, remember });
+    returnFromHomeAssistant(env);
+    const result = await signIn.complete();
+    if (result.kind !== "signed_in") throw new Error(result.reason);
+    expect(result.signIn.remember).toBe(remember === true);
+    expect(result.signIn.authorization.remembered).toBe(false);
+  }
+});
+
+const remembered: RememberedSession = {
+  version: 1,
+  profileId: `ha:${hassUrl}`,
+  hassUrl,
+  clientId: `${origin}/`,
+  allowInsecureHttp: true,
+  principal: "P".repeat(43),
+  refreshToken: "public-refresh",
+  rememberedAt: 1,
+};
+test("a restored sign-in starts expired, so the official client refreshes before the socket", () => {
+  const { env, signIn, unload } = environment();
+  const restored = signIn.restore(remembered)!;
+  expect(restored).toMatchObject({
+    url: hassUrl,
+    allowInsecureHttp: true,
+    rememberedPrincipal: "P".repeat(43),
+  });
+  expect(restored.remember).toBeUndefined();
+  expect(restored.authorization.auth.expired).toBe(true);
+  expect(restored.authorization.auth.data).toMatchObject({
+    hassUrl,
+    clientId: `${origin}/`,
+    access_token: "",
+  });
+  expect(restored.authorization.refreshToken).toBe("public-refresh");
+  expect(env.fetch).not.toHaveBeenCalled();
+  // Remembered: leaving the page keeps it; no longer remembered: revoked.
+  unload(false);
+  expect(env.sendBeacon).not.toHaveBeenCalled();
+  restored.authorization.remembered = false;
+  unload(false);
+  expect(env.sendBeacon).toHaveBeenCalledTimes(1);
+});
+
+test("a session remembered for another app address is not restored", () => {
+  const { signIn } = environment();
+  expect(
+    signIn.restore({ ...remembered, clientId: "https://maurice.example/" }),
+  ).toBeUndefined();
 });

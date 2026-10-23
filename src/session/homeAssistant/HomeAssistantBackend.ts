@@ -62,6 +62,10 @@ interface BackendOptions {
   ) => Promise<Connection>;
   syncTimeout?: number;
   metadataTimeout?: number;
+  /** Web: a manual token is checked against its HA user like a sign-in. */
+  verifyUser?: boolean;
+  /** Awaited before the first synchronization; a SessionError refuses the user. */
+  onUser?: (userId: string) => Promise<void>;
 }
 interface AreaRegistryEntry {
   area_id: string;
@@ -128,7 +132,7 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
     }
     this.identities = options.identities ?? emptyIdentity();
   }
-  /** HA user of a browser sign-in, checked before its first synchronization. */
+  /** HA user, checked and handed over before the first synchronization. */
   get verifiedUserId(): string | undefined {
     return this.userId;
   }
@@ -353,7 +357,7 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
       .catch(() => undefined);
     return operation;
   }
-  private async verifyUser(): Promise<void> {
+  private async verifyUser(): Promise<string> {
     const connection = this.connection;
     if (!connection?.connected || this.stopped) throw this.unreachable();
     const transportGeneration = this.transportGeneration;
@@ -381,12 +385,18 @@ export class HomeAssistantBackend extends BackendEvents implements HomeBackend {
       user && typeof user === "object" && "id" in user ? user.id : undefined;
     if (typeof id !== "string" || !id)
       throw { code: "auth_invalid" } satisfies SessionError;
-    this.userId = id;
+    return id;
   }
   private async refreshUntilCurrent(): Promise<void> {
     // A sign-in whose user is unknown never reaches a snapshot or ready.
-    if (this.credential.kind === "browser" && !this.userId)
-      await this.verifyUser();
+    if (
+      (this.credential.kind === "browser" || this.options.verifyUser) &&
+      !this.userId
+    ) {
+      const id = await this.verifyUser();
+      await this.options.onUser?.(id);
+      this.userId = id;
+    }
     let revision: number;
     do {
       revision = this.registryRevision;
