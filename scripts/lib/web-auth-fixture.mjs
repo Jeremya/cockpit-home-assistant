@@ -356,6 +356,13 @@ export async function startWebAuthFixture({
       }
       if (pathname === "/_fixture/status" && request.method === "GET")
         return send(200, stats());
+      // Ends the transport only, like an HA restart: clients reconnect and
+      // refresh an expired access token first.
+      if (pathname === "/_fixture/drop-sockets" && request.method === "POST") {
+        const dropped = sockets.size;
+        for (const socket of sockets) socket.terminate();
+        return send(200, { dropped });
+      }
       if (pathname === "/.well-known/oauth-authorization-server")
         return send(200, {
           authorization_endpoint: "/auth/authorize",

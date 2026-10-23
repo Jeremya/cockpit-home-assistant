@@ -114,7 +114,10 @@ function socketSession(origin, accessToken) {
       replies.set(current, resolve);
       socket.send(JSON.stringify({ id: current, ...message }));
     });
-  return { ready, send, events, close: () => socket.close() };
+  const closed = new Promise((resolve) =>
+    socket.addEventListener("close", resolve),
+  );
+  return { ready, send, events, closed, close: () => socket.close() };
 }
 
 test("the fixture serves the snapshot messages Maurice reads, and no service", async () => {
@@ -185,6 +188,30 @@ test("the authorize page mirrors HA: login flow with the challenge, then code an
     assert.match(page, /location\.assign/);
     assert.doesNotMatch(page, /maurice-fixture-(access|refresh)-/);
   } finally {
+    await fixture.close();
+  }
+});
+
+test("dropping the sockets forces clients to reconnect, and only answers POST", async () => {
+  const fixture = await startWebAuthFixture();
+  const tokens = fixture.issueTokens({
+    clientId: "http://localhost:8094/",
+    username: PUBLIC_USERS[0].username,
+  });
+  const session = socketSession(fixture.origin, tokens.access_token);
+  try {
+    await session.ready;
+    const refused = await fetch(`${fixture.origin}/_fixture/drop-sockets`);
+    assert.equal(refused.ok, false);
+    const dropped = await fetch(`${fixture.origin}/_fixture/drop-sockets`, {
+      method: "POST",
+    });
+    assert.deepEqual(await dropped.json(), { dropped: 1 });
+    await session.closed;
+    // Tokens stay valid: only the transport ended.
+    assert.equal(fixture.stats().activeRefreshTokens, 1);
+  } finally {
+    session.close();
     await fixture.close();
   }
 });
