@@ -10,7 +10,7 @@
   "approval": "User explicitly selected strict temporary tooling exceptions after reviewing the failed audit on 2026-10-19. This does not authorize public release.",
   "affectedGraphSha256": "702b32bb0bdff0c6e6de18af4ba4e2a4b94f2eb6f15fed560440c98a3cdc3d12",
   "reviewedFiles": {
-    "package.json": "06b2c6c4f9d3f4255442528d4456dc8998251f16096f39bc3fac1eeb69f3e4d6",
+    "package.json": "4546f358c97e0aafc73c47ac0a364ad9401dbd7db6003d6c3700542fb9c890af",
     "package-lock.json": "76ef20d916c5f4ad790e1e6f9c737b58bac699004b603ba0b4fd59afe898cb82",
     "app.json": "da6812f82718c9ed64379f3a4f9d8d296738f634587a4a7473a65de15bd1d71d",
     "app.config.js": "1b7c522b3bfc6215fb401c977fb387ed179fffb24989c2151fa5eabffdd94e0d",
@@ -26,14 +26,16 @@
     "scripts/lib/runtime-dependencies.mjs": "2df0b4e0a895e9dd3e4a9d435a098fd2b39ab77480362f47d9691b457e981b4c",
     "scripts/check-ui.mjs": "9b1870cf08c74d95f66d0de7b833c82ea13561e7b2f6e15a598e45e48a9397ec",
     "scripts/lib/public-build.mjs": "b2e184491043e6d2e184b97776fd6159e5dbfb43a2a00c95ff37bc30a95cd29c",
-    ".github/workflows/public-checks.yml": "69ee821fad27403c81a1e9e39e80e053f41960923d7b010948da0f9a126d5bd2",
+    ".github/workflows/public-checks.yml": "ad33a4fedc79f3d6cae2dc717e71f3ce63ab7221d2fcf34b1a06d798afe8816a",
     ".github/workflows/dependency-audit.yml": "4a39b33cd911a472b710912913f4b31275894ac78085fefdd0edec20dd12a1f8",
     "patches/query-string+7.1.3.patch": "4243811b237ee15497eabf949651f47db8bfecb01dbc1885b14a2c70c8821282",
     "scripts/lib/browser-connection-check.mjs": "63412149fcf81b6f1f893713a5582c73de90e8984dd338139c8cbf2530049572",
     "scripts/check-spatial-ui.mjs": "3a3368d88f082e060c0c89c1d061b99a030de10f967794436593a2158c08e011",
     "scripts/lib/spatial-ui.mjs": "66abebd47f54afbed6ad73759c683c2afd1414532162819481abe96e5080c305",
     "patches/expo-router+57.0.28.patch": "e019a5b301ffbd95b2dde62ccd62ad7b12ab942ff8af59877f542a99702ddb60",
-    "scripts/check-detail-panel.mjs": "5fdf732a15fafc554857f0cc3d7841fe101719442391aad2032b4a21e302dc03"
+    "scripts/check-detail-panel.mjs": "5fdf732a15fafc554857f0cc3d7841fe101719442391aad2032b4a21e302dc03",
+    "scripts/check-web-auth.mjs": "0fc29f5e8304678eefb8bde2270b9efa536b57a30c84a282fb18689e52be1917",
+    "scripts/lib/web-auth-fixture.mjs": "8bb40937584899f05043a0dc2fe079d3fa002ed9335a7094136fa6bf37a724a1"
   },
   "exceptions": [
     {

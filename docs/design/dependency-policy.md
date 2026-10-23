@@ -138,3 +138,16 @@ the file is added to the reviewed inputs. The fresh audit stays
 `passed-with-exceptions` (51 entries, braces and node-forge) with the
 unchanged 2026-11-02 expiry. Nothing is reported upstream without the user's
 agreement.
+
+## Integration runners — 2026-10-22
+
+`check:detail-panel` (B) and `check:web-auth` (C) join Public checks as
+separate headless jobs. Their runners and C's public auth fixture
+(`scripts/lib/web-auth-fixture.mjs`) are added to the reviewed inputs, like
+`check:ui`, because they run an isolated `npm ci` and export or serve
+credentials-shaped public test values. Each reproduced
+`reviewed_inputs_changed` only for these files and `package.json` /
+`public-checks.yml`; the audit stays at 51 entries (braces, node-forge), with
+the same expiry and the strict gate unchanged. Both runners passed on the
+integrated tree locally and in the Linux Playwright 1.64.1 container.
+
