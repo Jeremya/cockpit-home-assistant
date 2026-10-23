@@ -114,6 +114,34 @@ Terminé : candidat intégré identifiable, parcours communs et nouveaux flux ac
 - **Natif.** Le groupe de routes ajoute un niveau de Stack. Il faut ré-accepter le retour de focus TalkBack et le bouton Back matériel sur le nouveau candidat.
 - **Outillage.** `check:ui` interrompu par SIGINT laisse son workspace temporaire (reproduit en A02) : correctif séparé, avec revue d’audit.
 
+### État d’intégration — 22 octobre 2026 (soir)
+
+Sur `work/acceptance`, sans push :
+
+| Étape | Commit |
+| --- | --- |
+| Fusion de B01–B04 | `0cd8bc2` |
+| Runner 3D adapté au panneau | `6736dcf` |
+| Exception sprintf-js retirée (advisory GitHub retiré) | `33b0236` |
+| Patch d’historique web Expo Router | `6c04104` |
+| `check:detail-panel` dans la CI | `320b563` |
+| Fusion de C01–C03 | `13bb790` |
+| Route `auth-callback` enregistrée | `7072ce0` |
+
+Sur l’arbre intégré :
+
+- **Passent :** Jest **958/70**, outillage **35/35**, typecheck/lint/format, `check:ui`, `check:spatial-ui` (pic de 1 renderer), `proof:protocol`, `proof:dependencies`, export Android et sa garde runtime (cache Metro isolé), audit `passed-with-exceptions` (51 entrées, braces et node-forge, expiration au 2 novembre inchangée). Les recettes 3D et panneau passent aussi en conteneur Linux arm64.
+- **Échoue :** `check:detail-panel` à **19/21**. Settings appelle `router.dismissTo("/")` après Connect et Explore demo ; cela retire l’entrée de détail que Back doit retrouver. Avec `router.replace("/")`, la recette fait 21/21. Le correctif est demandé à C (fichier de C). Ce changement venait d’une suggestion de B relayée par A.
+
+**Reste avant A03 terminé :**
+
+1. Correctif Settings de C, puis C04 et `check:web-auth`.
+2. Scénario essentiel en Chrome : auth → Home → appareil → lecture → retour → refresh/reconnexion → même profil et mêmes permissions → logout dans un autre onglet → panneau et appui anciens inopérants.
+3. Nouveau numéro de Trial construit sur la source intégrée propre, puis recette native (Seeker), y compris retour de focus TalkBack et Back matériel.
+4. Mise à jour des index.
+
+Problème connu accepté : un Home caché en double dans la pile après une connexion depuis Settings (comportement antérieur à B).
+
 ## A04 — Sept jours et décision suivante
 
 **Terrain, pas développement · commence après acceptation réelle.**
