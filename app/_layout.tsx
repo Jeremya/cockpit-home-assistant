@@ -55,6 +55,10 @@ export default function RootLayout() {
               options={{ title: "Diagnostics" }}
             />
             <Stack.Screen name="scene-lab" options={{ title: "Scene lab" }} />
+            <Stack.Screen
+              name="auth-callback"
+              options={{ title: "Signing in", headerShown: false }}
+            />
           </Stack>
         </HomeViewProvider>
       </AppShell>
