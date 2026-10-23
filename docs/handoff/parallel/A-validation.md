@@ -133,9 +133,11 @@ Sur l’arbre intégré :
 - **Passent :** Jest **958/70**, outillage **35/35**, typecheck/lint/format, `check:ui`, `check:spatial-ui` (pic de 1 renderer), `proof:protocol`, `proof:dependencies`, export Android et sa garde runtime (cache Metro isolé), audit `passed-with-exceptions` (51 entrées, braces et node-forge, expiration au 2 novembre inchangée). Les recettes 3D et panneau passent aussi en conteneur Linux arm64.
 - **Échoue :** `check:detail-panel` à **19/21**. Settings appelle `router.dismissTo("/")` après Connect et Explore demo ; cela retire l’entrée de détail que Back doit retrouver. Avec `router.replace("/")`, la recette fait 21/21. Le correctif est demandé à C (fichier de C). Ce changement venait d’une suggestion de B relayée par A.
 
+**Mise à jour :** C a rétabli `router.replace("/")` (`e893965`, intégré en `590aec0`). Sur cet arbre : `check:detail-panel` **21/21**, `check:ui` passe, Jest **959/70**, typecheck, lint et format passent. C04 part de `590aec0`.
+
 **Reste avant A03 terminé :**
 
-1. Correctif Settings de C, puis C04 et `check:web-auth`.
+1. C04 et `check:web-auth`, à brancher ensuite sur `package.json`, la CI et l’audit.
 2. Scénario essentiel en Chrome : auth → Home → appareil → lecture → retour → refresh/reconnexion → même profil et mêmes permissions → logout dans un autre onglet → panneau et appui anciens inopérants.
 3. Nouveau numéro de Trial construit sur la source intégrée propre, puis recette native (Seeker), y compris retour de focus TalkBack et Back matériel.
 4. Mise à jour des index.
