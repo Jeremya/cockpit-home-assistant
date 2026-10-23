@@ -38,7 +38,7 @@ D01 additionally checks wide navigation/active links, first-Tab skip-to-content,
 
 Only `artifacts/ui/report.json`, twelve named viewport PNGs and an optional failure PNG are produced. They are ignored in Git. The capture budget is 20 MiB, with no traces, videos, HTML dumps, raw storage or exported bundles uploaded. GitHub's upload step explicitly names these files and keeps them for seven days. The runner clears only its own filenames before each attempt.
 
-Browsers and the preview server close on success or failure. Temporary workspaces/caches are removed. Build child process groups have bounded deadlines and signal cleanup, including forced termination of stuck descendants. Interruption closes the browser and cancels an active build. This process-group implementation targets macOS/Linux.
+Browsers and the preview server close on success or failure. Temporary workspaces/caches are removed. Build child process groups have bounded deadlines and signal cleanup, including forced termination of stuck descendants. Interruption closes the browser and cancels an active build. Since 2026-10-22 the runners disable Playwright's own signal handlers, so an interrupted run also removes its temporary workspace and writes a failed report instead of exiting with 130. This process-group implementation targets macOS/Linux.
 
 `test:tooling` uses Node's built-in test runner to exercise staging with private sentinels, symlink rejection, inherited environment cleanup, fail-closed sample validation without printing private values, Git ignore/tracking guards, SPA routing/server closure and child deadlines. It complements the existing Jest suites.
 

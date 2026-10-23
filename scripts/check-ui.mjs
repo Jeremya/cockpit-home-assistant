@@ -123,7 +123,13 @@ try {
     await readFile(join(workspace, "src/spatial/sample-plan.json"), "utf8"),
   );
   server = await previewServer(join(workspace, "build-web"));
-  browser = await chromium.launch({ headless: true });
+  // Playwright would otherwise exit(130) on SIGINT before this runner's cleanup.
+  browser = await chromium.launch({
+    headless: true,
+    handleSIGINT: false,
+    handleSIGTERM: false,
+    handleSIGHUP: false,
+  });
   report.chromium = browser.version();
   stage = "browser";
   for (const width of widths) {

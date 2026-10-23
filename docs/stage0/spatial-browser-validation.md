@@ -98,7 +98,7 @@ reproduit : SIGINT pendant la phase navigateur → exit 130, workspace
 `maurice-public-ui-*` laissé dans le répertoire temporaire, aucun rapport. La
 documentation « Interruption closes the browser and cancels an active build »
 reste vraie pour le navigateur et le build, pas pour le nettoyage. Correctif
-borné proposé (A, fichier épinglé, revue d'audit) : mêmes options de signaux.
+borné proposé (A, fichier épinglé, revue d'audit) : mêmes options de signaux. **Corrigé le 22 octobre** : SIGINT en phase navigateur → exit 1, workspace supprimé, rapport écrit.
 
 ## Outillage, CI et audit
 
