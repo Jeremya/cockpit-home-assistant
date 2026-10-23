@@ -112,3 +112,17 @@ public sample only, loopback preview, external requests rejected, runtime-map
 guard, no credentials, no lockfile, signing, glob or exception change. The
 2026-11-02 expiry and the strict-release gate stay as they are. See the
 [A02 evidence](../stage0/spatial-browser-validation.md).
+
+## Withdrawn advisory — 2026-10-22
+
+The fresh audit failed closed with `affected_graph_changed`: **51 entries**
+instead of 56, with the lockfile and every reviewed file unchanged. GitHub
+withdrew [GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c)
+(sprintf-js) on 2026-10-22 at 19:21 UTC, so `npm audit` no longer reports its
+five moderate entries. The obsolete sprintf-js exception and its reviewed
+latest version are removed, and the affected-graph fingerprint now records the
+remaining **51 high entries / two root advisories** (braces, node-forge), whose
+exceptions are unchanged. The review date, the 2026-11-02 expiry and the
+strict-release gate are unchanged; `check:audit:strict` still fails. The
+runtime-map guard keeps sprintf-js in its tooling-only list as extra hygiene.
+This is a new common base for B and C only if they run `check:audit`.
