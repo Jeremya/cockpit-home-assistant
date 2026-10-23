@@ -2,6 +2,8 @@
 
 **Next execution — 2026-10-22:** [three-agent backlog and copyable prompts](handoff/parallel/README.md), with a two-agent variant. Trial **1010** was built from clean `e52ac06` with the sample plan and 3D disabled; installation/native acceptance remains open. The source checkpoint has 692 Jest tests / 47 suites and a passing public browser smoke. This is local evidence, not a new remote CI result.
 
+**A03 integration — 2026-10-22 (evening):** B01–B04 and C01–C04 are integrated on `work/acceptance`, and local `main` is fast-forwarded to `4230f52` (no push). The detail panel, browser sign-in and spatial recettes all pass on the integrated tree, and each runs as its own Public checks job; none of these new jobs has run on GitHub yet. Trial **1011** is built from that clean source (sample, 3D off), not installed or accepted. [Status and next steps](handoff/parallel/A-validation.md#a03--intégration-des-deux-fonctionnalités).
+
 **A02 — 2026-10-22:** the UX07/UX08 browser proofs are now reproducible from a clean clone with `npm run check:spatial-ui` (headless, wired into Public checks) and `-- --headed --performance` on a local Mac. [Evidence](stage0/spatial-browser-validation.md). The new CI job has not run remotely yet.
 
 **Execution update — 2026-10-21:** UX00–UX08 are implemented and reviewed locally. The dedicated Chrome household profile is configured, Home shares spatial selection, and wide Chrome defaults to the measured model camera with durable 2D fallback. UX09 candidate/field acceptance follows; no push or remote CI is implied. [Evidence](stage0/desktop-validation.md) · [Handoff](handoff/README.md).

@@ -15,7 +15,7 @@
 | Détails | Deux routes complètes, aucun panneau latéral implémenté | Le reste utile de D03 est le panneau à contenu partagé |
 | Validation source | **692 Jest / 47 suites**, **23 tests Node**, type/lint/format ; smoke public 320/430/768/1440 et fixture navigateur passent | Dernière preuve locale, pas nouvelle CI distante |
 | 3D Chrome | Mac M4 : médianes 57,8 / 55,1 FPS, sample/privé, deux marqueurs ; zoom Chrome 200 % vérifié | Les mesures de masquage utilisent une visibilité injectée ; le rendu GPU est réellement mesuré. **A02 :** rejouable via `npm run check:spatial-ui` (CI headless) et `-- --headed --performance` (Mac) |
-| Android | Trial **1010 construit**, source propre `e52ac06`, sample, 3D désactivée | **Pas installé/accepté dans cette passe** ; A01 doit terminer cette recette |
+| Android | Trial **1010 construit**, source propre `e52ac06`, sample, 3D désactivée. **Trial 1011** construit depuis la source intégrée `4230f52` (22 oct. au soir) | Ni l’un ni l’autre n’est installé ou accepté : Seeker indisponible. Voir l’état d’A01/A03 dans [A-validation](A-validation.md) |
 | Terrain | Ancien cycle de lampe accepté sur Pixel 1009 ; sept jours non observés | Ne pas réutiliser l’ancien consentement ni déclarer M05 terminé |
 
 Artefact local : `.local/trial/sample/build-1010/build.json` et APK associé.

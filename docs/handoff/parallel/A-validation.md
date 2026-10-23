@@ -137,12 +137,26 @@ Sur l’arbre intégré :
 
 **Mise à jour (B) :** `957e366` et `d7ac3fc` sont intégrés : un seul Home quel que soit le seuil, panneau à partir de 1224 px, runner sans option de patch et interruption propre. `check:detail-panel` **22/22**, `check:ui` passe, `check:spatial-ui` passe 2/2 (10 renderers créés, pic 1), Jest **960/70**, outillage 35/35. Runner ré-épinglé, audit `passed-with-exceptions`.
 
+**Mise à jour (C04, A03 navigateur) :** C04 (`d3860ce`) et la ligne A03 (`162b174`) sont intégrés ; `check:web-auth` est branché sur la CI et épinglé.
+
+- **Arbre final `4230f52` :** `check:web-auth` **12/12**. Scénario A03 : une scène et un renderer ; panneau, lecture, Back puis Close avec le focus sur la carte d’origine ; même profil et autorisation identique après reload, sans nouveau code ; sign-out dans l’onglet B → panneau et appui de l’onglet A inopérants ; 0 appel de service ; une socket par onglet ; aucun token dans les URL de requête.
+- **Batterie complète sur `bd37ebc`** (code applicatif identique à `4230f52`) : Jest 960/70, outillage 36/36, typecheck, lint et format, `check:ui`, `check:spatial-ui`, `check:detail-panel` 22/22, `proof:protocol`, `proof:dependencies`, export Android et garde runtime.
+- **Linux arm64 :** `check:detail-panel`, `check:web-auth` et `check:spatial-ui` passent en conteneur.
+- **Interruption :** `check:ui` nettoie désormais correctement (`93ef7d2`).
+- **`main` :** avancé en fast-forward sur `4230f52`, localement, sans push.
+
+**Candidat intégré — Trial 1011 (construit, non installé).**
+
+- **Source :** propre `4230f52260e7f4b4f4e10280913ac6a1c8a0215b2`, `dirtySource:false`, plan sample, arm64.
+- **Fonctions :** commande d’alimentation par enrollment HS103, refusée par défaut ; 3D fermée. Le builder a vérifié : bundle embarqué, release non debuggable, sans dev launcher, backup désactivé.
+- **Signature :** certificat `7191b909…1153`, le même que 1010, donc mise à jour en place possible.
+- **APK SHA-256 :** `4eebee063ac4015de857da1910cd9caa0b3ea9269e109df8231812f6e0773009`. Manifeste local : `.local/trial/sample/build-1011/`.
+- **Contenu natif :** panneau (route group et focus de B) et principal de commande inclus. La connexion navigateur de C n’existe que sur le web ; le natif garde le token SecureStore. 1010 ne certifie aucun de ces changements.
+
 **Reste avant A03 terminé :**
 
-1. C04 et `check:web-auth`, à brancher ensuite sur `package.json`, la CI et l’audit.
-2. Scénario essentiel en Chrome : auth → Home → appareil → lecture → retour → refresh/reconnexion → même profil et mêmes permissions → logout dans un autre onglet → panneau et appui anciens inopérants.
-3. Nouveau numéro de Trial construit sur la source intégrée propre, puis recette native (Seeker), y compris retour de focus TalkBack et Back matériel.
-4. Mise à jour des index.
+1. Recette native de 1011 sur le Seeker, avec une autorisation donnée au moment du cycle. Helper : `MAURICE_TRIAL_BUILD=1011 python3 .local/a01/native.py …`. Elle couvre la matrice A01, le Back matériel et le retour de focus TalkBack, qui exige une écoute humaine. A01 pour 1010 devient facultatif si 1011 est accepté directement : à décider avec l’utilisateur.
+2. Aucun push ni distribution sans autorisation de livraison.
 
 Problème connu accepté : un Home caché en double dans la pile après une connexion depuis Settings (comportement antérieur à B).
 
