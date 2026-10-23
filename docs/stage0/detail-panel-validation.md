@@ -225,3 +225,22 @@ Unchanged and not depended on beyond their public behavior: commands, `SwitchCon
 4. **C's callback route**: once C02 is merged, add `<Stack.Screen name="auth-callback" options={{ headerShown: false }} />` to `app/_layout.tsx` (C's request; not added on this branch because the route does not exist here).
 5. **Observed, not changed (C owns `SettingsScreen`)**: after connecting, Settings calls `router.replace("/")`. Coming from a detail, it replaces `/settings` with a second `(workspace)` instance, which means a second Home, hidden under the first. The flat app before B did the same with a second `index`. `router.dismissTo("/")` would return to the existing workspace instead; that is C's choice.
 6. **Native**: A03's candidate must re-accept TalkBack return focus and hardware Back with the new nested Stack level. Native keeps route presentation; no panel code runs there.
+
+## After integration — runner follow-up — 2026-10-22
+
+Base: A's integration tree `13bb790` (B01–B04, the adopted router patch `6c04104`, `check:detail-panel` in CI `320b563`, C01–C03). This branch was fast-forwarded to it; nothing outside B's files changed.
+
+### Runner changes
+
+- `--with-proposed-router-patch` and `scripts/fixtures/detail-panel/expo-router-history.patch` are removed. `postinstall` now applies A's `patches/expo-router+57.0.28.patch` in the staging copy, so the flag would fail on `patch --forward`. The report is always `report.json` and no longer carries `proposedRouterPatch`.
+- Both Chromium launches pass `handleSIGINT/handleSIGTERM/handleSIGHUP: false`, as in `check-spatial-ui.mjs`, so the runner's own handler closes the browser, fixtures and server and removes the staging copy before exiting.
+- After an interruption or the deadline, the next row stops the run instead of failing every remaining row.
+
+### Results on `13bb790`
+
+- **19 / 21** rows. Back/Back/Forward now passes with the installed, patched router.
+- **Reload, then reconnect** and **Two homes with identical entity IDs** fail. C03 changed Settings to call `router.dismissTo("/")` after Connect. That was B's handover item 5 suggestion, and it was wrong. A probe on the same build shows that after Connect, the detail's history entry is overwritten with `/`: Back and Forward both stay on `/`, and the target can no longer be reached. The rows stay as the contract. A asked C to restore `router.replace("/")` and measured 21 / 21 with it. The hidden second Home under `/settings` remains a known issue, to fix later without losing Back.
+- Zero page errors and external requests; fixture services 0; captures within budget.
+- Process-group Ctrl-C while the browser rows ran: exit 1, report `failedStage: "browser"`, `failure: "This operation was aborted"`, 7 rows passed and 1 interrupted, staging directory removed, no fixture or browser process left, `serverAndBrowserClosed: true`.
+
+Local exports for probes use the runner's isolated `TMPDIR` (`publicEnvironment`), never the shared Metro cache.

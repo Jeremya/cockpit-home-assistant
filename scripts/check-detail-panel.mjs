@@ -3,16 +3,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
-import { createHash } from "node:crypto";
-import {
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  stat,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
@@ -26,10 +17,6 @@ import { previewServer } from "./lib/preview-server.mjs";
 
 const root = process.cwd();
 const output = join(root, "artifacts/detail-panel");
-// Applies a proposed dependency fix to the disposable staging copy only.
-const routerPatch = process.argv.includes("--with-proposed-router-patch")
-  ? join(root, "scripts/fixtures/detail-panel/expo-router-history.patch")
-  : null;
 // Public sample captures only, allowlisted and size-bounded like the UI smoke.
 const pictures = [430, 1024, 1280, 1440, "zoom200"].map(
   (name) => `panel-${name}.png`,
@@ -43,7 +30,6 @@ const report = {
   publicSampleOnly: true,
   realHaRequired: false,
   physicalServiceCalls: 0,
-  proposedRouterPatch: null,
   rows: [],
   pageErrors: [],
   externalRequests: 0,
@@ -56,6 +42,12 @@ const stop = () => {
 process.once("SIGINT", stop);
 process.once("SIGTERM", stop);
 const deadline = setTimeout(stop, 20 * 60_000);
+// Playwright would otherwise exit(130) on SIGINT before this runner's cleanup.
+const ownSignals = {
+  handleSIGINT: false,
+  handleSIGTERM: false,
+  handleSIGHUP: false,
+};
 
 async function open(
   width,
@@ -190,6 +182,8 @@ async function observe(page) {
   };
 }
 async function row(name, expected, check) {
+  // After an interruption or the deadline, stop instead of failing each row.
+  controller.signal.throwIfAborted();
   const entry = { name, expected, steps: [], pass: false };
   report.rows.push(entry);
   try {
@@ -235,13 +229,6 @@ try {
   const options = { cwd: workspace, env, signal: controller.signal };
   stage = "install";
   await run("npm", ["ci", "--include=dev", "--no-audit", "--no-fund"], options);
-  if (routerPatch) {
-    const patch = await readFile(routerPatch);
-    report.proposedRouterPatch = createHash("sha256")
-      .update(patch)
-      .digest("hex");
-    await run("patch", ["-p1", "--forward", "-i", routerPatch], options);
-  }
   report.plan = await assertPublicPlan(workspace);
   stage = "export";
   await run(
@@ -251,7 +238,7 @@ try {
   );
   await assertPublicPlan(workspace);
   server = await previewServer(join(workspace, "dist"));
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true, ...ownSignals });
   report.chromium = browser.version();
   stage = "browser";
 
@@ -748,6 +735,7 @@ try {
       const noWebGl = await chromium.launch({
         headless: true,
         args: ["--disable-webgl", "--disable-3d-apis"],
+        ...ownSignals,
       });
       try {
         const { page } = await open(1440, { using: noWebGl });
@@ -905,7 +893,7 @@ try {
   }
   report.serverAndBrowserClosed = true;
   await writeFile(
-    join(output, routerPatch ? "report-router-patch.json" : "report.json"),
+    join(output, "report.json"),
     JSON.stringify(report, null, 2) + "\n",
   );
   console.log(JSON.stringify(report, null, 2));
