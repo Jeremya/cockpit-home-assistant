@@ -12,6 +12,7 @@ npx --no-install playwright install chromium
 npm run test:tooling
 npm run check:ui
 npm run check:spatial-ui
+npm run check:detail-panel
 ```
 
 On a Linux machine without Chromium's system dependencies, use `npx --no-install playwright install --with-deps chromium`. Playwright is pinned in development dependencies and selects its matching browser. A system Chrome installation or Python helper is not required.
@@ -48,6 +49,7 @@ Browsers and the preview server close on success or failure. Temporary workspace
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tests, protocol and Android JS | Fresh `npm ci`, public input guards, typecheck, lint, formatting, Jest, tooling tests, decoder proof, loopback HA proof, Android Hermes/DOM export, repeated public provenance check and unchanged tracked files |
 | Public UI mobile + desktop      | Fresh install, public guard, matching Chromium installation, isolated sample export/browser smoke and bounded public capture upload                                                                              |
+| Public detail panel and navigation (headless) | Fresh install, public guard, matching Chromium, isolated sample export and B's `check:detail-panel` (21 navigation, focus, panel-width, fixture and WebGL rows, including Back/Back/Forward with the router patch); uploads its report and five named captures |
 | Public 3D web lifecycle (headless) | Fresh install, public guard, matching Chromium, isolated sample export and `check:spatial-ui` with software WebGL; uploads its report and three named captures. Not a GPU performance check                   |
 
 `check:public-inputs` is deliberately for a clean public checkout. It rejects tracked secret/generated/native-binary paths, requires each private/generated/artifact path to be ignored, refuses private local inputs and checks that the prepared plan equals the sample. Running it in a private developer checkout should fail; use the isolated `check:ui` there. GitHub checks never need `.env.local`, a token, a reference image or local helpers.

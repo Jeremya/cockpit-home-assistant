@@ -127,3 +127,38 @@ jobs:
             artifacts/spatial-ui/failure.png
           retention-days: 7
           if-no-files-found: warn
+
+  detail-panel:
+    name: Public detail panel and navigation (headless)
+    runs-on: ubuntu-24.04
+    # The runner bounds itself at 20 minutes.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            patches/*.patch
+      - run: npm ci --include=dev --no-audit --no-fund
+      - run: npm run check:public-inputs
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: npm run check:detail-panel
+      - name: Bounded public panel captures and report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: public-detail-panel
+          path: |
+            artifacts/detail-panel/report.json
+            artifacts/detail-panel/panel-430.png
+            artifacts/detail-panel/panel-1024.png
+            artifacts/detail-panel/panel-1280.png
+            artifacts/detail-panel/panel-1440.png
+            artifacts/detail-panel/panel-zoom200.png
+          retention-days: 7
+          if-no-files-found: warn
