@@ -7,6 +7,7 @@ import { primaryValue } from "../core/presentation";
 import { useCockpit } from "../core/store";
 import type { HomeSnapshot } from "../core/types";
 import { openDeviceSummary } from "../services/deviceNavigation";
+import { focusOriginId } from "../navigation/detailNavigation";
 import { CompactPowerAction } from "./controls/CompactPowerAction";
 import { entityAppearance, Icon } from "./EntityIcon";
 import { colors } from "./ui";
@@ -51,6 +52,7 @@ export function DeviceSummaryCard({
   return (
     <View style={card.container}>
       <Pressable
+        nativeID={focusOriginId("device", summary.id)}
         accessibilityRole="button"
         accessibilityLabel={`Open device: ${summary.name}`}
         accessibilityHint={`${headline}. ${display.qualifiers.join(". ")} Opens related readings.`}

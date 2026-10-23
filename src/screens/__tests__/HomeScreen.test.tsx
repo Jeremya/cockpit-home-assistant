@@ -422,7 +422,7 @@ test("current markers navigate through placement validation without clearing sel
   act(() => screen.UNSAFE_getByType(HomePlanOverview).props.onMarker("stable"));
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/device/[key]",
-    params: { key: "stable" },
+    params: { key: "stable", profile: "demo" },
   });
   expect(
     within(screen.getByLabelText("Filter devices by area")).getByRole("tab", {
@@ -591,4 +591,32 @@ test("empty attention qualifies coverage and never certifies an empty or partial
   expect(
     screen.queryByText("No issue detected by the available attention rules."),
   ).toBeNull();
+});
+test("a desktop Home beside the detail panel stacks attention above the house when its column is narrow", () => {
+  mockDesktop = true;
+  const screen = render(<HomeScreen />);
+  const overview = screen.getByTestId("home-overview");
+  const layout = (width: number) =>
+    fireEvent(overview, "layout", { nativeEvent: { layout: { width } } });
+  expect(overview).toHaveStyle({ flexDirection: "row" });
+  layout(632);
+  expect(screen.getByTestId("home-overview")).not.toHaveStyle({
+    flexDirection: "row",
+  });
+  // The plan keeps its desktop presentation: opening the panel never swaps the scene.
+  expect(screen.UNSAFE_getByType(CockpitSceneView).props.cameraMode).toBe(
+    "model",
+  );
+  layout(736);
+  expect(screen.getByTestId("home-overview")).toHaveStyle({
+    flexDirection: "row",
+  });
+  screen.unmount();
+});
+test("the device list title is the focus fallback when an origin card has gone", () => {
+  const screen = render(<HomeScreen />);
+  const title = screen.getByRole("header", { name: "Around your home" });
+  expect(title.props.nativeID).toBe("home-list-title");
+  expect(title.props.tabIndex).toBe(-1);
+  screen.unmount();
 });

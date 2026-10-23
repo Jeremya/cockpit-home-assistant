@@ -5,6 +5,8 @@ import { useCockpit } from "../core/store";
 import { Icon, type IconName } from "./EntityIcon";
 import { useResponsiveLayout } from "./layout";
 import { colors } from "./ui";
+import { railSelected } from "./shellNavigation";
+import { useWorkspacePanel } from "../navigation/workspacePanel";
 import "./desktop.css";
 
 const destinations: { href: Href; label: string; icon: IconName }[] = [
@@ -24,18 +26,11 @@ function RouterAnchor({
   return <a {...props} />;
 }
 
-function selected(path: string, href: Href) {
-  if (href === "/house") return path.startsWith("/house");
-  if (href === "/entities")
-    return ["/entities", "/appliance/", "/device/"].some((prefix) =>
-      path.startsWith(prefix),
-    );
-  return path === href;
-}
-
 export function AppShell({ children }: PropsWithChildren) {
   const { desktop } = useResponsiveLayout();
   const path = usePathname();
+  const { open: panelOpen } = useWorkspacePanel();
+  const selected = (href: Href) => railSelected(path, String(href), panelOpen);
   const { status, mode, snapshot } = useCockpit();
   const ready = status.kind === "ready";
   return (
@@ -75,12 +70,12 @@ export function AppShell({ children }: PropsWithChildren) {
               >
                 <RouterAnchor
                   className="maurice-nav-link"
-                  aria-current={selected(path, href) ? "page" : undefined}
+                  aria-current={selected(href) ? "page" : undefined}
                 >
                   <Icon
                     name={icon}
                     size={19}
-                    color={selected(path, href) ? colors.accent : colors.muted}
+                    color={selected(href) ? colors.accent : colors.muted}
                   />
                   <span>{label}</span>
                 </RouterAnchor>
