@@ -21,7 +21,11 @@ import { PUBLIC_USERS, redactSecrets } from "./lib/web-auth-fixture.mjs";
 
 const root = process.cwd();
 const output = join(root, "artifacts/web-auth");
-const pictures = ["settings-remembered.png", "signed-out-elsewhere.png"];
+const pictures = [
+  "settings-remembered.png",
+  "signed-out-elsewhere.png",
+  "a03-signed-out.png",
+];
 const appArgument = process.argv.indexOf("--app");
 const reusedApp =
   appArgument === -1
@@ -30,6 +34,8 @@ const reusedApp =
 // Access tokens expire quickly so a reconnect must renew one.
 const ACCESS_LIFETIME = 4;
 const SECRET = /maurice-fixture-(access|refresh)-|code=[0-9a-f]{32}/;
+// URLs: the callback carries HA's code by design; tokens must never appear.
+const TOKEN = /maurice-fixture-(access|refresh)-/;
 const password = PUBLIC_USERS[0].password;
 const controller = new AbortController();
 let browser, server, temporary, workspace, env, fixture, app, ha;
@@ -50,10 +56,18 @@ const report = {
 const stop = () => {
   controller.abort();
   void browser?.close();
+  // Persistent profiles run their own browser.
+  for (const context of contexts) void context.close().catch(() => {});
 };
 process.once("SIGINT", stop);
 process.once("SIGTERM", stop);
 const deadline = setTimeout(stop, 20 * 60_000);
+// Playwright would otherwise exit(130) on SIGINT before this runner's cleanup.
+const ownSignals = {
+  handleSIGINT: false,
+  handleSIGTERM: false,
+  handleSIGHUP: false,
+};
 
 async function startFixture() {
   const child = spawn(
@@ -66,6 +80,8 @@ async function startFixture() {
     ],
     { cwd: workspace, env, stdio: ["ignore", "pipe", "inherit"] },
   );
+  // Even if this runner dies before its cleanup, the fixture goes with it.
+  process.once("exit", () => child.kill());
   const [bytes] = await once(child.stdout, "data", {
     signal: AbortSignal.timeout(15_000),
   });
@@ -117,10 +133,11 @@ async function fresh() {
   return { context, page: track(await context.newPage()) };
 }
 /** A browser profile on disk, so closing it is a real browser restart. */
-async function persistent(directory) {
+async function persistent(directory, width = 1280) {
   const context = await chromium.launchPersistentContext(directory, {
+    ...ownSignals,
     headless: true,
-    viewport: { width: 1280, height: 900 },
+    viewport: { width, height: 900 },
     serviceWorkers: "block",
   });
   await watch(context);
@@ -266,6 +283,8 @@ async function allowPlug(page) {
   return on;
 }
 async function row(name, expected, check) {
+  // Interrupted: no further row starts; the run fails and cleans up.
+  controller.signal.throwIfAborted();
   const entry = { name, expected, observed: {}, pass: false };
   report.rows.push(entry);
   try {
@@ -320,7 +339,7 @@ try {
   stage = "fixture";
   fixture = await startFixture();
   ha = fixture.origin;
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ ...ownSignals, headless: true });
   report.chromium = browser.version();
   stage = "browser";
   const profile = join(temporary, "browser-profile");
@@ -785,6 +804,207 @@ try {
         assert.equal(seen.serviceCalls, 0);
       } finally {
         await context.close();
+      }
+    },
+  );
+
+  await row(
+    "Integrated end-to-end (A03)",
+    "At 1440 px: remembered sign-in → Home (one scene, one renderer) → allow the plug in the panel → reading → panel Back → Close (focus on the origin card, B's contract) → reload keeps the profile and the exact grant → sign-out in tab B leaves tab A's old panel and card tap inert; one fixture socket per tab, no token in any URL",
+    async (seen) => {
+      const { context, page } = await persistent(
+        join(temporary, "a03-profile"),
+        1440,
+      );
+      const urlsWithToken = [];
+      // One session per tab: each document counts its own fixture sockets.
+      await context.addInitScript(
+        (socketUrl) => {
+          const Native = window.WebSocket;
+          const counts = { created: 0, open: 0, peak: 0 };
+          window.__mauriceFixtureSockets = counts;
+          window.WebSocket = class extends Native {
+            constructor(url, protocols) {
+              super(url, protocols);
+              if (String(url) !== socketUrl) return;
+              counts.created++;
+              counts.peak = Math.max(counts.peak, ++counts.open);
+              this.addEventListener("close", () => counts.open--);
+            }
+          };
+        },
+        `${ha.replace(/^http/, "ws")}/api/websocket`,
+      );
+      const sockets = new Map();
+      const follow = (target) => {
+        sockets.set(target, { created: 0, peak: 0 });
+        target.on("request", (request) => {
+          if (TOKEN.test(request.url())) urlsWithToken.push(request.method());
+        });
+        return target;
+      };
+      const renderers = (target) =>
+        target.evaluate(() =>
+          JSON.parse(
+            document.documentElement.dataset.mauriceRenderers ??
+              '{"live":0,"peakLive":0,"created":0}',
+          ),
+        );
+      const peakLive = [];
+      const look = async (target) => {
+        const counted = await renderers(target);
+        peakLive.push(counted.peakLive);
+        const socket = await target.evaluate(
+          () => window.__mauriceFixtureSockets,
+        );
+        const tab = sockets.get(target);
+        tab.created = Math.max(tab.created, socket.created);
+        tab.peak = Math.max(tab.peak, socket.peak);
+        assert(counted.live <= 1, "At most one live renderer");
+        assert(!/[?&](code|state)=/.test(target.url()), "Clean address");
+        return counted;
+      };
+      const panel = page.getByTestId("detail-panel");
+      const plugCard = visible(
+        page.getByRole("button", {
+          name: "Open device: Fixture plug",
+          exact: true,
+        }),
+      );
+      const profileOf = (target) =>
+        new URL(target.url()).searchParams.get("profile");
+      const grant = (target, profileId) =>
+        target.evaluate((id) => {
+          const file = JSON.parse(localStorage.getItem("prefs") ?? "{}");
+          return JSON.stringify(file.profiles?.[id]?.switchEnrollments ?? {});
+        }, profileId);
+      try {
+        follow(page);
+        // 1. Remembered sign-in; Home shows exactly one scene.
+        await signIn(page, { remember: true });
+        seen.visibleScenes = await page
+          .locator("[data-s01-scene]")
+          .filter({ visible: true })
+          .count();
+        assert.equal(seen.visibleScenes, 1);
+        seen.liveRenderersAtHome = (await look(page)).live;
+        assert.equal(seen.liveRenderersAtHome, 1);
+        // 2. Allow power from the plug's detail, in the panel beside Home.
+        const originId = await plugCard.getAttribute("id");
+        await plugCard.click();
+        await expect(panel).toBeVisible();
+        seen.homeBesidePanel = await page
+          .getByTestId("home-overview")
+          .filter({ visible: true })
+          .count();
+        assert.equal(seen.homeBesidePanel, 1);
+        const profileId = profileOf(page);
+        assert(profileId?.startsWith("ha:"), "Panel URL names the profile");
+        await panel
+          .getByRole("button", { name: "Allow power control", exact: true })
+          .click();
+        await panel
+          .getByRole("button", { name: "Allow this device", exact: true })
+          .click();
+        await expect(
+          panel.getByRole("button", {
+            name: "Turn Fixture plug on",
+            exact: true,
+          }),
+        ).toBeEnabled();
+        const granted = await grant(page, profileId);
+        assert.notEqual(granted, "{}", "The grant is saved");
+        // 3. Reading, panel Back, Close: focus returns to the origin card.
+        await panel
+          .getByRole("button", { name: "Show all 1 readings", exact: true })
+          .click();
+        await panel.getByRole("button", { name: /^Fixture plug,/ }).click();
+        seen.readingPath = new URL(page.url()).pathname;
+        assert(seen.readingPath.startsWith("/device/"), "Reading opened");
+        await panel
+          .getByRole("button", { name: "Back to previous detail", exact: true })
+          .click();
+        seen.backPath = new URL(page.url()).pathname;
+        assert.equal(seen.backPath, "/appliance/fixture-plug");
+        await panel
+          .getByRole("button", { name: "Close details", exact: true })
+          .click();
+        await expect(panel).toBeHidden();
+        seen.closedPath = new URL(page.url()).pathname;
+        assert.equal(seen.closedPath, "/");
+        // Focus is restored after the panel unmounts, within a few frames.
+        await expect
+          .poll(() => page.evaluate(() => document.activeElement?.id))
+          .toBe(originId);
+        seen.focusOnOriginCard = true;
+        await look(page);
+        // 4. Reload: same profile and the exact grant, without re-enrolling.
+        const before = await stats();
+        await page.reload({ waitUntil: "networkidle" });
+        await synced(page);
+        const cardTap = visible(
+          page.getByRole("button", {
+            name: "Turn Fixture plug on",
+            exact: true,
+          }),
+        );
+        await expect(cardTap).toBeEnabled();
+        seen.sameGrant = (await grant(page, profileId)) === granted;
+        assert(seen.sameGrant, "The exact grant survives, unchanged");
+        // 5. Plug detail open in tab A; tab B restores and signs out.
+        await plugCard.click();
+        await expect(panel).toBeVisible();
+        seen.sameProfile = profileOf(page) === profileId;
+        assert(seen.sameProfile, "Same profile after reload");
+        const after = await stats();
+        seen.reloadNewCodes = after.codesExchanged - before.codesExchanged;
+        assert.equal(seen.reloadNewCodes, 0);
+        const panelTap = panel.getByRole("button", {
+          name: "Turn Fixture plug on",
+          exact: true,
+        });
+        await expect(panelTap).toBeEnabled();
+        await look(page);
+        const other = follow(track(await context.newPage()));
+        await other.goto(`${app}/`, { waitUntil: "networkidle" });
+        await synced(other);
+        await look(other);
+        await settings(other);
+        await other
+          .getByRole("button", { name: "Sign out", exact: true })
+          .click();
+        await expect(
+          other.getByText("Signed out.", { exact: true }),
+        ).toBeVisible();
+        // 6. Tab A: the old panel and the old card tap are inert.
+        const inert = async (tap) => {
+          await expect
+            .poll(
+              async () => (await tap.count()) === 0 || !(await tap.isEnabled()),
+            )
+            .toBe(true);
+          await tap.click({ timeout: 1000, force: true }).catch(() => {});
+        };
+        await inert(panelTap);
+        await inert(cardTap);
+        seen.serviceCalls = (await stats()).serviceCalls;
+        assert.equal(seen.serviceCalls, 0);
+        await look(page);
+        await capture(page, "a03-signed-out.png");
+        // 7. Throughout.
+        const perTab = [...sockets.values()];
+        seen.peakOpenSocketsPerTab = perTab.map((tab) => tab.peak);
+        assert(
+          perTab.every((tab) => tab.created >= 1 && tab.peak === 1),
+          "One fixture socket at a time in each tab",
+        );
+        seen.peakLiveRenderers = Math.max(...peakLive);
+        assert(seen.peakLiveRenderers <= 1, "At most one live renderer");
+        seen.requestsWithToken = urlsWithToken.length;
+        assert.equal(seen.requestsWithToken, 0);
+      } finally {
+        await context.close();
+        contexts.delete(context);
       }
     },
   );

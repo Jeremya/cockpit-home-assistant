@@ -84,3 +84,40 @@ Run in `--app` mode against the development server, then the source restored:
 - Quota failure is simulated at the IndexedDB API (see findings).
 - HA absent at launch, concurrent refreshes in one tab and the crash between grant revocation and principal write are proven by unit and integration tests, not in this recette.
 - The two-tab race between users and the other known limits are listed in [C03 status](../design/browser-auth.md#c03-status-remembered-sign-in-and-user-bound-grants).
+
+## C04 follow-up — A03 end-to-end row and interruption — 2026-10-22
+
+Base: `bd37ebc` (`work/acceptance`, with B's single-Home fix), branch `work/web-auth-a03`. Requested by the integrator as one more row of the same runner, so that the runner hash is reviewed once.
+
+### Row "Integrated end-to-end (A03)"
+
+At 1440 px, in a disposable on-disk profile:
+
+1. Sign in with **Remember this browser**. Home shows exactly one visible `[data-s01-scene]`, with one live renderer.
+2. Open the fixture plug from its card. The panel opens beside Home, which stays visible. Allow power control in the panel; the grant is saved.
+3. Open the plug's reading, then **Back to previous detail**, then **Close details**. The address returns to `/`.
+4. Reload. The remembered session returns with the same profile (the panel URL's `profile` parameter) and the exact saved grant (same `switchEnrollments` record). The card shows an enabled **Turn Fixture plug on** without enrolling again, and no new code is exchanged.
+5. Open the plug detail in tab A. Tab B restores the same sign-in and signs out.
+6. In tab A, the old panel control and the old card tap become disabled or disappear. A forced click on each sends nothing. The capture `a03-signed-out.png` shows "Not connected".
+7. Throughout: at most one fixture WebSocket open at a time per document (counted in the page by an init script), at most one live renderer, no `code`/`state` left in the address, no token in any request URL, plus the runner's global checks (external requests, console, captures, report, service calls).
+
+Two departures from the request, both deliberate:
+
+- **Focus after Close.** It returns to the **origin card**, which is B's contract for a detail opened from a card (detail-panel row "Close after internal navigation"). `#home-list-title` is the target when there is no origin card, for example a detail opened from a scene marker.
+- **Request URLs.** They are checked for tokens only, because HA's redirect to `/auth-callback` carries the code by design. The address after the callback is checked separately for `code`/`state`.
+
+Staged run (C04 runner on `bd37ebc` plus this change), Chromium 156.0.8078.4: **12/12 rows pass**, 0 page errors, 0 external requests, 0 secrets in the console, 0 service calls.
+- A03: one visible scene, one live renderer at its peak, focus on the origin card, same profile and grant, 0 new codes on reload, peak open fixture sockets `[1, 1]` per tab, 0 token-bearing requests.
+- Fixture totals: 8 codes issued and exchanged, 8 refreshes, 7 revocations, 16 socket authentications.
+- Three captures, inspected: no token.
+
+### Mutation checks
+
+- Every web session resets grants: A03 fails at step 4 (no enabled card tap after reload), and so does "Sign out in another tab".
+- No sign-out message between tabs: A03 still passes, and "Sign out in another tab" fails. Tab B's revocation makes the fixture, like HA, close the sockets of that refresh token. Tab A shares it through the remembered record, so its reconnect ends in `auth_invalid`. A03's inertness therefore holds through two independent paths: the tab message and HA's revocation.
+
+### Findings fixed
+
+- **Flaky focus check.** The first version read the focused element right after the panel hid and failed 1 run in 3. Focus is restored a frame later (B's runner waits two frames). The row now polls with the usual bound; 4 runs in a row and the staged run pass.
+- **Interruption.** Both launches now pass `handleSIGINT`, `handleSIGTERM` and `handleSIGHUP: false`, so Playwright no longer exits before cleanup. `stop()` also closes the persistent-profile browsers, no row starts after an interruption, and the fixture is killed on process exit. A SIGINT sent mid-run gives exit 1 and a report saying "This operation was aborted". The temporary directory is gone, and no fixture or profile browser is left behind.
+- **Leftover process.** A fixture left by an earlier development run that crashed before its cleanup was found and stopped; the exit hook prevents a repeat.
