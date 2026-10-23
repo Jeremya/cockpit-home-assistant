@@ -225,3 +225,58 @@ Unchanged and not depended on beyond their public behavior: commands, `SwitchCon
 4. **C's callback route**: once C02 is merged, add `<Stack.Screen name="auth-callback" options={{ headerShown: false }} />` to `app/_layout.tsx` (C's request; not added on this branch because the route does not exist here).
 5. **Observed, not changed (C owns `SettingsScreen`)**: after connecting, Settings calls `router.replace("/")`. Coming from a detail, it replaces `/settings` with a second `(workspace)` instance, which means a second Home, hidden under the first. The flat app before B did the same with a second `index`. `router.dismissTo("/")` would return to the existing workspace instead; that is C's choice.
 6. **Native**: A03's candidate must re-accept TalkBack return focus and hardware Back with the new nested Stack level. Native keeps route presentation; no panel code runs there.
+
+## After integration — runner follow-up — 2026-10-22
+
+Base: A's integration tree `13bb790` (B01–B04, the adopted router patch `6c04104`, `check:detail-panel` in CI `320b563`, C01–C03). This branch was fast-forwarded to it; nothing outside B's files changed.
+
+### Runner changes
+
+- `--with-proposed-router-patch` and `scripts/fixtures/detail-panel/expo-router-history.patch` are removed. `postinstall` now applies A's `patches/expo-router+57.0.28.patch` in the staging copy, so the flag would fail on `patch --forward`. The report is always `report.json` and no longer carries `proposedRouterPatch`.
+- Both Chromium launches pass `handleSIGINT/handleSIGTERM/handleSIGHUP: false`, as in `check-spatial-ui.mjs`, so the runner's own handler closes the browser, fixtures and server and removes the staging copy before exiting.
+- After an interruption or the deadline, the next row stops the run instead of failing every remaining row.
+
+### Results on `13bb790`
+
+- **19 / 21** rows. Back/Back/Forward now passes with the installed, patched router.
+- **Reload, then reconnect** and **Two homes with identical entity IDs** fail. C03 changed Settings to call `router.dismissTo("/")` after Connect. That was B's handover item 5 suggestion, and it was wrong. A probe on the same build shows that after Connect, the detail's history entry is overwritten with `/`: Back and Forward both stay on `/`, and the target can no longer be reached. The rows stay as the contract. A asked C to restore `router.replace("/")` and measured 21 / 21 with it. The hidden second Home under `/settings` remains a known issue, to fix later without losing Back.
+- Zero page errors and external requests; fixture services 0; captures within budget.
+- Process-group Ctrl-C while the browser rows ran: exit 1, report `failedStage: "browser"`, `failure: "This operation was aborted"`, 7 rows passed and 1 interrupted, staging directory removed, no fixture or browser process left, `serverAndBrowserClosed: true`.
+
+Local exports for probes use the runner's isolated `TMPDIR` (`publicEnvironment`), never the shared Metro cache.
+
+## One Home across presentations — 2026-10-22
+
+A's integration measured a `HomeScreen` remount whenever the workspace crossed the panel threshold (1440→1024, 1024→1023, →430). Local state was lost (plan disclosure, focus, scroll) and the renderer was recreated: 17 renderers instead of 10 on A's spatial path. B owns the fix; it changes only B's files.
+
+### Measured before the change (`13bb790`, detail open, 1440 → 430 → 1440)
+
+| Window | Rail | Presentation | Same Home |
+| --- | --- | --- | --- |
+| 1440 / 1300 / 1224 | yes | panel 389 / 360 / 360 px | yes |
+| 1223 / 1100 / 1024 | yes | route | **no** |
+| 1023 / 1010 / 1000 | no | **panel 360 px** | **no** |
+| 999 / 900 / 768 / 430 | no | route | **no** |
+| back to 1440 | yes | panel | **no**, renderer recreated |
+
+Two defects: Home moved between the layout and the `index` screen, and the panel reappeared at 1000–1023 px, where the workspace has room because the rail is gone but Home is compact.
+
+### What changed
+
+- `detailLayout(width, { desktop, hostsHome })`: `desktop` replaces `web`. The panel exists only in the web desktop layout (≥ 1024 px, with the rail), so it appears in one place only, from 1224 px. One unit test was added, watched failing first.
+- `DetailWorkspace.web.tsx` renders the one Home whenever the Stack's base is `index`, in both presentations; `index` renders nothing on web. Home's `NavigationProvider` gets the workspace's navigation beside the panel and the `index` route's in route presentation, so focus, `useFocusEffect` and renderer release behave as before. Only context values and styles change at a crossing.
+- A width measured on the other side of the rail is stale. The workspace remeasures before paint when `desktop` changes and stays a route meanwhile. Without this, 1010 → 1024 with a detail open drew one frame of panel on the old width and created a renderer.
+- Native and `DetailWorkspace.tsx` are unchanged.
+
+### Runner rows, written first and seen failing
+
+- **Resize 1440 → 430 → 1010 → 1024 → 1440 with a detail open**, extended: one Home throughout (a mark on its overview node survives), no panel at 1010, live renderers 0 while the detail covers Home, and no renderer created at any route width. Failed before the change with “Resizing must keep Home” at 430, then at 1024 on the stale-width frame.
+- **Resize across the panel and desktop thresholds with Home shown** (new): 1223 → 1100 → 1024 → 1023 → 1010 → 430 → 1440. Same Home throughout, no panel, and no new renderer while the window stays desktop. Compact Home defaults to 2D, so returning to 1440 creates the 3D renderer again; that is Home's own responsive behavior. Failed before the change with “Resizing must keep Home” at 1223.
+
+### Results
+
+- `check-detail-panel`: **20 / 22** rows. Both resize rows pass. The only failures are the two fixture rows from Settings' `dismissTo("/")`, unchanged and owned by C (see above). Zero page errors and external requests.
+- With a detail open, 1440 → 430 → 1010 → 1024 → 1440: same Home, no panel below 1224 px, live 0 at every route width, no renderer created until the panel shows Home again.
+- A's `check:ui` (unmodified) **passes** at 320/430/768/1440, where Home now sits in the workspace rather than the `index` screen. Covers markers, focus returns and the browser HA fixture with 2 simulated and 0 physical services.
+- A's `check:spatial-ui` (unmodified) **passes**: marker → panel at 1440 keeps the scene, Escape and Close return, 1024 releases the renderer. Its path now creates **10 renderers instead of 17**, peak 1.
+- Jest **959 / 70**, TypeScript, lint, `format:check` and `test:tooling` **35 / 35** pass.

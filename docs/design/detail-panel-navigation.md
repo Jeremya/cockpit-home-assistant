@@ -1,6 +1,6 @@
 # Detail panel navigation — URL, history, focus and renderer contract
 
-**Status: decided in B02; panel behavior added in B03, 2026-10-22.** Scope: the [B handoff](../handoff/parallel/B-detail-panel.md#b02--prototype-du-contrat-url--historique--focus). The installed router is **expo-router 57.0.28**, with its vendored React Navigation 7 and its own web history fork (`build/fork/useLinking.js`, `createMemoryHistory.js`). Every claim below was checked against that installed source or measured in Chromium on the public sample. The evidence is in the [B validation ledger](../stage0/detail-panel-validation.md#b02--urlhistoryfocus-prototype--2026-10-22).
+**Status: decided in B02; panel behavior added in B03; one Home across presentations after integration, 2026-10-22.** Scope: the [B handoff](../handoff/parallel/B-detail-panel.md#b02--prototype-du-contrat-url--historique--focus). The installed router is **expo-router 57.0.28**, with its vendored React Navigation 7 and its own web history fork (`build/fork/useLinking.js`, `createMemoryHistory.js`). Every claim below was checked against that installed source or measured in Chromium on the public sample. The evidence is in the [B validation ledger](../stage0/detail-panel-validation.md#b02--urlhistoryfocus-prototype--2026-10-22).
 
 ## Decision
 
@@ -14,9 +14,9 @@ app/(workspace)/index.tsx    Home, unless the workspace already shows it
 ```
 
 - The route group leaves URLs unchanged: `/`, `/appliance/<id>?profile=<p>`, `/device/<key>?profile=<p>`. Deep links keep working.
-- The nested Stack's `layout` prop (`src/navigation/DetailWorkspace.web.tsx`) receives the Stack's own state. On web, when the measured workspace fits a panel **and** the Stack's base route is `index`, it renders Home beside the Stack and shows the Stack in the panel. Otherwise it renders the Stack alone, and `index` renders Home as before.
+- The nested Stack's `layout` prop (`src/navigation/DetailWorkspace.web.tsx`) receives the Stack's own state. On web, whenever the Stack's base route is `index`, the layout renders the **one** Home and `index` renders nothing. When the measured desktop workspace fits a panel, Home sits beside the Stack and the Stack shows in the panel. Otherwise Home fills the workspace at the list and is hidden while a detail covers it. A Stack that starts at a detail renders that Stack alone.
 - Every detail opening is a Stack entry, so the router alone writes URL and history. No code calls `history.pushState`, `setParams` or a universal `replace('/')`.
-- Home rendered by the layout reads the **group route's** focus. It stays focused while a detail is open, so UX07's renderer keeps its single instance. In route presentation, Home is the `index` screen under the detail and is released exactly as before. The renderer modules are untouched.
+- Home's navigation context depends on the presentation, not its position in the tree. Beside the panel, Home gets the **workspace's** navigation and stays focused while a detail is open, so UX07's renderer keeps its single instance. In route presentation it gets the **`index` route's** navigation and focus (`NavigationProvider`), so a detail covering it releases the renderer exactly as before. Switching presentation changes only these values and the styles, so Home is never remounted. The renderer modules are untouched.
 - Native uses `DetailWorkspace.tsx`, which passes through. The structure gains one nested Stack level; screens, titles and Back behave as before.
 - `unstable_settings.initialRouteName = "index"` puts Home under a direct detail link, so closing returns to the list.
 
@@ -44,7 +44,7 @@ This matches the installed source. `useLinking` only pushes a history entry when
 | Owner | The workspace Stack's focused route is the only owner. Home's spatial selection (`HomeViewProvider`) does not hold or derive it. No observation, camera or command state is copied. |
 | `detailHref(target)` | Canonical route, **always with `profile`**, readings included. |
 | `detailTargetFromRoute(route, bound)` | A route with `profile` belongs to that home. A legacy `/device/<key>` without `profile` resolves only in `bound`. Anything else is not a target. |
-| `detailLayout(width, …)` | Panel width is 32 % of the measured workspace, clamped to **360–440 px**. It is shown only if Home keeps **≥ 640 px**, on web, with Home at the Stack base. With the 224 px rail: 1024 → route, 1280 → 360 px panel, 1440 → 389 px, 1920 → 440 px. |
+| `detailLayout(width, …)` | Panel width is 32 % of the measured workspace, clamped to **360–440 px**. It is shown only in the web **desktop** layout (window ≥ 1024 px, with the rail), with Home at the Stack base and keeping **≥ 640 px**. With the 224 px rail: 1024 → route, 1280 → 360 px panel, 1440 → 389 px, 1920 → 440 px. A 1000–1023 px window has room but no rail; it stays a route, so the panel appears in one place only, from 1224 px. |
 | Focus origin | `detail-origin-<kind>-<encodeURIComponent(key)>`, a bounded DOM-safe UI key on the control that opened the detail. It is never a serialized node, observation or grant. |
 
 ## Navigation rules
@@ -60,7 +60,7 @@ This matches the installed source. `useLinking` only pushes a history entry when
 | Reload without session | Same as a direct link. The browser keeps the URL, the session is gone, and the target returns only for its own home. |
 | Profile change, removal, hiding | Content shows unavailable. Delayed taps revalidate (B01). Nothing is sent to an old target. |
 | Room or floor change with a detail open | Home's filter changes; the detail target does not. Nothing closes automatically. Closing keeps the filter (UX05). |
-| Resize across the panel threshold | Same URL, Stack, session and target. Home moves between the layout and `index`: one remount per crossing. Selection and view survive in their page sessions. At most one renderer is live. |
+| Resize across the panel or desktop threshold | Same URL, Stack, session, target **and Home instance**: plan disclosure, scroll and other local state stay. With a detail open, route presentation hides Home and releases its renderer, and the panel shows Home again with a new one. With no detail open, nothing changes except Home's own responsive layout. A width measured on the other side of the rail is stale: the workspace remeasures before paint and stays a route meanwhile, so no panel flashes on its old width. At most one renderer is live. |
 | `/house` → reading | The reading is pushed above `/house` in a new workspace instance. Its Stack starts at the detail, without an anchor, so it uses route presentation. Back returns to `/house`, and M00 marker focus is unchanged. |
 
 ## Pre-existing router defect (owner: A)
@@ -70,7 +70,7 @@ The matrix exposed two defects in the installed web history fork. **The first al
 1. `useLinking` records the first history entry with the **unkeyed** linking state (`store.state` before navigators assign keys). Back to that entry calls `resetRoot` with it. Every navigator key changes, `__root` included, and the whole tree remounts: Home, the renderer, any page state below the providers. Later entries still name the old root key. `resetRoot` dispatches to that dead target, and **Forward is silently ignored**. This is the remount `HomeViewProvider` already works around.
 2. `createMemoryHistory.replace()` writes to `items[index]`, but `popstate` never updates that internal `index`. After a Back, the next replacement overwrites a forward record. A later Forward then rebuilds from the path and remounts the tree. The URL and screen are correct, but the instances are not.
 
-A two-hunk patch makes the whole matrix pass: sync the index on `popstate`, and record the keyed root state for the first entry. It is checked in as a fixture, `scripts/fixtures/detail-panel/expo-router-history.patch`, and is **not** applied to `patches/`. `node scripts/check-detail-panel.mjs --with-proposed-router-patch` applies it only to the disposable staging copy. Adopting it, reporting it upstream or choosing another remedy belongs to A, who owns dependencies and patches. Without it, Back to the list still shows the list, but remounts Home and loses the focus return. Close is unaffected because it stays inside the router's own `go()`.
+A two-hunk patch makes the whole matrix pass: sync the index on `popstate`, and record the keyed root state for the first entry. B proposed it; A adopted it as `patches/expo-router+57.0.28.patch` (`6c04104`), which `postinstall` applies. Both hunks are web-only. Without it, Back to the list still shows the list, but remounts Home and loses the focus return. Close is unaffected because it stays inside the router's own `go()`. Reporting it upstream belongs to A, and nothing is posted without the user's agreement.
 
 ## Panel behavior (B03)
 

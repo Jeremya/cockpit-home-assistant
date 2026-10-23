@@ -13,22 +13,34 @@ test.each([
   [1216, { kind: "panel", width: 389 }],
   [1696, { kind: "panel", width: 440 }],
 ])("a %ipx workspace hosting Home gets %j", (width, expected) => {
-  expect(detailLayout(width, { web: true, hostsHome: true })).toEqual(expected);
+  expect(detailLayout(width, { desktop: true, hostsHome: true })).toEqual(
+    expected,
+  );
 });
-test("a panel needs Home underneath, a web workspace and a measurement", () => {
-  expect(detailLayout(1696, { web: true, hostsHome: false })).toEqual({
+test("a panel needs Home underneath, the desktop layout and a measurement", () => {
+  expect(detailLayout(1696, { desktop: true, hostsHome: false })).toEqual({
     kind: "route",
   });
-  expect(detailLayout(1696, { web: false, hostsHome: true })).toEqual({
+  expect(detailLayout(1696, { desktop: false, hostsHome: true })).toEqual({
     kind: "route",
   });
-  expect(detailLayout(0, { web: true, hostsHome: true })).toEqual({
+  expect(detailLayout(0, { desktop: true, hostsHome: true })).toEqual({
     kind: "route",
+  });
+});
+test("a compact window gets no panel, even with room beside Home", () => {
+  // 1000–1023 px: no rail, so the workspace is wide enough, but Home is compact.
+  expect(detailLayout(1010, { desktop: false, hostsHome: true })).toEqual({
+    kind: "route",
+  });
+  expect(detailLayout(1010, { desktop: true, hostsHome: true })).toEqual({
+    kind: "panel",
+    width: 360,
   });
 });
 test("the panel never squeezes Home below its minimum reading width", () => {
   for (let width = 0; width <= 2400; width += 8) {
-    const layout = detailLayout(width, { web: true, hostsHome: true });
+    const layout = detailLayout(width, { desktop: true, hostsHome: true });
     if (layout.kind === "panel") {
       expect(layout.width).toBeGreaterThanOrEqual(360);
       expect(layout.width).toBeLessThanOrEqual(440);

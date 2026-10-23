@@ -12,12 +12,16 @@ import { View } from "react-native";
 import { useIsFocused } from "expo-router";
 import {
   CommonActions,
+  NavigationProvider,
   StackActions,
+  useNavigation,
   type NavigationHelpers,
+  type NavigationProp,
   type ParamListBase,
   type StackNavigationState,
 } from "expo-router/react-navigation";
 import { HomeScreen } from "../screens/HomeScreen";
+import { useResponsiveLayout } from "../components/layout";
 import { restoreReadingFocus } from "../components/readingFocus";
 import { DetailPane } from "../components/details/DetailPane";
 import { detailLayout, escapeAction, focusOriginOf } from "./detailNavigation";
@@ -52,36 +56,51 @@ const pendingCancel = (pane: ParentNode) =>
   ) as HTMLElement | undefined;
 
 /** The detail Stack's layout: Home stays mounted beside it while the panel fits.
- * Details remain real Stack entries, so the router alone owns URL and history. */
+ * Details remain real Stack entries, so the router alone owns URL and history.
+ * The layout renders the one Home in both presentations, so crossing the panel
+ * threshold restyles Home instead of remounting it. */
 export function DetailWorkspace({
   state,
   navigation,
+  descriptors,
   children,
 }: {
   state: StackNavigationState<ParamListBase>;
   navigation: NavigationHelpers<ParamListBase>;
+  descriptors: Record<string, { navigation: NavigationProp<ParamListBase> }>;
   children: ReactNode;
 }) {
   const host = useRef<View>(null);
   const pane = useRef<View>(null);
-  const [width, setWidth] = useState<number | null>(null);
-  // Measure before the first paint so Home mounts once, in its final place.
+  const { desktop } = useResponsiveLayout();
+  const [measured, setMeasured] = useState<{
+    width: number;
+    desktop: boolean;
+  } | null>(null);
+  // Measure before the first paint so Home mounts once, in its final place,
+  // and again before paint when the rail comes or goes.
   useLayoutEffect(() => {
     const node = host.current as unknown as HTMLElement | null;
-    if (node) setWidth(node.getBoundingClientRect().width);
-  }, []);
+    if (node)
+      setMeasured({ width: node.getBoundingClientRect().width, desktop });
+  }, [desktop]);
+  const base = state.routes[0];
+  const hostsHome = base?.name === "index";
+  // A width measured beside the other rail state is stale: stay a route until
+  // the new measurement, so no panel flashes on its old width.
   const layout =
-    width === null
+    measured === null
       ? null
-      : detailLayout(width, {
-          web: true,
-          hostsHome: state.routes[0]?.name === "index",
-        });
+      : measured.desktop === desktop
+        ? detailLayout(measured.width, { desktop, hostsHome })
+        : ({ kind: "route" } as const);
   const panel = layout?.kind === "panel" ? layout : null;
   const paneled = panel !== null;
   const focused = state.routes[state.index];
   const open = focused?.name !== "index";
-  const base = state.routes[0];
+  // Beside the panel, Home follows the workspace and stays focused under a
+  // detail. As a route it is the index screen, which a detail covers.
+  const workspace = useNavigation<NavigationProp<ParamListBase>>();
   const anchored =
     base?.name === "index" && Object.keys(base.params ?? {}).length > 0;
   // A direct link anchors Home with the detail's path params; the list takes none.
@@ -161,23 +180,40 @@ export function DetailWorkspace({
   return (
     <View
       ref={host}
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+      onLayout={(event) =>
+        setMeasured({ width: event.nativeEvent.layout.width, desktop })
+      }
       style={{ flex: 1, flexDirection: "row", minWidth: 0 }}
     >
       {layout && (
-        <HomeInWorkspace value={paneled}>
-          {panel && (
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <HomeScreen />
+        <HomeInWorkspace value={hostsHome}>
+          {hostsHome && base && focused && (
+            <View
+              style={
+                !paneled && open
+                  ? { display: "none" }
+                  : { flex: 1, minWidth: 0 }
+              }
+            >
+              <NavigationProvider
+                route={paneled ? focused : base}
+                navigation={
+                  paneled ? workspace : descriptors[base.key]!.navigation
+                }
+              >
+                <HomeScreen />
+              </NavigationProvider>
             </View>
           )}
           <View
             ref={pane}
             style={
-              !panel
-                ? { flex: 1, minWidth: 0 }
-                : open
+              panel
+                ? open
                   ? { width: panel.width, minHeight: 0 }
+                  : { display: "none" }
+                : open || !hostsHome
+                  ? { flex: 1, minWidth: 0 }
                   : { display: "none" }
             }
           >

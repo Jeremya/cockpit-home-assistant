@@ -3,16 +3,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
-import { createHash } from "node:crypto";
-import {
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  stat,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
@@ -26,10 +17,6 @@ import { previewServer } from "./lib/preview-server.mjs";
 
 const root = process.cwd();
 const output = join(root, "artifacts/detail-panel");
-// Applies a proposed dependency fix to the disposable staging copy only.
-const routerPatch = process.argv.includes("--with-proposed-router-patch")
-  ? join(root, "scripts/fixtures/detail-panel/expo-router-history.patch")
-  : null;
 // Public sample captures only, allowlisted and size-bounded like the UI smoke.
 const pictures = [430, 1024, 1280, 1440, "zoom200"].map(
   (name) => `panel-${name}.png`,
@@ -43,7 +30,6 @@ const report = {
   publicSampleOnly: true,
   realHaRequired: false,
   physicalServiceCalls: 0,
-  proposedRouterPatch: null,
   rows: [],
   pageErrors: [],
   externalRequests: 0,
@@ -56,6 +42,12 @@ const stop = () => {
 process.once("SIGINT", stop);
 process.once("SIGTERM", stop);
 const deadline = setTimeout(stop, 20 * 60_000);
+// Playwright would otherwise exit(130) on SIGINT before this runner's cleanup.
+const ownSignals = {
+  handleSIGINT: false,
+  handleSIGTERM: false,
+  handleSIGHUP: false,
+};
 
 async function open(
   width,
@@ -169,6 +161,9 @@ async function observe(page) {
   return {
     path: await page.evaluate(() => location.pathname + location.search),
     homes: await page.getByTestId("home-overview").count(),
+    markedHomes: await page
+      .locator('[data-testid="home-overview"][data-runner-home]')
+      .count(),
     visibleHomes: await visible("home-overview"),
     panel: await visible("detail-panel"),
     summary: await visible("device-summary"),
@@ -190,6 +185,8 @@ async function observe(page) {
   };
 }
 async function row(name, expected, check) {
+  // After an interruption or the deadline, stop instead of failing each row.
+  controller.signal.throwIfAborted();
   const entry = { name, expected, steps: [], pass: false };
   report.rows.push(entry);
   try {
@@ -205,6 +202,11 @@ async function row(name, expected, check) {
 }
 const card = (page, name) =>
   page.getByRole("button", { name: `Open device: ${name}`, exact: true });
+// A remounted Home renders a new overview node without this mark.
+const markHome = (page) =>
+  page.getByTestId("home-overview").evaluateAll((nodes) => {
+    for (const node of nodes) node.dataset.runnerHome = "1";
+  });
 const lampPath = "/appliance/demo-plug?profile=demo";
 const feederPath = "/appliance/demo-feeder?profile=demo";
 const readingPath = "/device/demo-sensor.feeder_last?profile=demo";
@@ -235,13 +237,6 @@ try {
   const options = { cwd: workspace, env, signal: controller.signal };
   stage = "install";
   await run("npm", ["ci", "--include=dev", "--no-audit", "--no-fund"], options);
-  if (routerPatch) {
-    const patch = await readFile(routerPatch);
-    report.proposedRouterPatch = createHash("sha256")
-      .update(patch)
-      .digest("hex");
-    await run("patch", ["-p1", "--forward", "-i", routerPatch], options);
-  }
   report.plan = await assertPublicPlan(workspace);
   stage = "export";
   await run(
@@ -251,7 +246,7 @@ try {
   );
   await assertPublicPlan(workspace);
   server = await previewServer(join(workspace, "dist"));
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true, ...ownSignals });
   report.chromium = browser.version();
   stage = "browser";
 
@@ -426,22 +421,29 @@ try {
     },
   );
   await row(
-    "Resize 1440 → 430 → 1024 → 1440 with a detail open",
-    "Same URL and session; route presentation when narrow, panel when wide; at most one live renderer",
+    "Resize 1440 → 430 → 1010 → 1024 → 1440 with a detail open",
+    "Same URL, session and Home; a panel only in the desktop layout; Home's renderer released while the detail covers it",
     async (step) => {
       const { context, page } = await open(1440);
       try {
         await demo(page);
+        await markHome(page);
         await card(page, "Living room lamp").click();
         await step("1440", page, (s) => assert.equal(s.panel, 1));
-        for (const width of [430, 1024, 1440]) {
+        const start = await observe(page);
+        for (const width of [430, 1010, 1024, 1440]) {
           await page.setViewportSize({ width, height: 932 });
           await step(String(width), page, (s) => {
             assert.equal(s.path, lampPath);
             assert.equal(s.summary, 1);
             assert.equal(s.panel, width === 1440 ? 1 : 0);
             assert.equal(s.visibleHomes, width === 1440 ? 1 : 0);
-            assert(s.renderers.live <= 1 && s.renderers.peakLive <= 1);
+            assert.equal(s.homes, 1);
+            assert.equal(s.markedHomes, 1, "Resizing must keep Home");
+            assert.equal(s.renderers.live, width === 1440 ? 1 : 0);
+            // A covered Home never draws, not even for one stale layout.
+            if (width !== 1440) assert.equal(created(s), created(start));
+            assert(s.renderers.peakLive <= 1);
           });
         }
         assert.equal(
@@ -451,6 +453,34 @@ try {
           0,
           "Resizing must not lose the session",
         );
+      } finally {
+        await context.close();
+      }
+    },
+  );
+  await row(
+    "Resize across the panel and desktop thresholds with Home shown",
+    "One Home throughout; no new renderer while the desktop layout stays; no panel without a detail",
+    async (step) => {
+      const { context, page } = await open(1440);
+      try {
+        await demo(page);
+        await markHome(page);
+        const start = await observe(page);
+        // Compact Home defaults to 2D, so only the desktop widths keep the scene.
+        const desktop = [1223, 1100, 1024];
+        for (const width of [...desktop, 1023, 1010, 430, 1440]) {
+          await page.setViewportSize({ width, height: 932 });
+          await step(String(width), page, (s) => {
+            assert.equal(s.path, "/");
+            assert.equal(s.panel, 0);
+            assert.equal(s.visibleHomes, 1);
+            assert.equal(s.markedHomes, 1, "Resizing must keep Home");
+            if (desktop.includes(width))
+              assert.equal(created(s), created(start));
+            assert(s.renderers.peakLive <= 1);
+          });
+        }
       } finally {
         await context.close();
       }
@@ -748,6 +778,7 @@ try {
       const noWebGl = await chromium.launch({
         headless: true,
         args: ["--disable-webgl", "--disable-3d-apis"],
+        ...ownSignals,
       });
       try {
         const { page } = await open(1440, { using: noWebGl });
@@ -905,7 +936,7 @@ try {
   }
   report.serverAndBrowserClosed = true;
   await writeFile(
-    join(output, routerPatch ? "report-router-patch.json" : "report.json"),
+    join(output, "report.json"),
     JSON.stringify(report, null, 2) + "\n",
   );
   console.log(JSON.stringify(report, null, 2));
