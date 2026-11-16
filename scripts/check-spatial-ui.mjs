@@ -500,6 +500,11 @@ async function functional() {
     checks.inactiveRoute = { houseDefault3d: true, singleRenderer: true };
 
     stage = "out-of-viewport";
+    // A short window lets the scene leave the viewport whatever the length of
+    // Home's device grid; in a tall one the last card can share the screen
+    // with the bottom edge of the scene, which then rightly keeps drawing.
+    const shortWindow = 640;
+    await resize(page, 1440, shortWindow);
     const vent = page.getByRole("button", {
       name: "Open device: Office booster vent",
       exact: true,
@@ -516,7 +521,7 @@ async function functional() {
       .toBe(true);
     const parked = await counters(page);
     // A resize would draw a visible scene; out of view it must not.
-    await resize(page, 1280);
+    await resize(page, 1280, shortWindow);
     await page.waitForTimeout(1200);
     const suspended = await counters(page);
     assert.equal(suspended.frames, parked.frames, "Frames while out of view");
