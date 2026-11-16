@@ -158,11 +158,13 @@
   left: 12px;
   top: -100px;
   z-index: 100;
+  /* 14 + 20 + 14: a 48 px target once it is focused into view. */
   padding: 14px 20px;
   border-radius: 12px;
   background: #7dd3fc;
   color: #06121c;
   font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   text-decoration: none;
 }
