@@ -450,6 +450,10 @@ preserved.
 
 ### How to view
 
+> **2026-11-16:** the prototype harness (`app/ui-redesign.tsx`, `src/prototypes/ui-redesign/`) was
+> removed after the C selection, as its own header required. It remains in Git history at
+> `4b1532f`; the commands below reproduce the prototypes from that revision only.
+
 ```sh
 EXPO_PUBLIC_UI_REDESIGN=1 npx expo start --web --port 8090
 # prototypes: /ui-redesign?concept=a|b|c

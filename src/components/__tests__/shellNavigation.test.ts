@@ -25,7 +25,6 @@ test.each([
   ["/house-links", null],
   ["/device/demo-switch.living_lamp", null],
   ["/diagnostics", null],
-  ["/ui-redesign", null],
 ])("%s selects the compact tab %s", (path, expected) => {
   expect(mainTabFor(path)).toBe(expected);
 });
