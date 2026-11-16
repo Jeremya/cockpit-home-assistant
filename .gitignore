@@ -13,3 +13,6 @@ android/
 ios/
 expo-env.d.ts
 *.tsbuildinfo
+
+# Superpowers skill scratch workspaces (ledgers, briefs, review packages)
+.superpowers/
