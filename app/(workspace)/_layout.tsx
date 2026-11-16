@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 import { colors } from "../../src/components/ui";
+import { stackHeaderLeft } from "../../src/components/stackHeader";
 import { DetailWorkspace } from "../../src/navigation/DetailWorkspace";
 import { useWorkspacePanel } from "../../src/navigation/workspacePanel";
 
@@ -17,6 +18,7 @@ export default function WorkspaceLayout() {
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
         headerShadowVisible: false,
+        headerLeft: stackHeaderLeft,
         contentStyle: { backgroundColor: colors.background },
       }}
     >

@@ -8,6 +8,7 @@ import { colors } from "../src/components/ui";
 import { AppShell } from "../src/components/AppShell";
 import { HomeViewProvider } from "../src/spatial/HomeViewProvider";
 import { MainTabBar } from "../src/components/MainTabBar";
+import { stackHeaderLeft } from "../src/components/stackHeader";
 export default function RootLayout() {
   useEffect(() => {
     void session.bootstrap();
@@ -31,6 +32,7 @@ export default function RootLayout() {
                 headerStyle: { backgroundColor: colors.background },
                 headerTintColor: colors.text,
                 headerShadowVisible: false,
+                headerLeft: stackHeaderLeft,
                 contentStyle: { backgroundColor: colors.background },
               }}
             >
