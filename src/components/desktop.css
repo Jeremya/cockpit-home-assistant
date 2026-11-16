@@ -4,8 +4,8 @@
   min-width: 0;
   min-height: 0;
   height: 100dvh;
-  background: #0b0f19;
-  color: #f3f5fb;
+  background: #06090f;
+  color: #f2f7fc;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 .maurice-main {
@@ -25,8 +25,8 @@
   flex-direction: column;
   flex: 0 0 224px;
   padding: 32px 18px 24px;
-  border-right: 1px solid #2c3547;
-  background: #101622;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0d141e;
   overflow-y: auto;
 }
 .maurice-brand {
@@ -44,13 +44,13 @@
 }
 .maurice-brand small {
   display: block;
-  color: #a5afc2;
+  color: #9aabbd;
   font-size: 10px;
   margin-top: 6px;
 }
 .maurice-nav-label {
   margin: 52px 14px 14px;
-  color: #a5afc2;
+  color: #9aabbd;
   text-transform: uppercase;
   font-size: 10px;
   font-weight: 600;
@@ -70,18 +70,18 @@
   padding: 12px 14px;
   border: 1px solid transparent;
   border-radius: 14px;
-  color: #a5afc2;
+  color: #9aabbd;
   font-size: 13px;
   text-decoration: none;
 }
 .maurice-nav-link:hover {
-  color: #f3f5fb;
-  background: #171d2a;
+  color: #f2f7fc;
+  background: #121b27;
 }
 .maurice-nav-link[aria-current="page"] {
-  color: #f3f5fb;
-  background: #1b2d47;
-  border-color: #3a5374;
+  color: #f2f7fc;
+  background: #0f1a26;
+  border-color: rgba(125, 211, 252, 0.35);
 }
 .maurice-sidebar-status {
   display: flex;
@@ -89,7 +89,7 @@
   gap: 9px;
   padding: 32px 14px 0;
   margin-top: auto;
-  color: #a5afc2;
+  color: #9aabbd;
   font-size: 12px;
   line-height: 19px;
 }
@@ -100,7 +100,7 @@
   background: #a5afc2;
 }
 .maurice-dot.ready {
-  background: #91d9bd;
+  background: #5eead4;
 }
 .maurice-web
   :is(
@@ -121,7 +121,7 @@
   z-index: 100;
   padding: 14px 20px;
   border-radius: 10px;
-  background: #98c2ff;
+  background: #7dd3fc;
   color: #0b0f19;
   font-size: 14px;
   text-decoration: none;

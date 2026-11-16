@@ -22,11 +22,18 @@ import { attentionSummary } from "../core/selectors";
 import { deviceSummaries, type DeviceSummary } from "../core/deviceSummaries";
 import { session } from "../services/runtime";
 import { Body, Button, Label, Panel, colors, styles } from "../components/ui";
-import { Icon, entityAppearance } from "../components/EntityIcon";
+import {
+  Icon,
+  entityAppearance,
+  type IconName,
+} from "../components/EntityIcon";
 import { EntityCard } from "../components/EntityCard";
 import { DeviceSummaryCard } from "../components/DeviceSummaryCard";
 import { SessionBanner } from "../components/SessionBanner";
 import { HomePlanOverview } from "../components/HomePlanOverview";
+import { HomePulse, type HomePulseRoom } from "../components/home/HomePulse";
+import { HomeArchitecture } from "../components/home/HomeArchitecture";
+import { FadeIn } from "../components/home/FadeIn";
 import { housePlanFor, useHousePlan } from "../spatial/plans";
 import type { HousePlan } from "../spatial/model";
 import { areaLinkStatus, own } from "../spatial/selectors";
@@ -118,7 +125,9 @@ function HomeContent({
     );
   };
   const [expandedAttention, setExpandedAttention] = useState(false);
-  const [expandedCoverage, setExpandedCoverage] = useState(false);
+  const [category, setCategory] = useState<
+    "all" | "lights" | "climate" | "security"
+  >("all");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
@@ -207,8 +216,23 @@ function HomeContent({
   const favorites = summaries
     .filter((group) => group.favoriteRank !== null)
     .sort((a, b) => a.favoriteRank! - b.favoriteRank!);
-  const favoriteIds = new Set(favorites.map((group) => group.id));
-  const displayed = filtered.filter(
+  const categoryDomains: Record<
+    "lights" | "climate" | "security",
+    Set<string>
+  > = {
+    lights: new Set(["switch", "light"]),
+    climate: new Set(["climate", "fan"]),
+    security: new Set(["lock", "camera"]),
+  };
+  const inCategory = (group: DeviceSummary) =>
+    category === "all" ||
+    group.members.some((member) =>
+      categoryDomains[category].has(member.domain),
+    );
+  const categoryFiltered = filtered.filter(inCategory);
+  const categoryFavorites = favorites.filter(inCategory);
+  const favoriteIds = new Set(categoryFavorites.map((group) => group.id));
+  const displayed = categoryFiltered.filter(
     (group) => !isAll || !favoriteIds.has(group.id),
   );
   const buckets = new Map<string, { name: string; items: DeviceSummary[] }>();
@@ -226,7 +250,120 @@ function HomeContent({
     buckets.set(key, bucket);
   }
   const count = coverage?.visibleCount ?? 0;
-  const deviceCount = filtered.filter((group) => group.deviceId).length;
+  const groupForEntity = new Map(
+    summaries.flatMap((group) =>
+      group.members.map((member) => [member.entityId, group] as const),
+    ),
+  );
+  const matchesRoom = (group: DeviceSummary, selection: HomeSelection) =>
+    selection.kind === "area"
+      ? group.roomIds.includes(selection.areaId)
+      : selection.kind === "unassigned"
+        ? group.roomIds.includes(null)
+        : false;
+  const roomStats: HomePulseRoom[] = rooms.map((option) => {
+    const groups = summaries.filter((group) =>
+      matchesRoom(group, option.selection),
+    );
+    const alerts = attention.filter((entity) => {
+      const group = groupForEntity.get(entity.entityId);
+      return group ? matchesRoom(group, option.selection) : false;
+    }).length;
+    return {
+      id: JSON.stringify(option.selection),
+      name: option.name,
+      devices: groups.filter((group) => group.deviceId).length,
+      alerts,
+    };
+  });
+  const totalDevices = summaries.filter((group) => group.deviceId).length;
+  const statusLine = !ready
+    ? snapshot
+      ? "Cached observations"
+      : "Connect your home"
+    : attention.length
+      ? `${attention.length} ${attention.length === 1 ? "item needs" : "items need"} attention`
+      : "Everything is quiet";
+  const lightMembers = summaries
+    .flatMap((group) => group.members)
+    .filter(
+      (member) => member.domain === "switch" || member.domain === "light",
+    );
+  const lightsOn = lightMembers.filter(
+    (member) => member.state === "on",
+  ).length;
+  const securityGroups = new Set(
+    summaries
+      .filter((group) =>
+        group.members.some((member) =>
+          categoryDomains.security.has(member.domain),
+        ),
+      )
+      .map((group) => group.id),
+  );
+  const securityAlerts = attention.filter((entity) => {
+    const group = groupForEntity.get(entity.entityId);
+    return !!group && securityGroups.has(group.id);
+  }).length;
+  const climateMember = summaries
+    .flatMap((group) => group.members)
+    .find((member) => member.domain === "climate");
+  const climateDetail =
+    ready && climateMember && snapshot
+      ? primaryValue(climateMember, snapshot.config, now)
+      : null;
+  const quickActions: {
+    id: "lights" | "climate" | "security" | "rooms";
+    label: string;
+    icon: IconName;
+    count: number;
+    detail: string;
+  }[] = [
+    {
+      id: "lights",
+      label: "Lights",
+      icon: "toggle-right",
+      count: summaries.filter((group) =>
+        group.members.some((member) =>
+          categoryDomains.lights.has(member.domain),
+        ),
+      ).length,
+      detail: ready ? (lightsOn ? `${lightsOn} on` : "All off") : "—",
+    },
+    {
+      id: "climate",
+      label: "Climate",
+      icon: "thermometer",
+      count: summaries.filter((group) =>
+        group.members.some((member) =>
+          categoryDomains.climate.has(member.domain),
+        ),
+      ).length,
+      detail: climateDetail ?? "—",
+    },
+    {
+      id: "security",
+      label: "Security",
+      icon: "shield",
+      count: summaries.filter((group) =>
+        group.members.some((member) =>
+          categoryDomains.security.has(member.domain),
+        ),
+      ).length,
+      detail: ready
+        ? securityAlerts
+          ? `${securityAlerts} alert${securityAlerts === 1 ? "" : "s"}`
+          : "Clear"
+        : "—",
+    },
+    {
+      id: "rooms",
+      label: "Rooms",
+      icon: "grid",
+      count: rooms.length,
+      detail: `${rooms.length}`,
+    },
+  ];
   const refresh = async () => {
     setRefreshing(true);
     try {
@@ -313,29 +450,10 @@ function HomeContent({
         </Body>
       )}
       {ready && count > 0 && coverage && (
-        <>
-          <Text style={home.caption}>
-            Attention rules assessed {coverage.assessedCount} of{" "}
-            {coverage.visibleCount} visible entities.
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: expandedCoverage }}
-            onPress={() => setExpandedCoverage((value) => !value)}
-            style={home.expand}
-          >
-            <Text style={home.link}>
-              {expandedCoverage ? "Hide explanation" : "About these readings"}
-            </Text>
-          </Pressable>
-          {expandedCoverage && (
-            <Body>
-              Other readings are not a device health check. Hidden entities are
-              excluded. A fresh HA connection does not confirm a recent device
-              poll.
-            </Body>
-          )}
-        </>
+        <Text style={home.coverage}>
+          Attention rules assessed {coverage.assessedCount} of{" "}
+          {coverage.visibleCount} visible entities.
+        </Text>
       )}
     </Panel>
   );
@@ -346,6 +464,7 @@ function HomeContent({
           styles.content,
           home.content,
           desktop && home.desktopContent,
+          !desktop && home.mobileContent,
         ]}
         refreshControl={
           <RefreshControl
@@ -430,6 +549,102 @@ function HomeContent({
           <SessionBanner />
         )}
         {initialized && (
+          <>
+            <View style={home.titleRow}>
+              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                <Text style={home.homeTitle}>{plan.name}</Text>
+                <Text style={home.statusLine}>{statusLine}</Text>
+              </View>
+              {ready && !!attention.length && (
+                <View style={home.alertPill}>
+                  <View style={home.alertDot} />
+                  <Text style={home.alertPillText}>
+                    {attention.length} ALERT
+                  </Text>
+                </View>
+              )}
+            </View>
+            {!desktop && (
+              <FadeIn>
+                <HomeArchitecture
+                  floor={floor}
+                  selectedRoomId={room?.id ?? null}
+                  markers={markers}
+                  onOpen={() => {
+                    if (currentScope()) router.push("/house");
+                  }}
+                />
+              </FadeIn>
+            )}
+            <FadeIn delay={60}>
+              <View style={[home.cockpitTop, desktop && home.cockpitTopWide]}>
+                <View style={desktop ? home.pulseWide : undefined}>
+                  <HomePulse
+                    rooms={roomStats}
+                    devices={totalDevices}
+                    alerts={ready ? attention.length : 0}
+                    ready={ready}
+                  />
+                </View>
+                <View style={[home.quickRow, desktop && home.quickRowWide]}>
+                  {quickActions.map((action) => {
+                    const selected = category === action.id;
+                    return (
+                      <Pressable
+                        key={action.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Filter by ${action.label.toLowerCase()}, ${action.count}`}
+                        accessibilityState={{ selected }}
+                        onPress={() => {
+                          if (action.id === "rooms") {
+                            setCategory("all");
+                            choose({ kind: "all" });
+                            return;
+                          }
+                          const next = action.id;
+                          setCategory((current) =>
+                            current === next ? "all" : next,
+                          );
+                        }}
+                        style={({ pressed }) => [
+                          home.quickTile,
+                          desktop && home.quickTileWide,
+                          selected && home.quickTileSelected,
+                          pressed && { transform: [{ scale: 0.985 }] },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            home.quickIcon,
+                            selected && {
+                              backgroundColor: `${colors.accent}22`,
+                            },
+                          ]}
+                        >
+                          <Icon
+                            name={action.icon}
+                            size={18}
+                            color={selected ? colors.accent : colors.muted}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            home.quickLabel,
+                            selected && { color: colors.accent },
+                          ]}
+                        >
+                          {action.label}
+                        </Text>
+                        <Text style={home.quickCount}>{action.detail}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            </FadeIn>
+          </>
+        )}
+        {initialized && (
           <View
             testID="home-overview"
             onLayout={(event) =>
@@ -483,17 +698,9 @@ function HomeContent({
                 <Text style={home.title}>Around your home</Text>
               </View>
               <Text style={home.caption}>
-                {deviceCount} {deviceCount === 1 ? "device" : "devices"} ·{" "}
-                {isAll
-                  ? count
-                  : filtered.reduce(
-                      (sum, group) => sum + group.members.length,
-                      0,
-                    )}{" "}
-                visible readings
-                {summaries.some((group) => !group.deviceId)
-                  ? " · includes standalone readings"
-                  : ""}
+                {category === "all"
+                  ? `${displayed.length} ${displayed.length === 1 ? "device" : "devices"}`
+                  : `${displayed.length} ${category} ${displayed.length === 1 ? "device" : "devices"}`}
               </Text>
               <ScrollView
                 horizontal
@@ -516,29 +723,62 @@ function HomeContent({
                         ? viewState.selection.kind === "unassigned"
                         : option.selection.kind === "area" &&
                           selectedArea === option.selection.areaId;
+                  const stat =
+                    option.selection.kind === "all"
+                      ? {
+                          devices: totalDevices,
+                          alerts: attention.length,
+                        }
+                      : (roomStats.find(
+                          (item) =>
+                            item.id === JSON.stringify(option.selection),
+                        ) ?? { devices: 0, alerts: 0 });
                   return (
                     <Pressable
                       key={JSON.stringify(option.selection)}
                       accessibilityRole="tab"
+                      accessibilityLabel={option.name}
                       accessibilityState={{ selected }}
                       aria-selected={selected}
                       onPress={() => choose(option.selection)}
-                      style={[home.chip, selected && home.selectedChip]}
+                      style={({ pressed }) => [
+                        home.roomCard,
+                        selected && home.roomCardSelected,
+                        pressed && { transform: [{ scale: 0.985 }] },
+                      ]}
                     >
-                      <Text
-                        style={[
-                          home.chipText,
-                          selected && { color: colors.text },
-                        ]}
-                      >
-                        {option.name}
+                      <View style={home.roomCardTop}>
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            home.roomName,
+                            selected && { color: colors.text },
+                          ]}
+                        >
+                          {option.name}
+                        </Text>
+                        <View
+                          style={[
+                            home.roomDot,
+                            {
+                              backgroundColor: stat.alerts
+                                ? colors.warning
+                                : colors.accent,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={home.roomMeta}>
+                        {stat.alerts
+                          ? `${stat.alerts} ${stat.alerts === 1 ? "alert" : "alerts"}`
+                          : `${stat.devices} ${stat.devices === 1 ? "device" : "devices"}`}
                       </Text>
                     </Pressable>
                   );
                 })}
               </ScrollView>
             </View>
-            {isAll && !!favorites.length && (
+            {isAll && !!categoryFavorites.length && (
               <View style={home.section}>
                 <View style={home.heading}>
                   <Icon name="star" size={16} color={colors.accent} />
@@ -546,7 +786,7 @@ function HomeContent({
                     Favorites
                   </Text>
                 </View>
-                {renderGroups(favorites)}
+                {renderGroups(categoryFavorites)}
               </View>
             )}
             {[...buckets].map(([key, bucket]) => (
@@ -557,7 +797,7 @@ function HomeContent({
                 {renderGroups(bucket.items)}
               </View>
             ))}
-            {!isAll && !filtered.length && count > 0 && (
+            {!isAll && !categoryFiltered.length && count > 0 && (
               <Body>
                 {needsLink
                   ? "Room not linked — choose a Home Assistant area to see its devices."
@@ -595,10 +835,99 @@ const home = StyleSheet.create({
     alignSelf: "center",
   },
   desktopContent: { maxWidth: 1440, padding: spacing.xxl },
+  mobileContent: { paddingBottom: 112 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  homeTitle: {
+    ...typography.title,
+    color: colors.text,
+    fontWeight: "700",
+    letterSpacing: -1,
+  },
+  statusLine: { ...typography.secondary, color: colors.muted },
+  alertPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(240,179,94,0.12)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(240,179,94,0.32)",
+  },
+  alertDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.warning,
+  },
+  alertPillText: {
+    color: colors.warning,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+  cockpitTop: { gap: spacing.md },
+  cockpitTopWide: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: spacing.md,
+  },
+  pulseWide: { flex: 1.35, justifyContent: "center" },
+  quickRow: { flexDirection: "row", gap: spacing.sm },
+  quickRowWide: { flex: 1, flexWrap: "wrap", alignContent: "stretch" },
+  quickTileWide: {
+    width: "47%",
+    flexBasis: "47%",
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  quickTile: {
+    flex: 1,
+    minHeight: 96,
+    padding: spacing.sm,
+    borderRadius: radii.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    justifyContent: "space-between",
+  },
+  quickTileSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSurface,
+  },
+  quickIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: colors.raised,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickLabel: {
+    ...typography.secondary,
+    color: colors.text,
+    fontWeight: "600",
+  },
+  quickCount: {
+    ...typography.secondary,
+    color: colors.muted,
+    fontVariant: ["tabular-nums"],
+  },
   overview: { gap: spacing.xl },
   // Attention keeps its reading position before the house on wide screens.
   wideOverview: { flexDirection: "row", alignItems: "flex-start" },
-  attention: { padding: spacing.lg, gap: spacing.md },
+  attention: {
+    padding: spacing.md,
+    gap: spacing.sm,
+    backgroundColor: "rgba(240,179,94,0.05)",
+    borderColor: "rgba(240,179,94,0.18)",
+  },
   attentionAside: { width: 360 },
   section: { gap: spacing.md },
   brand: {
@@ -632,7 +961,7 @@ const home = StyleSheet.create({
     color: colors.warning,
     fontWeight: "600",
     fontVariant: ["tabular-nums"],
-    backgroundColor: "#ffc08316",
+    backgroundColor: "rgba(240,179,94,0.12)",
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: radii.control,
@@ -648,26 +977,47 @@ const home = StyleSheet.create({
   title: {
     ...typography.title,
     color: colors.text,
-    fontWeight: "600",
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: "700",
     letterSpacing: -0.6,
   },
   sectionTitle: { ...typography.name, color: colors.text, fontWeight: "600" },
   caption: { ...typography.secondary, color: colors.muted },
+  coverage: {
+    color: colors.muted,
+    fontSize: 10.5,
+    lineHeight: 15,
+  },
   filters: { gap: spacing.sm, paddingRight: 2 },
-  chip: {
-    minHeight: minTouchTarget,
-    paddingHorizontal: spacing.lg,
-    justifyContent: "center",
-    borderRadius: radii.control,
-    borderWidth: 1,
+  roomCard: {
+    width: 148,
+    minHeight: 82,
+    padding: spacing.md,
+    borderRadius: radii.card,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+    justifyContent: "space-between",
   },
-  selectedChip: {
+  roomCardSelected: {
+    borderColor: colors.accent,
     backgroundColor: colors.accentSurface,
-    borderColor: "#638bb9",
   },
-  chipText: { ...typography.secondary, color: colors.muted, fontWeight: "500" },
+  roomCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  roomName: {
+    ...typography.secondary,
+    color: colors.muted,
+    fontWeight: "600",
+    flex: 1,
+  },
+  roomDot: { width: 6, height: 6, borderRadius: 3 },
+  roomMeta: { ...typography.secondary, color: colors.muted },
   roomTitle: {
     ...typography.secondary,
     color: colors.muted,

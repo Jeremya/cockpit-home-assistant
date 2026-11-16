@@ -1,4 +1,4 @@
-import { railSelected } from "../shellNavigation";
+import { mainTabFor, railSelected } from "../shellNavigation";
 
 test.each([
   ["/", "/", false, true],
@@ -15,4 +15,17 @@ test("a detail shown beside Home keeps Overview as the current place", () => {
   expect(railSelected("/device/demo-switch.living_lamp", "/", true)).toBe(true);
   expect(railSelected("/appliance/demo-plug", "/entities", true)).toBe(false);
   expect(railSelected("/settings", "/", true)).toBe(false);
+});
+
+test.each([
+  ["/", "home"],
+  ["/entities", "rooms"],
+  ["/house", "plan"],
+  ["/settings", "settings"],
+  ["/house-links", null],
+  ["/device/demo-switch.living_lamp", null],
+  ["/diagnostics", null],
+  ["/ui-redesign", null],
+])("%s selects the compact tab %s", (path, expected) => {
+  expect(mainTabFor(path)).toBe(expected);
 });

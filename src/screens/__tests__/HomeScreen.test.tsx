@@ -623,3 +623,23 @@ test("the device list title is the focus fallback when an origin card has gone",
   expect(title.props.tabIndex).toBe(-1);
   screen.unmount();
 });
+
+test("category quick filters narrow the visible devices and toggle back to all", () => {
+  const screen = render(<HomeScreen />);
+  expect(screen.getByText("Cat feeder")).toBeTruthy();
+  fireEvent.press(screen.getByRole("button", { name: /Filter by lights/ }));
+  expect(screen.getByText("Living room lamp")).toBeTruthy();
+  expect(screen.queryByText("Cat feeder")).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: /Filter by lights/ }));
+  expect(screen.getByText("Cat feeder")).toBeTruthy();
+  screen.unmount();
+});
+
+test("the compact architectural preview opens the full floor plan", () => {
+  const screen = render(<HomeScreen />);
+  fireEvent.press(
+    screen.getByRole("button", { name: /architectural preview/ }),
+  );
+  expect(router.push).toHaveBeenCalledWith("/house");
+  screen.unmount();
+});

@@ -50,6 +50,9 @@ test("diagnostics exposes retained unresolved spatial data and the saved revisio
   ).toBeTruthy();
   expect(screen.getByText(/Reconnecting automatically/)).toBeTruthy();
   expect(
+    screen.getByText(/Attention rules are not a device health check/),
+  ).toBeTruthy();
+  expect(
     screen.getByText(/Home Assistant: 2026.10.1 \(last synchronized\)/),
   ).toBeTruthy();
   expect(

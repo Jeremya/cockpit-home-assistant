@@ -38,12 +38,12 @@ export interface FloorPlanMarker {
 }
 
 const roomColors: Record<RoomKind, string> = {
-  living: "#243b40",
-  kitchen: "#3e3430",
-  bedroom: "#333149",
-  bathroom: "#243e50",
-  storage: "#333846",
-  circulation: "#242d3b",
+  living: "#0f2027",
+  kitchen: "#211d19",
+  bedroom: "#1a1b28",
+  bathroom: "#0e212a",
+  storage: "#161d26",
+  circulation: "#111923",
 };
 
 // Quiet line-art footprints: furniture orients the eye but never competes with rooms or state.
@@ -162,7 +162,7 @@ export function FloorPlanView({
             key={room.id}
             id={room.id}
             points={points(room.polygon)}
-            fill={selectedRoom === room.id ? "#34547a" : roomColors[room.kind]}
+            fill={selectedRoom === room.id ? "#123243" : roomColors[room.kind]}
             stroke={selectedRoom === room.id ? colors.accent : "transparent"}
             onSelect={() => onSelectRoom(room.id)}
           />

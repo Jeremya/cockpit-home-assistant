@@ -16,7 +16,10 @@ export function EntitiesScreen() {
   const disabled =
     snapshot?.registryEntries.filter((entry) => entry.disabled_by) ?? [];
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[styles.content, { paddingBottom: 112 }]}
+    >
       <Label>Your home, your view</Label>
       <Title>Entities & rooms</Title>
       <Body>

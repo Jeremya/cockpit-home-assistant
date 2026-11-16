@@ -283,6 +283,7 @@ function HousePlanContent({
         styles.content,
         planStyles.content,
         desktop && { maxWidth: 1320, padding: 32 },
+        !desktop && { paddingBottom: 112 },
       ]}
       testID="house-scroll"
       onLayout={(event) => {

@@ -143,7 +143,10 @@ export function SettingsScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        contentContainerStyle={[styles.content, { maxWidth: 800 }]}
+        contentContainerStyle={[
+          styles.content,
+          { maxWidth: 800, paddingBottom: 112 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <Label>Make yourself at home</Label>

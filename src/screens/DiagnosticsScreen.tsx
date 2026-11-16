@@ -53,6 +53,14 @@ export function DiagnosticsScreen() {
       <Label>Connection & data health</Label>
       <Title>Diagnostics</Title>
       <SessionBanner />
+      <Panel>
+        <Label>Attention coverage</Label>
+        <Body>
+          Attention rules are not a device health check. Other readings are not
+          assessed, hidden entities are excluded, and a fresh Home Assistant
+          connection does not confirm a recent device poll.
+        </Body>
+      </Panel>
       {buildInfo.trial && (
         <Panel>
           <Label>Internal trial</Label>

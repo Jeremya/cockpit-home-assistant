@@ -10,3 +10,13 @@ export function railSelected(path: string, href: string, panelOpen: boolean) {
     return path.startsWith("/entities") || (detail && !panelOpen);
   return path === href;
 }
+
+export type MainTab = "home" | "rooms" | "plan" | "settings";
+/** Only the four primary destinations show the compact bar. */
+export function mainTabFor(path: string): MainTab | null {
+  if (path === "/") return "home";
+  if (path === "/entities") return "rooms";
+  if (path === "/house") return "plan";
+  if (path === "/settings") return "settings";
+  return null;
+}

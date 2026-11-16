@@ -195,12 +195,12 @@ export function HomePlanOverview({
 }
 const s = StyleSheet.create({
   panel: {
-    padding: spacing.lg,
+    padding: spacing.md,
     gap: spacing.sm,
-    borderRadius: radii.panel,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.accentSurface,
+    backgroundColor: colors.surface,
     minWidth: 0,
   },
   open: {
@@ -208,7 +208,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.xs,
   },
-  title: { ...typography.name, color: colors.text, fontWeight: "600" },
+  title: { ...typography.name, color: colors.text, fontWeight: "700" },
   caption: { ...typography.secondary, color: colors.muted, flexShrink: 1 },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   roomRow: { gap: spacing.sm },
@@ -222,7 +222,10 @@ const s = StyleSheet.create({
     borderColor: colors.border,
     maxWidth: "100%",
   },
-  selected: { backgroundColor: colors.raised, borderColor: colors.accent },
+  selected: {
+    backgroundColor: colors.accentSurface,
+    borderColor: colors.accent,
+  },
   text: { ...typography.secondary, color: colors.text, flexShrink: 1 },
   link: { ...typography.secondary, color: colors.accent, flexShrink: 1 },
 });

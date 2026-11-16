@@ -119,10 +119,10 @@ const card = StyleSheet.create({
   container: {
     borderRadius: radii.card,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  open: { padding: spacing.lg, gap: spacing.sm, borderRadius: radii.card },
+  open: { padding: spacing.md, gap: spacing.sm, borderRadius: radii.card },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -130,17 +130,24 @@ const card = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   icon: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radii.control,
+    borderRadius: 11,
   },
-  name: { ...typography.name, color: colors.text, fontWeight: "600" },
-  muted: { ...typography.secondary, color: colors.muted },
+  name: {
+    ...typography.name,
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: "600",
+  },
+  muted: { ...typography.secondary, color: colors.muted, fontSize: 12 },
   value: {
     ...typography.value,
-    fontWeight: "500",
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
   reading: {
@@ -153,6 +160,7 @@ const card = StyleSheet.create({
     ...typography.secondary,
     color: colors.text,
     flexShrink: 1,
+    fontSize: 12,
     fontVariant: ["tabular-nums"],
   },
 });
