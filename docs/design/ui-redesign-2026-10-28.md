@@ -1,8 +1,9 @@
 # Maurice UI redesign — three directions
 
 - **Status:** design exploration completed 2026-10-28. **Owner selected Concept C**; the C P0, P1
-  and P2 visual layers are implemented in production Home. Accessibility acceptance, the optional
-  light theme, screenshot-diff CI and native performance measurement remain.
+  and P2 visual layers are implemented in production Home, and §12 (2026-11-16) carries the same
+  system to the other screens on web. Accessibility acceptance, the optional light theme,
+  screenshot-diff CI and native performance measurement remain.
 - **Owner decision:** C (Premium Smart Home Cockpit), confirmed 2026-10-28. The analysis below
   recommended B; that recommendation is superseded by this decision, not erased.
 - **Ask:** rethink the Home experience, not polish the current stack.
@@ -461,6 +462,75 @@ EXPO_PUBLIC_UI_REDESIGN=1 npx expo start --web --port 8090
 ```
 
 **C is selected; P0–P2 visual layers are implemented. Accessibility acceptance and the remaining P2 gates follow.**
+
+## 12. Screens polish — 2026-11-16
+
+Concept C reached Home in §11. This slice carries it to every other screen and composes desktop
+Home. It changes presentation and layout only: no navigation, session, command, preference or
+data-flow change, and no dependency, font or asset.
+
+### System
+
+| Layer | Rule | Where |
+| --- | --- | --- |
+| Type scale | 40 hero · 32 display · 24 headline/value · 18 heading · 16 name · 14 body · 13 secondary · 12 caption · 11 eyebrow. The eyebrow is the only uppercase role and nothing is smaller than 11. | `typography` in `src/theme.ts` |
+| Rhythm | 16 between siblings, 32 between the sections of a screen, 16 inside a card, 16 px phone gutter, 32 px desktop gutter. | `spacing`, `layout` |
+| Card language | One radius (22), a hairline border, `surface` fill; 12 for controls and icon wells, a pill for chips. | `radii`, `Panel` |
+| States | Hovered and pressed change the surface; only disabled lowers opacity (0.45). One 2 px cyan focus ring on every keyboard-reachable control. | `ui.tsx`, `desktop.css` |
+| Motion | Web: 120 ms colour-only transitions under `prefers-reduced-motion: no-preference`; no entrance, no layout or transform transition, so the recettes stay deterministic. Native: the existing `FadeIn` entrance, now also on details. | `desktop.css`, `FadeIn` |
+| Qualifiers | A source, warning or outcome is always icon + words + tint: `StatusChip`, `Notice`, `outcomeTone`. Cached is amber or grey, never cyan or mint. Only a state observed after the request and not assumed gets the mint check. | `ui.tsx`, `controls/outcomeTone.ts` |
+| Primitives | `Screen`, `ScreenHeader`, `Heading`, `Caption`, `Notice`, `StatusChip`, `KeyValue`, `Disclosure`, `ToggleRow`, `ThemedSwitch`, `ListRow`, `Divider`; `Button` gains `variant` (`primary`, `secondary`, `quiet`, `danger`) and `icon`. | `src/components/ui.tsx` |
+
+### Layout rules
+
+- **Desktop Home** shares one grid with the device cards: the lead column (pulse, filters, Needs
+  attention) is one grid unit, the house the remaining units, and both end on the same line. Under
+  "All rooms" a wide window shows one lattice of cards in room order; a phone keeps its room groups.
+  The lattice follows the window, not the measured column, so opening the detail panel moves no card.
+  The 720 px side-by-side threshold and the reading order (attention, house, filters, cards) are
+  unchanged.
+- **Settings** is one Home Assistant card in three ruled steps (address, sign in, or use an access
+  token). Exactly one primary button is shown. Security consequences stay on the page in amber
+  (remembering a browser, HTTP trust); only supporting detail sits in a disclosure.
+- **Details, Diagnostics** list facts as label/value rows; a wide Diagnostics uses two columns.
+
+### Evidence
+
+Source `8c2839e` on `work/screens-polish`; public sample plan and offline demo home only.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check` pass; `npm test`: **77 suites / 1045
+  tests pass**. New behaviour tests cover the outcome tones, the switch colour rule, the grid maths,
+  the wide lattice, the invitation before a first connection, and the Settings disclosures, HTTP
+  trust wording and failure placement. The Diagnostics test now reads each fact by its row label.
+- `npm run check:ui` **passed** at 320/430/768/1440 (zero page errors, zero external requests,
+  48 px power targets, cards in columns); `npm run check:detail-panel` **passed** 22/22 rows with
+  360/389/440 px panels; `npm run check:web-auth` **passed** 12/12 rows. No recette selector changed.
+- One earlier `check:web-auth` run on the same revision failed four rows waiting for
+  "Synced with HA" while the machine's one-minute load average was about 50 on 10 cores from other
+  jobs; the unchanged rerun passed. The mechanism is not demonstrated: treat it as an open flake
+  observation, not as explained.
+- Contrast (WCAG 2.x, tints composited over their surface): text 14.6–18.5:1; muted 6.7–8.5:1;
+  accent 8.3–12.0:1; warning 8.2–10.0:1; danger 7.5–8.2:1; mint 12.5:1; primary button label 11.3:1;
+  focus ring 11.1:1 on surface; text-field outline 3.3–3.8:1; switch thumb 3.8:1 (on) and 6.7:1
+  (off). Hairlines are decorative (1.2–1.6:1).
+- Targets, measured on web at 390 and 1440 px on Home, both details, Entities, Settings and
+  Diagnostics: every control this app draws is at least 48 × 48 px. The Stack header's Back link is
+  30 × 30 px and belongs to the navigator options.
+- The demo Home shows no horizontal overflow and no idle DOM mutation at 320, 360, 390, 430, 600,
+  640, 768, 800, 1023, 1024, 1280, 1440 and 1920 px.
+- Before/after captures of every route at 390 × 844 (2×) and 1440 × 900 were reviewed; they are not
+  committed.
+
+### Limits
+
+- Web only. Native rendering, safe areas, the Android switch colours and `hitSlop`, TalkBack and
+  200 % text on a device were not run; treat this slice as **Implemented + Automated**, not Built or
+  Observed.
+- Public sample and offline demo only; the household profile was not opened.
+- The Stack header titles (`Connection`, `Your entities`, `Device readings`, `Device`) still differ
+  from the in-page titles and the tab labels; they live in `app/*_layout.tsx`, outside this slice.
+- Plan surfaces (`HomePlanOverview`, `HomeArchitecture`, `HousePlanScreen`, placement, links) inherit
+  the primitives and the 22 px radius but keep their own padding, borders and 8 px eyebrows.
 
 ## Decision record
 
