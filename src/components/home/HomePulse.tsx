@@ -146,9 +146,7 @@ export function HomePulse({
                   },
                 ]}
               />
-              <Text numberOfLines={1} style={styles.roomName}>
-                {room.name}
-              </Text>
+              <Text style={styles.roomName}>{room.name}</Text>
               <Text style={styles.roomValue}>
                 {!ready
                   ? "cached"
