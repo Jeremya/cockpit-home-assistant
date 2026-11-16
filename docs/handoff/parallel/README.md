@@ -1,5 +1,7 @@
 # Backlog parallèle — 2 ou 3 agents Opus 5.5
 
+> **Reprise du 16 novembre 2026 :** ce découpage conserve le checkpoint du 22 octobre ; B/C sont maintenant intégrés. Pour le travail restant, utiliser [la nouvelle vague à quatre agents](2026-11-16-next-wave.md), basée sur `ebce4f0`, avec ownership, critères de sortie et prompts actualisés.
+
 État inspecté le **22 octobre 2026**, code de référence **`e52ac06`**. Ce dossier est le **point d’entrée des prochains agents**. Il remplace l’ordre séquentiel UX00→UX09 pour le travail restant, sans renommer les jalons du [backlog produit](../../BACKLOG.md). Les tickets ci-dessous sont des tâches futures, sauf les preuves explicitement citées.
 
 ## Ce qui existe réellement
