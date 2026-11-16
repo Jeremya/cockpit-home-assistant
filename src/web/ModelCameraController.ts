@@ -65,6 +65,8 @@ export class ModelCameraController {
       zoomFactor: this.zoomFactor,
       animating: this.transition !== null,
       fitDistance: this.destination?.fitDistance ?? null,
+      /** Share of the canvas the fitted silhouette covers at zoom 1. */
+      share: this.destination?.share ?? null,
     };
   }
   setBounds(

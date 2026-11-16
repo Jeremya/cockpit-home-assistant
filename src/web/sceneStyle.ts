@@ -7,16 +7,28 @@ import { MODEL_YAW } from "./modelCamera";
  * are rendering settings that can change without touching the plan schema.
  */
 export const scenePalette = {
+  /** Mid-tone of the stage; also the canvas colour before the first frame. */
   stage: "#0a0e1a",
+  /** The stage lifts slightly behind the model and falls off to the corners. */
+  stageGlow: "#182036",
+  stageEdge: "#05070e",
+  /** Soft pool of light on the ground under the plinth. */
+  groundPool: "#55607e",
   plinth: "#141927",
   wallBody: "#e7e3db",
   wallCap: "#262b3a",
   windowFrame: "#2c3142",
   glass: "#9cc0ff",
   glassEmissive: "#3d5fae",
+  /** Daylight falling through a saved window line. */
+  daylight: "#ffe9c4",
   labelInk: "#2b2f3a",
-  /** Shared with the marker palette so a selected room still reads as "Maurice". */
-  selectedFloor: "#3f6694",
+  /** Paper tag behind a room name, readable over any floor or furniture. */
+  roomTag: "rgba(247,243,236,0.86)",
+  labelChip: "rgba(9,13,22,0.9)",
+  labelChipEdge: "rgba(255,255,255,0.18)",
+  labelLeader: "#e8edf5",
+  markerStem: "#dfe3ea",
 } as const;
 
 /** Furniture materials replace the vendor palette so the kit reads as Maurice's. */
@@ -76,6 +88,47 @@ export const PLINTH_HEIGHT = 0.3;
 export const PLINTH_OVERHANG = 0.7;
 /** Metres covered by one floor-texture tile. */
 export const FLOOR_TILE_METRES = 2.4;
+/** Corner radius shared by the canvas host and its keyboard focus ring. */
+export const SCENE_CORNER_RADIUS = 16;
+
+/** Key light: one warm directional source, pointing from the scene to the light. */
+export const KEY_LIGHT_DIRECTION = [0.7, 1, 0.28] as const;
+/**
+ * Room selection is an accent, not a repaint: the selected floor keeps its
+ * material and gains a faint glow plus a thin perimeter line, while the other
+ * rooms recede. The accent is the cockpit accent, never a "lights on" warm.
+ */
+export const selectionAccent = {
+  /** Emissive strength added to the selected floor (accent colour). */
+  floorGlow: 0.03,
+  /** Brightness multiplier of the rooms that are not selected. */
+  othersDim: 0.62,
+  /** Perimeter line: distance from the room boundary and width, metres. */
+  lineInset: 0.14,
+  lineWidth: 0.05,
+  /** Wash of accent light fading from the line into the room. */
+  washWidth: 0.45,
+  washOpacity: 0.24,
+} as const;
+/** Daylight patches below saved `window` lines; depths are previews, not optics. */
+export const windowLight = {
+  /** Reach of the patch into the room when the key light shines through. */
+  directDepth: 1.7,
+  /** Reach of the diffuse patch on the side the key light does not reach. */
+  diffuseDepth: 0.9,
+  directStrength: 1,
+  diffuseStrength: 0.45,
+  opacity: 0.36,
+} as const;
+/** Ground under the plinth: a light pool and a contact shadow, both painted. */
+export const groundStyle = {
+  /** Pool radius as a multiple of the plinth's half diagonal. */
+  poolReach: 2.6,
+  poolOpacity: 0.5,
+  contactOpacity: 0.8,
+  /** Soft occlusion where the house meets the plinth top. */
+  occlusionOpacity: 0.5,
+} as const;
 
 export interface PlanDirection {
   x: number;

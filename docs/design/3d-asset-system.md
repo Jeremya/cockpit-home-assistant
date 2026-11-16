@@ -321,3 +321,158 @@ verified.
 
 The blunt summary: the largest perceived improvement came from scene configuration and
 presentation, not from assets. The assets completed the miniature; they did not rescue it.
+
+## 12. P2 — premium details, 2026-11-16
+
+Branch `work/scene-3d-polish`, based on `c6872f5`. Presentation only, inside `src/web/**` and
+`src/components/CockpitSceneView.tsx`. The bridge (`SceneFloor`, sanitized markers, callbacks), the
+marker diff, picking, the readiness watchdog, retry, the 2D fallback, the plan schema and the
+preferences are unchanged. Nothing is persisted and no dependency or binary asset is added.
+
+From the [§9 P2 list](#p2--premium-details): **delivered** — interior light spill on window planes,
+room-selection emissive accent, label scale/distance behaviour, furniture-quality device markers.
+**Not delivered** — per-floor lazy loading + LOD, screenshot-diff CI gate.
+
+### Values changed against earlier sections
+
+Every value below is a rendering preview, never a measurement (ADR-17). The first row changes a
+value the owner approved in §5; the integrator records it, this document does not edit the register.
+
+| Value | Before | Now | Where |
+| --- | --- | --- | --- |
+| **Model-camera margin (§5 Camera)** | proportional `0.05` per side around the bounding box, fitted symmetrically about the box centre | `MODEL_FILL = 0.8`: the drawn silhouette spans 80 % of the limiting canvas dimension, centred exactly (10 % per side, still no pixel term) | `modelCamera.ts` |
+| Model FOV / elevation / yaw / yaw range / zoom range | `26°` / `38°` / `35°` / `±40°` / `1–1.25` | unchanged | `modelCamera.ts` |
+| Orbit (compact) opening pose — not listed in §5 | FOV `45°`; box fit with `64 px`/`110 px` margins and `× 1.12` | FOV `30°`; same exact fit and `0.8` fill as the model view; elevation `atan(0.85 / 0.75) ≈ 48.6°` and yaw `0` unchanged; far plane `500 → 1000` | `CockpitScene.tsx` |
+| Room selection (§4 `Selected floor #3f6694`, §5 "Selection tints the room material") | flat tint multiplying the floor texture | token removed; accent described below | `sceneStyle.ts` |
+| Marker head height | `0.9 m` | `1.05 m` (`MARKER_HEIGHT`) | `markerStyle.ts` |
+| Shadow penumbra | PCF radius `1` | PCF radius `2.4`; same `2048²` map, same samples | `CockpitScene.tsx` |
+| Label layout (§5 "label layout unchanged") | fixed `128 × 32` slab, above/below only, key order | fitted names, slots around the head, most-constrained first | `labelLayout.ts` |
+
+Why the margin moved: the old fit kept the box symmetric about its centre, so perspective left the
+picture off-centre and the model, read off the 1440 capture, at roughly three quarters of the panel
+height instead of the nominal 90 %. The orbit view was fitted separately with pixel margins and, on
+the phone, showed the floor outline over only half of the canvas width. The new fit solves the
+centring and the distance exactly
+(`fitCameraToPoints`), on the points that are actually drawn (`sceneSilhouette`: plinth, each wall
+at its rendered height — a camera-facing wall is only its curb — and furniture tops).
+
+### Framing
+
+- One pure fit for both camera modes; `MODEL_FILL = 0.8` of the limiting dimension, re-fitted on
+  every resize, rotation, zoom and selection. Labels and markers are not part of the silhouette, so
+  an observation never moves the camera.
+- Measured on the furnished sample (probe `fit`): limiting share `0.800` at 332 × 200, 324 × 380,
+  353 × 260, 742 × 260 and 1130 × 380. Floor-outline width share on the phone Plan screen
+  `0.50 → 0.73`, on phone Home `0.45 → 0.68`; in the 1440 Plan panel `0.31 → 0.33`.
+- **Limit that is not a camera problem.** The 1440 Plan panel is 1130 × 380 (about 3 : 1) and the
+  miniature projects at about 1.34 : 1, so at 80 % of the height it can only cover 36 % of the
+  width. Owning that stage needs a taller container, which belongs to the screens, not to the scene.
+
+### Labels
+
+- Device names are dark-glass tags fitted to their text (`12.5 px`, height `24 px`, text capped at
+  `132 px` then ellipsised by measurement), drawn at 2× and shown at a constant pixel size at every
+  camera distance. Canvases under 360 px on their short side scale names down to no less than `0.84`.
+- `layoutMarkerLabels` tries slots around the head, nearest first, clamps a name inside the canvas
+  instead of clipping it, never covers a head or another name, and prefers a slot that is nearer to
+  its own head than to any other. The name with the fewest good slots left chooses first, so the
+  result no longer depends on key order. What does not fit stays with the native list.
+- A hairline leader runs from the rim of the head to the nearest point of the name.
+- Room names are small paper tags in spaced capitals; they still yield to any marker or device name.
+
+### Keyboard focus
+
+The scene host keeps `tabIndex` in the model view and draws its own ring only for
+`:focus-visible`: 2 px in the cockpit accent with a dark inner keyline, following the 16 px corner
+radius of the host (`SCENE_CORNER_RADIUS`). A pointer press on the canvas draws nothing.
+
+### Atmosphere
+
+All of it is a static texture or a flat mesh in the normal pass. No post-processing, no second
+shadow map, no animation, and therefore nothing that needs a frame while the scene is idle.
+
+| Element | Values | Cost |
+| --- | --- | --- |
+| Stage backdrop / vignette | radial `#182036 → #0a0e1a (55 %) → #05070e`, ±1 level of fixed noise against banding; stretches with the canvas | 1 call, one `512²` texture without mips |
+| Ground pool + contact shadow | pool `#55607e` at `0.5`, radius `2.6 ×` the plinth half-diagonal; plinth contact shadow `0.8` with a wider penumbra away from the key light | 1 call, one `512²` texture |
+| Plinth occlusion | blurred shadow of the real floor outline on the plinth top, `0.5` | 1 call, one `≤ 256²` texture |
+| Room selection | selected floor keeps its material, gains accent emissive `0.03`; accent line `0.05 m` wide, `0.14 m` inside the walls, with a `0.45 m` wash fading from `0.24`; other rooms dim to `0.62` | 1 call while a room is selected |
+| Window daylight | below saved `window` lines only: `1.7 m` patch where the key light shines through, `0.9 m` at `0.45` strength otherwise, additive `#ffe9c4` at `0.36` | 1 call when the floor has a window, one `64²` texture |
+
+Honesty rules that are tested: a wall, a step or a gap between two lines never produces light (the
+plan has no door kind and an opening is not inferred from a gap); the selection accent is the
+cockpit accent, not a warm "lights on" colour; no light is attached to decorative lamps, because a
+glowing lamp next to an "off" marker would be a false statement. **The public sample has no
+`window` line**, so daylight is not visible in sample captures.
+
+### Device markers
+
+A marker is a turned-steel pin (one lathe profile: flared base plate into a slim stem) standing on
+the finished floor at its plan point, with an enamel head `1.05 m` up. The stem keeps its world
+height and is depth-tested, so the pin belongs to the room; the head, like its name, is drawn over
+the house so state is never hidden by a wall. Head parts are authored in CSS pixels (head radius
+`8 px`, invisible touch target `22 px`) and keep that size at every zoom.
+
+Colour is still `entityTint` (U04), unchanged. `markerStyle` repeats the state as a silhouette:
+
+| Condition | Head | Extra | Emissive | Halo |
+| --- | --- | --- | --- | --- |
+| `normal` | filled bead | — | `0.22` | — |
+| `active` | filled bead | — | `0.9` | `0.5` |
+| `attention` | diamond | — | `0.45` | — |
+| `alert` | diamond | — | `0.9` | `0.6` |
+| `unknown` | hollow ring | — | `0.25` | — |
+| `unavailable` | hollow ring | struck through | `0` | — |
+| `stale` (cached) | hollow ring | retained dot | `0` | — |
+
+A hollow ring never glows, so an unknown, unavailable or cached reading cannot look live. All seven
+silhouettes differ, including when a domain gives several conditions the same tint. A condition
+change still updates the existing material and keeps the bead geometry, the label and every other
+marker; markers still cast no shadow.
+
+### Performance
+
+Steady frame (no shadow pass), counted at the WebGL draw calls and confirmed by
+`renderer.info.render`, headless Chromium (SwiftShader), public sample:
+
+| Scene | Before (`c6872f5`) | After |
+| --- | --- | --- |
+| Furnished floor 1, 2 markers | 75 calls · 7,872 triangles | 72 calls · 7,914 triangles (74 · 7,918 when both room tags show) |
+| Furnished floor 1, 6 markers | 79–83 calls · 9,280–9,288 triangles | 89–90 calls · 9,404–9,406 triangles |
+| Unfurnished floor 2, no marker | 17 calls · 3,928 triangles | 10 calls · 3,934 triangles |
+
+The envelope is merged into one mesh per material (bodies, caps, glazing, frames), which pays for
+the three atmosphere calls. A marker costs 4 calls (stem, head, leader, name; 5 with a halo, or with
+a struck-through or dotted ring) against 2 before, so a floor with many markers draws more than it
+did. Budgets of §5 hold: triangles are far below 60 k; texture families are floor tiles, labels,
+stage, ground, daylight and halo, none above `512²`; one static `2048²` shadow map, not raised.
+
+### Changed files
+
+| Change | File |
+| --- | --- |
+| Exact silhouette fit shared by both views; `MODEL_FILL` | `src/web/modelCamera.ts` |
+| Drawn-silhouette points per camera mode and room | `src/web/sceneFraming.ts` (new) |
+| Slot-based, order-independent label layout; leader geometry | `src/web/labelLayout.ts` |
+| Fitted device tags and room tags | `src/web/sceneLabels.ts` (new) |
+| Condition → silhouette, marker sizes | `src/web/markerStyle.ts` (new) |
+| Pin, head silhouettes, halo, leader, touch target | `src/web/sceneMarkers.ts` |
+| Inset polygon, window daylight planner | `src/web/sceneAccents.ts` (new) |
+| Backdrop, ground pool, plinth occlusion, daylight, selection line | `src/web/sceneAtmosphere.ts` (new) |
+| Tokens and accent values | `src/web/sceneStyle.ts` |
+| Wiring, merged envelope, focus ring, probe counters | `src/web/CockpitScene.tsx` |
+| Shared corner radius | `src/components/CockpitSceneView.tsx` |
+
+### Evidence and maturity
+
+Recorded in [the validation ledger](../stage0/spatial-view-validation.md#p2-premium-details--2026-11-16).
+**Maturity: Implemented + Automated**, with `[VISUAL]` browser captures of the public sample. Not
+Built, Installed or Observed: no APK was built, nothing ran on a phone, and GPU cost on the Seeker
+or Pixel is not measured. The trial channel still disables 3D.
+
+### Open points for the integrator
+
+1. Record the margin change (row 1 above) under ADR-17.
+2. The scene has no "selected marker" input. Showing which device a detail panel belongs to needs
+   the host screens to pass its key; the bridge would carry one more allowlisted string.
+3. The wide desktop panels are the limit on how much of the stage the miniature can own.

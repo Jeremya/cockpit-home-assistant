@@ -5,10 +5,15 @@ import type { DOMProps } from "expo/dom";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { ModelCameraController } from "./ModelCameraController";
-import type { Point3 } from "./modelCamera";
+import { fitCameraToPoints, MODEL_FILL } from "./modelCamera";
 import { colors } from "../theme";
-import { syncMarkers, type MarkerNodes } from "./sceneMarkers";
+import {
+  MARKER_STEM_LENGTH,
+  syncMarkers,
+  type MarkerNodes,
+} from "./sceneMarkers";
 import {
   rendererCreated,
   rendererDisposed,
@@ -16,7 +21,7 @@ import {
   rendererLifecycle,
 } from "./rendererLifecycle";
 import { disposeGroup } from "./sceneResources";
-import { layoutMarkerLabels, overlaps } from "./labelLayout";
+import { labelLeader, layoutMarkerLabels, overlaps } from "./labelLayout";
 import { planBounds, pointInPolygon } from "../spatial/model";
 import {
   cameraFacing,
@@ -24,15 +29,28 @@ import {
   FLOOR_TILE_METRES,
   floorSurface,
   floorSurfaceColor,
+  KEY_LIGHT_DIRECTION,
   PLINTH_HEIGHT,
   PLINTH_OVERHANG,
+  SCENE_CORNER_RADIUS,
   scenePalette,
+  selectionAccent,
   WALL_CAP_HEIGHT,
   type FloorSurface,
 } from "./sceneStyle";
 import { wallPieces } from "./sceneWalls";
-import { tallestFurniture } from "./furnitureCatalog";
 import { addFurniture } from "./furnitureScene";
+import {
+  groundPool,
+  plinthOcclusion,
+  seeded,
+  selectionLine,
+  stageBackdrop,
+  windowDaylight,
+} from "./sceneAtmosphere";
+import { sceneSilhouette } from "./sceneFraming";
+import { markerLabel, roomLabel } from "./sceneLabels";
+import { MARKER_HEAD_RADIUS, MARKER_HEIGHT } from "./markerStyle";
 import {
   FrameStats,
   classifyGesture,
@@ -71,20 +89,20 @@ export interface CockpitSceneProps {
   dom?: DOMProps;
 }
 
-const SELECTED_FLOOR_COLOR = new THREE.Color(
-  scenePalette.selectedFloor,
-).getHex();
+/** Visible keyboard focus in the cockpit accent with a dark inner keyline. */
+const focusRingCss = `[data-s01-scene] > [data-scene-focus-ring]{position:absolute;inset:0;z-index:1;border-radius:${SCENE_CORNER_RADIUS}px;pointer-events:none;opacity:0;box-shadow:inset 0 0 0 2px ${colors.accent},inset 0 0 0 4px rgba(6,9,15,0.85)}[data-s01-scene]:focus-visible > [data-scene-focus-ring]{opacity:1}`;
 
-/** Deterministic texture noise: a plan renders identically on every rebuild. */
-function seeded(seed: number) {
-  let state = seed >>> 0 || 1;
-  return () => {
-    state = (state + 0x6d2b79f5) | 0;
-    let value = Math.imul(state ^ (state >>> 15), 1 | state);
-    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/** The compact view keeps its free orbit; only its opening pose is fitted. */
+const ORBIT_ELEVATION = Math.atan2(0.85, 0.75);
+/**
+ * A narrow lens keeps the walls of the miniature upright in the orbit view,
+ * close to the model view's 26°. The far plane leaves room for the longer
+ * fitted distance of a large floor zoomed all the way out.
+ */
+const ORBIT_FOV = 30;
+const ORBIT_FAR = 1000;
+/** Camera-space head radius kept clear of labels, plus a hairline of air. */
+const HEAD_CLEARANCE = MARKER_HEAD_RADIUS * 1.3;
 
 /** Small procedural floor tile; no external texture request is made. */
 function surfaceTexture(
@@ -186,7 +204,7 @@ function roundedBox(
 function fitKeyLight(runtime: Runtime, floor: SceneFloor) {
   const distance = floor.extent * 1.6 + 5;
   runtime.keyLight.position
-    .set(0.7, 1, 0.28)
+    .set(...KEY_LIGHT_DIRECTION)
     .normalize()
     .multiplyScalar(distance);
   runtime.keyLight.target.position.set(0, 0, 0);
@@ -210,10 +228,23 @@ interface Runtime {
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;
   content: THREE.Group;
+  backdrop: THREE.Texture | null;
   roomMeshes: Map<string, THREE.Mesh>;
   roomLabels: Map<string, THREE.Sprite>;
+  selectionLine: THREE.Mesh | null;
   markerNodes: MarkerNodes;
   markerChanges: { created: number; updated: number; removed: number };
+  /** Last label layout in canvas pixels; read by the verification probe only. */
+  labelLayout: {
+    key: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    visible: boolean;
+  }[];
+  /** Share of the canvas the fitted silhouette covers in the orbit view. */
+  orbitShare: { width: number; height: number } | null;
   selectionKey: string | null;
   stats: FrameStats;
   frameRequested: number | null;
@@ -232,63 +263,6 @@ interface Runtime {
   teardown: { geometries: number; materials: number; textures: number } | null;
 }
 
-function labelSprite(text: string, icon?: SceneMarker["icon"]) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 64;
-  const context = canvas.getContext("2d")!;
-  if (icon) {
-    context.fillStyle = "rgba(11,15,25,0.94)";
-    context.beginPath();
-    context.roundRect(0, 4, 256, 56, 12);
-    context.fill();
-  }
-  context.font = "500 30px sans-serif";
-  context.fillStyle = icon ? "#e5e9f2" : scenePalette.labelInk;
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  if (icon) {
-    context.save();
-    context.translate(10, 18);
-    context.scale(1.15, 1.15);
-    context.strokeStyle = colors.text;
-    context.lineWidth = 1.8;
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    const paths: Record<SceneMarker["icon"], string> = {
-      lock: "M6 11h12v10H6z M8 11V7a4 4 0 0 1 8 0v4",
-      climate: "M9 14V5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0 M12 10v8",
-      fan: "M3 8h12a3 3 0 1 0-3-3 M2 12h17 M4 16h11a3 3 0 1 1-3 3",
-      switch:
-        "M7 7h10a5 5 0 0 1 0 10H7a5 5 0 0 1 0-10 M7 10a2 2 0 1 1 0 4a2 2 0 1 1 0-4",
-      camera: "M3 6h12v12H3z M15 10l6-3v10l-6-3",
-      sensor: "M2 12h5l3-8l4 16l3-8h5",
-      event: "M5 17h14l-2-3V8a5 5 0 0 0-10 0v6z M10 21h4",
-    };
-    context.stroke(new Path2D(paths[icon]));
-    context.restore();
-  }
-  context.fillText(
-    text.length > 18 ? text.slice(0, 17) + "…" : text,
-    icon ? 146 : 128,
-    32,
-    icon ? 205 : 250,
-  );
-  const texture = new THREE.CanvasTexture(canvas);
-  const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: texture,
-      depthTest: false,
-      transparent: true,
-      sizeAttenuation: false,
-    }),
-  );
-  sprite.scale.set(1.6, 0.4, 1);
-  sprite.renderOrder = 2;
-  sprite.userData.pixelHeight = icon ? 32 : 24;
-  return sprite;
-}
-
 function buildFloor(
   runtime: Runtime,
   floor: SceneFloor,
@@ -299,7 +273,9 @@ function buildFloor(
   runtime.roomMeshes.clear();
   runtime.roomLabels.clear();
   runtime.markerNodes.clear();
+  runtime.selectionLine = null;
   runtime.selectionKey = null;
+  runtime.labelLayout = [];
   const textures = new Map<FloorSurface, THREE.Texture>();
   for (const room of floor.rooms) {
     const shape = new THREE.Shape(
@@ -312,10 +288,11 @@ function buildFloor(
       bevelEnabled: false,
     });
     geometry.rotateX(-Math.PI / 2); // shape (x, z) → world (x, 0, −z)
+    const surface = floorSurface[room.kind] ?? "stone";
     const mesh = new THREE.Mesh(
       geometry,
       new THREE.MeshStandardMaterial({
-        map: surfaceTexture(floorSurface[room.kind] ?? "stone", textures),
+        map: surfaceTexture(surface, textures),
         roughness: 0.82,
         metalness: 0,
       }),
@@ -324,12 +301,17 @@ function buildFloor(
     mesh.userData.roomId = room.id;
     runtime.roomMeshes.set(room.id, mesh);
     runtime.content.add(mesh);
-    const label = labelSprite(room.shortName);
+    const label = roomLabel(room.shortName);
     runtime.roomLabels.set(room.id, label);
     const at = planToWorld(room.label, floor.center, 0.35);
     label.position.set(at.x, at.y, at.z);
     runtime.content.add(label);
   }
+  // Painted grounding: pool of light and contact shadow under the plinth,
+  // soft occlusion where the house meets it.
+  runtime.content.add(groundPool(floor), plinthOcclusion(floor));
+  const daylight = windowDaylight(floor);
+  if (daylight) runtime.content.add(daylight);
   const bounds = planBounds(floor.outline);
   const plinth = new THREE.Mesh(
     roundedBox(
@@ -348,28 +330,16 @@ function buildFloor(
   plinth.receiveShadow = true;
   runtime.content.add(plinth);
 
-  const wallBody = new THREE.MeshStandardMaterial({
-    color: scenePalette.wallBody,
-    roughness: 0.95,
-  });
-  const wallCap = new THREE.MeshStandardMaterial({
-    color: scenePalette.wallCap,
-    roughness: 0.8,
-  });
-  const frameMaterial = new THREE.MeshStandardMaterial({
-    color: scenePalette.windowFrame,
-    roughness: 0.6,
-  });
-  const glassMaterial = new THREE.MeshStandardMaterial({
-    color: scenePalette.glass,
-    roughness: 0.08,
-    metalness: 0,
-    transparent: true,
-    opacity: 0.22,
-    depthWrite: false,
-    emissive: new THREE.Color(scenePalette.glassEmissive),
-    emissiveIntensity: 0.5,
-  });
+  // The envelope is static, so each material is drawn once: bodies, their
+  // dark caps, glazing and its frame are merged into one mesh apiece.
+  // (RoundedBoxGeometry keeps BoxGeometry's material groups, so a body and
+  // its cap can never share one multi-material geometry.)
+  const walls = {
+    body: [] as THREE.BufferGeometry[],
+    cap: [] as THREE.BufferGeometry[],
+    glass: [] as THREE.BufferGeometry[],
+    frame: [] as THREE.BufferGeometry[],
+  };
   for (const piece of wallPieces(floor.outline, floor.lines, {
     exteriorHeight: wallHeight,
     facing: cameraFacing(cameraMode),
@@ -385,40 +355,65 @@ function buildFloor(
     const z = (a.z + b.z) / 2;
     const bodyHeight = Math.max(0.01, piece.height - WALL_CAP_HEIGHT);
     const glazing = piece.kind === "window";
-    // RoundedBoxGeometry keeps BoxGeometry's indexed material groups, so the
-    // body and the dark architectural cap are separate single-material meshes.
-    const wall = new THREE.Mesh(
+    walls[glazing ? "glass" : "body"].push(
       roundedBox(
         length,
         bodyHeight,
         piece.thickness,
         Math.min(0.02, piece.thickness * 0.2),
-      ),
-      glazing ? glassMaterial : wallBody,
+      )
+        .rotateY(rotation)
+        .translate(x, FLOOR_THICKNESS + bodyHeight / 2, z),
     );
-    wall.position.set(x, FLOOR_THICKNESS + bodyHeight / 2, z);
-    wall.rotation.y = rotation;
-    wall.castShadow = !glazing;
-    wall.receiveShadow = !glazing;
-    runtime.content.add(wall);
-    const cap = new THREE.Mesh(
+    walls[glazing ? "frame" : "cap"].push(
       roundedBox(
         length,
         WALL_CAP_HEIGHT,
         piece.thickness + 0.012,
         Math.min(0.01, piece.thickness * 0.1),
-      ),
-      glazing ? frameMaterial : wallCap,
+      )
+        .rotateY(rotation)
+        .translate(x, FLOOR_THICKNESS + piece.height - WALL_CAP_HEIGHT / 2, z),
     );
-    cap.position.set(
-      x,
-      FLOOR_THICKNESS + piece.height - WALL_CAP_HEIGHT / 2,
-      z,
-    );
-    cap.rotation.y = rotation;
-    cap.castShadow = true;
-    cap.receiveShadow = true;
-    runtime.content.add(cap);
+  }
+  const wallMaterial: Record<keyof typeof walls, () => THREE.Material> = {
+    body: () =>
+      new THREE.MeshStandardMaterial({
+        color: scenePalette.wallBody,
+        roughness: 0.95,
+      }),
+    cap: () =>
+      new THREE.MeshStandardMaterial({
+        color: scenePalette.wallCap,
+        roughness: 0.8,
+      }),
+    frame: () =>
+      new THREE.MeshStandardMaterial({
+        color: scenePalette.windowFrame,
+        roughness: 0.6,
+      }),
+    glass: () =>
+      new THREE.MeshStandardMaterial({
+        color: scenePalette.glass,
+        roughness: 0.08,
+        metalness: 0,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+        emissive: new THREE.Color(scenePalette.glassEmissive),
+        emissiveIntensity: 0.5,
+      }),
+  };
+  for (const part of ["body", "cap", "glass", "frame"] as const) {
+    const pieces = walls[part];
+    if (!pieces.length) continue;
+    const merged = mergeGeometries(pieces);
+    for (const piece of pieces) piece.dispose();
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, wallMaterial[part]());
+    mesh.castShadow = part !== "glass";
+    mesh.receiveShadow = part !== "glass";
+    runtime.content.add(mesh);
   }
   addFurniture(
     {
@@ -448,72 +443,80 @@ function updateMarkers(
     runtime.markerNodes,
     floor,
     markers,
-    labelSprite,
+    markerLabel,
   );
   for (const key of ["created", "updated", "removed"] as const)
     runtime.markerChanges[key] += changes[key];
   return changes.created + changes.updated + changes.removed > 0;
 }
 
+/**
+ * Room selection is an accent, not a repaint: the selected floor keeps its
+ * material and gains a faint glow and a perimeter line of accent light, while
+ * the other rooms recede. The floor, walls and furniture are never rebuilt.
+ */
+function highlightRoom(
+  runtime: Runtime,
+  floor: SceneFloor,
+  selectedRoomId: string | null,
+) {
+  const room = floor.rooms.find((item) => item.id === selectedRoomId);
+  for (const [id, mesh] of runtime.roomMeshes) {
+    const material = mesh.material as THREE.MeshStandardMaterial;
+    const selected = id === room?.id;
+    material.color.setScalar(room && !selected ? selectionAccent.othersDim : 1);
+    material.emissive.set(selected ? colors.accent : "#000000");
+    material.emissiveIntensity = selected ? selectionAccent.floorGlow : 0;
+  }
+  if (runtime.selectionLine) {
+    runtime.content.remove(runtime.selectionLine);
+    runtime.selectionLine.geometry.dispose();
+    (runtime.selectionLine.material as THREE.Material).dispose();
+    runtime.selectionLine = null;
+  }
+  if (!room) return;
+  runtime.selectionLine = selectionLine(room, floor, colors.accent);
+  if (runtime.selectionLine) runtime.content.add(runtime.selectionLine);
+}
+
+/** Opening pose of the free-orbit (compact) view; the user owns it afterwards. */
 function frameCamera(
   runtime: Runtime,
   floor: SceneFloor,
   selectedRoomId: string | null = null,
   wallHeight = 0,
 ) {
-  const room = floor.rooms.find((item) => item.id === selectedRoomId);
-  const top =
-    FLOOR_THICKNESS +
-    Math.max(
-      wallHeight,
-      tallestFurniture(floor.furniture.map((item) => item.variant)),
-    );
+  const canvas = runtime.renderer.domElement;
   // Framing must not depend on camera-relative label offsets from a previous orbit.
-  const bounds = new THREE.Box3().setFromPoints(
-    (room?.polygon ?? floor.outline).flatMap((point) =>
-      [-PLINTH_HEIGHT, top].map((y) => {
-        const at = planToWorld(point, floor.center, y);
-        return new THREE.Vector3(at.x, at.y, at.z);
-      }),
-    ),
-  );
-  if (!room)
-    bounds.expandByVector(
-      new THREE.Vector3(PLINTH_OVERHANG / 2, 0, PLINTH_OVERHANG / 2),
-    );
-  const target = bounds.getCenter(new THREE.Vector3());
-  const direction = new THREE.Vector3(0, 0.85, 0.75).normalize();
-  const up = new THREE.Vector3(0, 1, 0).projectOnPlane(direction).normalize();
-  const right = new THREE.Vector3().crossVectors(up, direction);
-  const tanVertical =
-    Math.tan(THREE.MathUtils.degToRad(runtime.camera.fov / 2)) *
-    Math.max(0.4, 1 - 64 / runtime.renderer.domElement.clientHeight);
-  const tanHorizontal =
-    Math.tan(THREE.MathUtils.degToRad(runtime.camera.fov / 2)) *
-    runtime.camera.aspect *
-    Math.max(0.4, 1 - 110 / runtime.renderer.domElement.clientWidth);
-  let distance = Math.max(2, floor.extent / 2);
-  // Fit every box corner in the perspective frustum, including the near edge.
-  for (const x of [bounds.min.x, bounds.max.x])
-    for (const y of [bounds.min.y, bounds.max.y])
-      for (const z of [bounds.min.z, bounds.max.z]) {
-        const point = new THREE.Vector3(x, y, z).sub(target);
-        const depth = point.dot(direction);
-        distance = Math.max(
-          distance,
-          depth + Math.abs(point.dot(right)) / tanHorizontal,
-          depth + Math.abs(point.dot(up)) / tanVertical,
-        );
-      }
-  distance *= 1.12;
-  runtime.camera.position.copy(target).addScaledVector(direction, distance);
-  runtime.controls.target.copy(target);
+  const silhouette = sceneSilhouette(floor, {
+    wallHeight,
+    cameraMode: "orbit",
+    roomId: selectedRoomId,
+  });
+  const fit = fitCameraToPoints({
+    points: silhouette.points,
+    viewport: {
+      width: canvas.clientWidth || 1,
+      height: canvas.clientHeight || 1,
+    },
+    yaw: 0,
+    elevation: ORBIT_ELEVATION,
+    fov: runtime.camera.fov,
+    fill: MODEL_FILL,
+  });
+  if (!fit) return;
+  runtime.orbitShare = fit.share;
+  runtime.camera.position.fromArray(fit.position);
+  runtime.controls.target.fromArray(fit.target);
   runtime.controls.minDistance = 2;
-  runtime.controls.maxDistance = Math.max(distance * 2.5, floor.extent * 4);
+  runtime.controls.maxDistance = Math.max(
+    fit.fitDistance * 2.5,
+    floor.extent * 4,
+  );
   runtime.controls.update();
 }
 
-/** Bounds include rendered wall thickness/height and marker anchors, not labels. */
+/** Fits what is drawn (plinth, walls at their rendered height, furniture), not labels. */
 function frameScene(
   runtime: Runtime,
   floor: SceneFloor,
@@ -526,94 +529,124 @@ function frameScene(
     frameCamera(runtime, floor, roomId, wallHeight);
     return;
   }
-  const room = floor.rooms.find((item) => item.id === roomId);
-  const points = (room?.polygon ?? floor.outline).map((point) =>
-    planToWorld(point, floor.center),
+  runtime.model.setBounds(
+    sceneSilhouette(floor, { wallHeight, cameraMode: "model", roomId }),
+    reset,
+    animate,
+    performance.now(),
   );
-  const pad = room ? 0.04 : PLINTH_OVERHANG / 2 + 0.04;
-  const min: Point3 = [
-    Math.min(...points.map((p) => p.x)) - pad,
-    room ? 0 : -PLINTH_HEIGHT,
-    Math.min(...points.map((p) => p.z)) - pad,
-  ];
-  const max: Point3 = [
-    Math.max(...points.map((p) => p.x)) + pad,
-    Math.max(
-      0.9,
-      FLOOR_THICKNESS +
-        Math.max(
-          wallHeight,
-          tallestFurniture(floor.furniture.map((item) => item.variant)),
-        ),
-    ),
-    Math.max(...points.map((p) => p.z)) + pad,
-  ];
-  runtime.model.setBounds({ min, max }, reset, animate, performance.now());
 }
 
-/** Billboards retain a readable pixel size during orbit/zoom; spatial positions stay in meters. */
+/** Small canvases get slightly smaller names so the model stays the subject. */
+function labelScale(width: number, height: number) {
+  return Math.min(1, Math.max(0.84, Math.min(width, height) / 360));
+}
+
+/**
+ * Billboards and marker heads keep a constant, readable pixel size at every
+ * camera distance; spatial positions stay in metres. Names take the nearest
+ * free slot around their own head and are tied to it by a hairline.
+ */
 function sizeLabels(runtime: Runtime) {
-  const height = runtime.renderer.domElement.clientHeight;
-  if (!height) return;
+  const canvas = runtime.renderer.domElement;
+  const height = canvas.clientHeight;
+  const width = canvas.clientWidth;
+  if (!height || !width) return;
   const camera = runtime.camera;
+  camera.updateMatrixWorld();
   const direction = camera.getWorldDirection(new THREE.Vector3());
   const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
   const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+  // World units covered by one CSS pixel at depth 1.
   const factor =
     (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) / height;
-  for (const node of runtime.markerNodes.values()) {
+  const ui = labelScale(width, height);
+  const size = (sprite: THREE.Sprite, scale: number) => {
+    const w = Number(sprite.userData.pixelWidth) * scale;
+    const h = Number(sprite.userData.pixelHeight) * scale;
+    sprite.scale.set(w * factor, h * factor, 1);
+    return { w, h };
+  };
+  const screen = (world: THREE.Vector3) => {
+    const at = world.clone().project(camera);
+    return { x: ((at.x + 1) * width) / 2, y: ((1 - at.y) * height) / 2 };
+  };
+  const pins = [...runtime.markerNodes].map(([key, node]) => {
     const depth = node.group.position
       .clone()
       .sub(camera.position)
       .dot(direction);
-    const pixel = Math.max(0.001, depth * factor);
-    node.pin.scale.setScalar((pixel * 10) / 0.22);
-    node.label.position.copy(up).multiplyScalar(pixel * 29);
-  }
-  runtime.content.traverse((object) => {
-    const sprite = object as THREE.Sprite;
-    if (!sprite.isSprite) return;
-    const scale = factor * Number(sprite.userData.pixelHeight);
-    sprite.scale.set(scale * 4, scale, 1);
-  });
-  runtime.content.updateMatrixWorld(true);
-  const width = runtime.renderer.domElement.clientWidth;
-  const pins = [...runtime.markerNodes].map(([key, node]) => {
-    const at = node.group.position.clone().project(camera);
-    return { key, x: ((at.x + 1) * width) / 2, y: ((1 - at.y) * height) / 2 };
-  });
-  const layout = layoutMarkerLabels(pins, width, height);
-  for (const pin of pins) {
-    const node = runtime.markerNodes.get(pin.key)!;
-    const label = layout.get(pin.key)!;
-    node.label.visible = label.visible;
-    const pixel = Math.max(
-      0.001,
-      node.group.position.clone().sub(camera.position).dot(direction) * factor,
+    const pixel = Math.max(0.0001, depth * factor);
+    node.head.scale.setScalar(pixel);
+    node.head.quaternion.copy(camera.quaternion);
+    // The stem keeps its world height and a constant on-screen thickness.
+    const headWorld = HEAD_CLEARANCE * pixel;
+    node.stem.position.y = -headWorld;
+    node.stem.scale.set(
+      pixel,
+      Math.max(0.02, MARKER_STEM_LENGTH - headWorld),
+      pixel,
     );
+    size(node.glow, 1);
+    return {
+      key,
+      node,
+      pixel,
+      ...screen(node.group.position),
+      ...size(node.label, ui),
+    };
+  });
+  const layout = layoutMarkerLabels(pins, width, height, {
+    pin: HEAD_CLEARANCE * 2,
+    gap: 5,
+  });
+  runtime.labelLayout = [];
+  for (const pin of pins) {
+    const { node, pixel } = pin;
+    const placed = layout.get(pin.key)!;
+    // Whole pixels keep the text of an even-sized label crisp.
+    const label = {
+      ...placed,
+      x: Math.round(placed.x),
+      y: Math.round(placed.y),
+    };
+    runtime.labelLayout.push({ key: pin.key, ...label });
+    node.label.visible = label.visible;
     node.label.position
       .copy(right)
       .multiplyScalar((label.x - pin.x) * pixel)
       .addScaledVector(up, (pin.y - label.y) * pixel);
+    const leader = label.visible
+      ? labelLeader(pin, label, HEAD_CLEARANCE)
+      : null;
+    node.leader.visible = leader !== null;
+    if (leader) {
+      const dx = leader.to.x - leader.from.x;
+      const dy = leader.to.y - leader.from.y;
+      node.leader.position
+        .copy(right)
+        .multiplyScalar(((leader.from.x + leader.to.x) / 2 - pin.x) * pixel)
+        .addScaledVector(
+          up,
+          (pin.y - (leader.from.y + leader.to.y) / 2) * pixel,
+        );
+      node.leader.scale.set(leader.length * factor, 1.25 * factor, 1);
+      node.leader.material.rotation = Math.atan2(-dy, dx);
+    }
   }
-  runtime.content.updateMatrixWorld(true);
-  const rectangle = (sprite: THREE.Sprite) => {
-    const at = sprite.getWorldPosition(new THREE.Vector3()).project(camera);
-    const h = Number(sprite.userData.pixelHeight);
-    return {
-      x: ((at.x + 1) * width) / 2,
-      y: ((1 - at.y) * height) / 2,
-      w: h * 4,
-      h,
-    };
-  };
-  const markers = [...layout.values()].filter((label) => label.visible);
+  const taken = [
+    ...runtime.labelLayout.filter((label) => label.visible),
+    ...pins.map((pin) => ({
+      x: pin.x,
+      y: pin.y,
+      w: HEAD_CLEARANCE * 2,
+      h: HEAD_CLEARANCE * 2,
+    })),
+  ];
+  // A room name yields to any marker or device name it would touch.
   for (const sprite of runtime.roomLabels.values()) {
-    const room = rectangle(sprite);
-    sprite.visible = ![
-      ...markers,
-      ...pins.map((pin) => ({ ...pin, w: 20, h: 20 })),
-    ].some((marker) => overlaps(marker, room));
+    const room = { ...screen(sprite.position), ...size(sprite, ui) };
+    sprite.visible = !taken.some((other) => overlaps(other, room));
   }
 }
 
@@ -667,8 +700,10 @@ export default function CockpitScene(props: CockpitSceneProps) {
     keyLight.shadow.mapSize.set(2048, 2048);
     keyLight.shadow.bias = -0.0006;
     keyLight.shadow.normalBias = 0.03;
+    // Softer penumbra from the same map and the same five samples.
+    keyLight.shadow.radius = 2.4;
     scene.add(keyLight, keyLight.target);
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
+    const camera = new THREE.PerspectiveCamera(ORBIT_FOV, 1, 0.1, ORBIT_FAR);
     const content = new THREE.Group();
     scene.add(content);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -688,7 +723,11 @@ export default function CockpitScene(props: CockpitSceneProps) {
       controls,
       content,
       roomMeshes: new Map(),
+      backdrop: null,
       roomLabels: new Map(),
+      selectionLine: null,
+      labelLayout: [],
+      orbitShare: null,
       markerNodes: new Map(),
       markerChanges: { created: 0, updated: 0, removed: 0 },
       selectionKey: null,
@@ -786,6 +825,13 @@ export default function CockpitScene(props: CockpitSceneProps) {
           controlsDisposed: r.controlsDisposed,
           observerDisconnected: r.observerDisconnected,
           contentObjects: content.children.length,
+          // Counters of the last drawn frame; the shadow pass only runs on rebuild.
+          render: {
+            calls: renderer.info.render.calls,
+            triangles: renderer.info.render.triangles,
+          },
+          fit: r.model?.probe.share ?? r.orbitShare,
+          labels: r.labelLayout.map((label) => ({ ...label })),
           markerChanges: { ...r.markerChanges },
           camera: {
             position: camera.position.toArray(),
@@ -812,6 +858,9 @@ export default function CockpitScene(props: CockpitSceneProps) {
             key: marker.key,
             condition: marker.condition,
             icon: marker.icon,
+            head: (["pin", "diamond", "ring"] as const).find(
+              (part) => r.markerNodes.get(marker.key)?.[part].visible,
+            ),
             geometry: r.markerNodes.get(marker.key)?.pin.geometry.id,
             material: r.markerNodes.get(marker.key)?.pin.material.uuid,
             color: r.markerNodes
@@ -819,7 +868,11 @@ export default function CockpitScene(props: CockpitSceneProps) {
               ?.pin.material.color.getHexString(),
             labelTexture: r.markerNodes.get(marker.key)?.label.material.map?.id,
             ...project(
-              planToWorld(marker.position, latest.current.floor.center, 0.9),
+              planToWorld(
+                marker.position,
+                latest.current.floor.center,
+                MARKER_HEIGHT,
+              ),
             ),
           })),
         };
@@ -928,11 +981,21 @@ export default function CockpitScene(props: CockpitSceneProps) {
         ),
         camera,
       );
-      const hit = raycaster.intersectObjects(
-        [...r.markerNodes.values()].map((node) => node.group),
-        true,
-      )[0];
-      const key = hit?.object.userData.markerKey as string | undefined;
+      // The ray also meets hidden parts: a crowded-out name must not be
+      // tappable, while the invisible touch target around a head must be.
+      const hit = raycaster
+        .intersectObjects(
+          [...r.markerNodes.values()].map((node) => node.group),
+          true,
+        )
+        .find(
+          (item) =>
+            !(item.object as THREE.Sprite).isSprite || item.object.visible,
+        );
+      let owner: THREE.Object3D | null = hit?.object ?? null;
+      while (owner && owner.userData.markerKey === undefined)
+        owner = owner.parent;
+      const key = owner?.userData.markerKey as string | undefined;
       if (key) {
         void latest.current.onMarkerPress(key);
         return;
@@ -998,6 +1061,9 @@ export default function CockpitScene(props: CockpitSceneProps) {
     r.listenersActive = 11;
 
     try {
+      // Painted once per renderer; a failure here is an ordinary init failure.
+      r.backdrop = stageBackdrop();
+      scene.background = r.backdrop;
       buildFloor(
         r,
         latest.current.floor,
@@ -1044,6 +1110,10 @@ export default function CockpitScene(props: CockpitSceneProps) {
       r.roomMeshes.clear();
       r.roomLabels.clear();
       r.markerNodes.clear();
+      r.selectionLine = null;
+      scene.background = null;
+      r.backdrop?.dispose();
+      r.backdrop = null;
       renderer.dispose();
       renderer.forceContextLoss();
       rendererDisposed();
@@ -1085,11 +1155,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
     const key = JSON.stringify([r.builtKey, selectedRoomId, resetKey]);
     if (r.selectionKey === key) return;
     r.selectionKey = key;
-    for (const [id, mesh] of r.roomMeshes) {
-      (mesh.material as THREE.MeshStandardMaterial).color.setHex(
-        id === selectedRoomId ? SELECTED_FLOOR_COLOR : 0xffffff,
-      );
-    }
+    highlightRoom(r, latest.current.floor, selectedRoomId);
     // Orbit stays instant; model transitions run only until their target is reached.
     frameScene(
       r,
@@ -1153,8 +1219,14 @@ export default function CockpitScene(props: CockpitSceneProps) {
         inset: 0,
         overflow: "hidden",
         background: scenePalette.stage,
-        outlineOffset: -3,
+        borderRadius: SCENE_CORNER_RADIUS,
+        outline: "none",
       }}
-    />
+    >
+      {/* Keyboard focus only (`:focus-visible`): a pointer press on the canvas
+          draws nothing, and the ring follows the host's rounded shape. */}
+      <style>{focusRingCss}</style>
+      <div data-scene-focus-ring aria-hidden />
+    </div>
   );
 }

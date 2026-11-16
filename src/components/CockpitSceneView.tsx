@@ -19,7 +19,7 @@ import {
   type SceneMetrics,
 } from "../web/sceneModel";
 import { FloorPlanView, type FloorPlanMarker } from "./FloorPlanView";
-import { EXTERIOR_WALL_HEIGHT } from "../web/sceneStyle";
+import { EXTERIOR_WALL_HEIGHT, SCENE_CORNER_RADIUS } from "../web/sceneStyle";
 import { Body, Button, colors } from "./ui";
 import { useRendererActivity } from "./rendererActivity";
 import { buildFeatures } from "../config/build";
@@ -259,7 +259,13 @@ function SceneAttempt(
   // A fallback remains interactive until the first rendered frame. The loading
   // canvas still has real dimensions but cannot intercept taps/focus.
   return (
-    <View style={{ height, borderRadius: 16, overflow: "hidden" }}>
+    <View
+      style={{
+        height,
+        borderRadius: SCENE_CORNER_RADIUS,
+        overflow: "hidden",
+      }}
+    >
       <View
         pointerEvents={ready ? "auto" : "none"}
         accessibilityElementsHidden={!ready}

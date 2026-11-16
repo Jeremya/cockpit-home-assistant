@@ -95,3 +95,65 @@ trial, a Pixel/GPU measurement, or M04 acceptance. Because `.local/home-plan.jso
 APK bundles the locally prepared personal plan (`my-home`): it is a **private local artifact and
 must not be shared**. The demo profile uses the public sample, and no capture or APK is committed.
 The trial channel still disables 3D (`buildFeatures.spatial3d`).
+
+## P2 premium details — 2026-11-16
+
+Source: branch `work/scene-3d-polish` on `c6872f5` (this commit) · Binary: none · SHA-256: n/a
+Device: none — headless Playwright Chromium 156.0.8078.4 (software WebGL, SwiftShader), macOS, Node 24.11.1
+Plan: public sample, offline demo home, no Home Assistant
+Scope: presentation of the shared 3D scene — framing, labels, keyboard focus, atmosphere and device
+markers. [Design and values](../design/3d-asset-system.md#12-p2--premium-details-2026-11-16).
+
+Captures were taken from a web export of the worktree (`expo export --platform web` with
+`COCKPIT_PLAN_FILE=src/spatial/sample-plan.json`, `EXPO_NO_DOTENV=1`, `EXPO_OFFLINE=1`) and of the
+untouched `c6872f5`, at 1440 × 900 (DPR 1) and 390 × 844 (DPR 2), with the recette's two public
+fixture placements and, separately, six public demo entities on floor 1. They are not committed.
+
+| Check | Result | Notes |
+| --- | --- | --- |
+| Camera fit across aspect ratios | pass | Probe `fit`: limiting share `0.800` at 332 × 200 and 324 × 380 (orbit), 353 × 260, 742 × 260 and 1130 × 380 (model); the floor outline stays inside the canvas |
+| Fit after resize, rotation, zoom, selection | pass | `check:spatial-ui` keyboard/bounds, selection and resize sections |
+| Device names, 2 and 6 markers | pass | 2/2 and 6/6 shown in the whole-floor views at all four canvas sizes; none overlaps a head or another name; none clipped |
+| Device names, selected room on the phone | pass | Names whose head is outside the canvas are hidden (1/2, 4/6); the list keeps them |
+| Keyboard focus ring | pass | Tab reaches the scene host and draws the accent ring; a pointer press focuses the host and draws none (two captures) |
+| Marker opens its device | pass | A tap at the projected head opens the detail panel (1440) or route (390) |
+| Touch target around a head | pass, lab only | A tap 15 px off a head still reports that marker, on the throwaway route below |
+| Seven marker conditions | pass, lab only | Viewed on a throwaway route that is not committed; the demo home only produces healthy readings |
+| Window daylight | pass, lab only | Viewed on a throwaway floor with five `window` lines; **the public sample has none** |
+| Room selection accent | pass | Home and Plan, 1440 and 390 |
+| Frames while idle | pass | `0` rendered frames over 1.5 s after every capture run; peak one live renderer |
+| Page and console errors | pass | None during the capture runs apart from Chromium's software-GL `ReadPixels` notices |
+| `npm run check:spatial-ui` | pass | `result: "passed"`: every section, 0 external requests, 0 unexpected console events, peak one live renderer (10 created, 9 disposed), plan and checkout unchanged |
+
+The recette ran on the working tree immediately before this commit (`revision` `c6872f5`,
+`dirtySource: true`). It stages only `app`, `assets`, `src`, `scripts`, `plugins`, `patches` and the
+root configuration, and those are byte-identical in the commit; this ledger and the design document
+are not inputs. An earlier run the same day passed every functional section but was reported
+`failed` by the script (`checkoutUnchanged: false`) because a documentation file was edited while it
+ran. That run was discarded and repeated with the tree left untouched. The recette's own
+`home-3d-1440.png` is taken while the scene has keyboard focus, so it shows the new focus ring.
+
+Interaction, checked with a throwaway script on the same export: in the model view a pointer drag
+rotates to the yaw limit with the fit still `0.800` and the floor inside the canvas, the wheel
+zooms, and widths 1024/1280/1440 keep the zoom and re-fit; a floor 1 → floor 2 → floor 1 round trip
+returns to the same resource counts (64 geometries, 12 textures). In the orbit view, emulated touch
+drags orbit, a two-finger spread zooms, and a 844 × 390 viewport re-fits to `0.800`.
+
+Steady-frame cost, furnished floor 1 with two markers: `75` draw calls and `7,872` triangles before,
+`72` and `7,914` after (`74` and `7,918` when both room tags show). With six markers: `79–83` and
+about `9,285` before, `89–90` and about `9,405` after. Unfurnished floor 2: `17` and `3,928` before,
+`10` and `3,934` after. Counted at the WebGL draw calls of one frame and equal to
+`renderer.info.render` where the build exposes it.
+
+Automated: `npm test` → 1045 tests / 78 suites pass (scene suites: 80 tests / 11 suites, 49 / 8
+before); `npm run typecheck`, `npm run lint` and `npm run format:check` pass; `npm run
+check:spatial-ui` as in the table.
+
+Limits: nothing was built, installed or run on a phone. Native rendering in the Android WebView,
+GPU cost, frame rate, thermal behaviour and memory on the Seeker or Pixel are **not measured**; the
+browser renderer here is software. Touch, pinch and TalkBack were not exercised on a device. The
+marker conditions and window daylight have no committed automated visual check. Colour and contrast
+were judged by eye from captures, not measured. The scene shows no "selected marker" state.
+
+Next: build a named 3D-enabled candidate from this revision and measure open time, interaction
+frame rate and idle frames on the target phone (M04).

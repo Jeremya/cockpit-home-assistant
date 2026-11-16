@@ -3,6 +3,10 @@ import { syncMarkers, type MarkerNodes } from "../sceneMarkers";
 import { toSceneFloor, type SceneMarker } from "../sceneModel";
 import { publicPlan } from "../../spatial/__tests__/placementFixtures";
 import { colors } from "../../theme";
+import { MARKER_HEIGHT, markerStyle } from "../markerStyle";
+import { MARKER_STEM_LENGTH } from "../sceneMarkers";
+import { FLOOR_THICKNESS } from "../sceneStyle";
+import type { Condition } from "../../core/types";
 
 const floor = toSceneFloor(publicPlan.floors[0]!);
 const marker = (key = "stable"): SceneMarker => ({
@@ -116,4 +120,87 @@ test("removal disposes owned resources once without disposing the shared sprite 
   expect(quadDisposed).not.toHaveBeenCalled();
   sync([marker("other")]);
   expect(geometryDisposed).toHaveBeenCalledTimes(1);
+});
+
+test("each condition shows exactly its own head silhouette on the same pin, and only live states glow", () => {
+  const { nodes, sync } = setup();
+  sync([marker()]);
+  const node = nodes.get("stable")!;
+  const material = node.pin.material;
+  const conditions: Condition[] = [
+    "active",
+    "attention",
+    "alert",
+    "unknown",
+    "unavailable",
+    "stale",
+    "normal",
+  ];
+  for (const condition of conditions) {
+    sync([{ ...marker(), condition }]);
+    const style = markerStyle(condition);
+    expect({
+      bead: node.pin.visible,
+      diamond: node.diamond.visible,
+      ring: node.ring.visible,
+    }).toEqual({
+      bead: style.head === "bead",
+      diamond: style.head === "diamond",
+      ring: style.head === "ring",
+    });
+    expect(node.slash.visible).toBe(style.mark === "slash");
+    expect(node.dot.visible).toBe(style.mark === "dot");
+    expect(node.glow.visible).toBe(style.glow > 0);
+    expect(material.emissiveIntensity).toBe(style.emissive);
+    // One material carries the U04 colour for every silhouette.
+    for (const part of [node.diamond, node.ring, node.slash, node.dot])
+      expect(part.material).toBe(material);
+    expect(nodes.get("stable")).toBe(node);
+  }
+  for (const condition of ["unknown", "unavailable", "stale"] as const) {
+    sync([{ ...marker(), condition }]);
+    expect(node.pin.visible).toBe(false);
+    expect(node.glow.visible).toBe(false);
+  }
+});
+
+test("a pin stands on the finished floor of its plan point; its head and name are drawn over the house", () => {
+  const { nodes, sync } = setup();
+  sync([marker()]);
+  const node = nodes.get("stable")!;
+  expect(node.group.position.y).toBe(MARKER_HEIGHT);
+  expect(node.group.position.y - MARKER_STEM_LENGTH).toBeCloseTo(
+    FLOOR_THICKNESS,
+    10,
+  );
+  // The stem belongs to the room (depth-tested); the state never hides.
+  expect((node.stem.material as THREE.Material).depthTest).toBe(true);
+  expect(node.pin.material.depthTest).toBe(false);
+  expect(node.label.renderOrder).toBeGreaterThan(node.pin.renderOrder);
+  expect(node.pin.renderOrder).toBeGreaterThan(node.glow.renderOrder);
+  // Markers never cast shadows, so an observation cannot dirty the shadow map.
+  node.group.traverse((object) => expect(object.castShadow).toBe(false));
+});
+
+test("removing a pin releases every part it owns, including its halo texture", () => {
+  const { nodes, sync } = setup();
+  sync([marker()]);
+  const node = nodes.get("stable")!;
+  const disposed = jest.fn();
+  for (const resource of [
+    node.pin.geometry,
+    node.diamond.geometry,
+    node.ring.geometry,
+    node.slash.geometry,
+    node.stem.geometry,
+    node.pin.material,
+    node.stem.material as THREE.Material,
+    node.glow.material,
+    node.glow.material.map!,
+    node.leader.material,
+  ])
+    resource.addEventListener("dispose", disposed);
+  sync([]);
+  expect(disposed).toHaveBeenCalledTimes(10);
+  expect(nodes.size).toBe(0);
 });
