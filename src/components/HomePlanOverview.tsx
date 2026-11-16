@@ -147,7 +147,7 @@ export function HomePlanOverview({
               failure={spatialView.failure}
               onFailure={spatialView.fail}
               onRetry={spatialView.retry}
-              height={wide ? 260 : 200}
+              height={wide ? planFrames.cardWide.maxHeight : 200}
             />
           ) : (
             <FloorPlanView

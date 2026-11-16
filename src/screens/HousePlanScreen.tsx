@@ -412,6 +412,11 @@ function HousePlanContent({
             {buildFeatures.spatial3d && view === "3d" ? (
               <CockpitSceneView
                 cameraMode={desktop ? "model" : "orbit"}
+                // Desktop shares the 2D stage limit so the miniature has room
+                // and switching views does not move the page.
+                {...(desktop
+                  ? { height: planFrames.desktop(height).maxHeight }
+                  : {})}
                 onOverview={() => {
                   if (currentFloor() && current.current.view === "3d") {
                     setRoomId(null);
