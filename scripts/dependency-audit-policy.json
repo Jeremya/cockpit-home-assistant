@@ -1,17 +1,14 @@
 {
   "schema": 1,
   "scope": "private-household-tooling",
-  "reviewedOn": "2026-10-19",
-  "expiresOn": "2026-11-02",
-  "reviewedLatestVersions": {
-    "braces": "3.0.3",
-    "node-forge": "1.4.0"
-  },
-  "approval": "User explicitly selected strict temporary tooling exceptions after reviewing the failed audit on 2026-10-19. This does not authorize public release.",
-  "affectedGraphSha256": "702b32bb0bdff0c6e6de18af4ba4e2a4b94f2eb6f15fed560440c98a3cdc3d12",
+  "reviewedOn": "2026-11-16",
+  "expiresOn": "2026-12-14",
+  "reviewedLatestVersions": {},
+  "approval": "On 2026-11-16 the owner chose to triage the unreviewed advisories and then renew this policy with a dated expiry. Triage fixed 25 advisories through dependency changes; GitHub withdrew the two others (braces on 2026-10-23, deepmerge on 2026-11-16). No exception is carried forward, so any new finding fails closed until it is reviewed. This does not authorize public release.",
+  "affectedGraphSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
   "reviewedFiles": {
-    "package.json": "4546f358c97e0aafc73c47ac0a364ad9401dbd7db6003d6c3700542fb9c890af",
-    "package-lock.json": "76ef20d916c5f4ad790e1e6f9c737b58bac699004b603ba0b4fd59afe898cb82",
+    "package.json": "dbc8b5abe9b214b405fa78b025a929eaa07ecdbfa32866d7cf9a23cc83c9ff86",
+    "package-lock.json": "62a44f723a42b641f617533611f6da56a33afe94f65c9571d18e658824a8c0bd",
     "app.json": "da6812f82718c9ed64379f3a4f9d8d296738f634587a4a7473a65de15bd1d71d",
     "app.config.js": "1b7c522b3bfc6215fb401c977fb387ed179fffb24989c2151fa5eabffdd94e0d",
     "metro.config.js": "7c1a3eeefcdc83db95acb85bf03f5459d54f4ac022763afd34ebcd1053806239",
@@ -26,7 +23,7 @@
     "scripts/lib/runtime-dependencies.mjs": "2df0b4e0a895e9dd3e4a9d435a098fd2b39ab77480362f47d9691b457e981b4c",
     "scripts/check-ui.mjs": "8d1f9e8b661b5b224468dc12dde1ea97f6e463cf4b33105e3dc7daae1a8cc5e4",
     "scripts/lib/public-build.mjs": "b2e184491043e6d2e184b97776fd6159e5dbfb43a2a00c95ff37bc30a95cd29c",
-    ".github/workflows/public-checks.yml": "1472041b82ca64270bccdd56eddb923c8291c05e2b2b6844c9b2ba4767a656cf",
+    ".github/workflows/public-checks.yml": "a51f2d23f6d3b46b8d9099fb2a18fa4191d2c3d435e0a95a68087d0ce140f487",
     ".github/workflows/dependency-audit.yml": "4a39b33cd911a472b710912913f4b31275894ac78085fefdd0edec20dd12a1f8",
     "patches/query-string+7.1.3.patch": "4243811b237ee15497eabf949651f47db8bfecb01dbc1885b14a2c70c8821282",
     "scripts/lib/browser-connection-check.mjs": "63412149fcf81b6f1f893713a5582c73de90e8984dd338139c8cbf2530049572",
@@ -37,22 +34,5 @@
     "scripts/check-web-auth.mjs": "b229155612999deefb380ecc6984c6f1abd7784626ba5dc55d3be77efb005b61",
     "scripts/lib/web-auth-fixture.mjs": "8bb40937584899f05043a0dc2fe079d3fa002ed9335a7094136fa6bf37a724a1"
   },
-  "exceptions": [
-    {
-      "id": "GHSA-vfj7-8cjw-p6xm",
-      "package": "braces",
-      "severity": "high",
-      "range": "<=3.0.3",
-      "reason": "braces 3.0.3 is used by Jest/file tooling with repository-owned patterns. No patched npm release; must stay outside web/Android runtime maps.",
-      "revisitWhen": "A patched release, expiry, changed dependency/affected graph or reviewed build/signing/glob configuration; any runtime-map inclusion blocks Public checks."
-    },
-    {
-      "id": "GHSA-86w9-cpqp-85rv",
-      "package": "node-forge",
-      "severity": "high",
-      "range": "<=1.4.0",
-      "reason": "node-forge 1.4.0 is Expo CLI/certificate tooling. No EAS project ID or update-signing certificate is configured; trial signing uses JDK/apksigner. No patched npm release; runtime maps must exclude it.",
-      "revisitWhen": "A patched release, expiry, changed dependency/affected graph or reviewed build/signing/glob configuration; any runtime-map inclusion blocks Public checks."
-    }
-  ]
+  "exceptions": []
 }
