@@ -157,3 +157,11 @@ were judged by eye from captures, not measured. The scene shows no "selected mar
 
 Next: build a named 3D-enabled candidate from this revision and measure open time, interaction
 frame rate and idle frames on the target phone (M04).
+
+## Integrated tree and recette stage change — 2026-11-16
+
+On the integrated tree (`8437a27`, clean, public sample) `npm run check:spatial-ui` passes all twelve sections in headless Chromium with the software renderer.
+
+The first integrated run (`095f70e`) failed at the `out-of-viewport` stage. The pause itself worked: the composed desktop Home is shorter, so in the 1000 px window the last device card shared the screen with the bottom 25 px of the scene, which rightly kept drawing. The stage now runs in a 640 px window where the scene can always leave the viewport. Its assertions are unchanged: no frame while out of view, renderer retained, frames resume on return.
+
+Not covered: GPU cost, frame rate and any native rendering of the P2 presentation.

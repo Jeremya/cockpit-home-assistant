@@ -146,3 +146,21 @@ Chaque commit de C1 a été vérifié seul dans un checkout isolé (`tsc --noEmi
 Confidentialité avant push : le plan d'exemple et le plan privé ne partagent aucune coordonnée ; les seuls noms communs sont génériques (« kitchen », « sofa », « floor 1 »). Lint, format et 36 tests d'outillage passent sur l'arbre consolidé.
 
 Non fait à ce stade : recettes navigateur sur l'arbre consolidé, push, toute acceptation native de Trial 1012.
+
+## 13. Suite — intégration du 2026-11-16
+
+Cinq agents ont travaillé en parallèle, chacun dans un worktree avec une zone de fichiers exclusive ; leurs branches sont intégrées sur `main`.
+
+| Chantier | Résultat | Limite |
+| --- | --- | --- |
+| C2 — audit | Toutes les alertes corrigées par montée de version ; politique sans exception, échéance de revue au 2026-12-14 ; `check:audit` et `check:audit:strict` passent | Trois corrections forcent des versions majeures hors des plages déclarées par Expo (`glob` 14, `minimatch` 11, `zod` 4) |
+| Caméra | Récupération totale sous un seul délai de 15 s, lecture par `arrayBuffer()`, cache plafonné à 24 Mo, image indécodable affichée en erreur, cache vidé à l'oubli d'un profil | Rien d'observé sur Android |
+| Plan 2D | Dessin d'architecte sur une scène à la forme de l'étage | Rendu natif non vérifié |
+| Scène 3D | Cadrage exact à 80 %, noms attachés, une silhouette par état, sélection lumineuse | Coût GPU non mesuré ; valeur approuvée modifiée, consignée sous ADR-17 |
+| Écrans | Une échelle typographique, un langage de carte, Réglages en étapes, Accueil ordinateur composé | Trois choix de mise en page à confirmer par le propriétaire, consignés sous ADR-18 |
+
+Sur l'arbre intégré : typage, lint, format, 1146 tests Jest / 81 suites, et les quatre recettes navigateur. La recette spatiale a d'abord échoué parce que son scénario supposait une page d'accueil longue ; le scénario a été corrigé, ses assertions sont inchangées ([détail](../stage0/spatial-view-validation.md)).
+
+Le constat 2 de cette revue est levé côté source. Les éléments « Statut documentaire » du différé sont partiellement traités : les lignes D02, D03 et R01 du statut sont corrigées ; l'empilement des bandeaux datés reste à refondre.
+
+Sept illustrations de marque ont été générées hors dépôt (trois icônes, quatre scènes d'état) ; aucune n'est intégrée avant le choix du propriétaire.

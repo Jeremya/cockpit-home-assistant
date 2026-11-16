@@ -46,7 +46,7 @@ Flex sources:
 | ADR-14 | 2D plan ships first; 3D is a separate, later milestone | IMPLEMENTED | C1 msg 73, 109 (staged roadmap); X1 msg 133 roadmap | `react-native-svg` 2D `FloorPlanView`, 3D behind S02; both present | High |
 | ADR-15 | D03 in-panel device detail (open detail without leaving Home) | PARTIALLY_IMPLEMENTED | C3 msg 1089 (ACCEPTED; desktop-only); X1 msg 17025 reframed it | `DetailWorkspace.web.tsx` + `DetailPane.tsx` exist but are **web + ≥1024 px only** (`layout.ts:6`); native uses Stack routes | High |
 | ADR-16 | No Maurice backend, no Maurice accounts, no push infra | IMPLEMENTED | Spec §1.3, §1.6 (ACCEPTED) | No server code; auth delegated to HA; `app.config.js` has no backend URL | High |
-| ADR-17 | 3D presentation is one design system over the existing renderer; palette, wall heights, cutaway, camera and furniture scales are rendering-only previews, never measurements | IMPLEMENTED (P0 + P1) | Owner approval 2026-10-28 (current session); `docs/design/3d-asset-system.md` | `src/web/sceneStyle.ts`, `src/web/sceneWalls.ts`, `src/web/CockpitScene.tsx`, `src/web/modelCamera.ts` | High |
+| ADR-17 | 3D presentation is one design system over the existing renderer; palette, wall heights, cutaway, camera and furniture scales are rendering-only previews, never measurements | IMPLEMENTED (P0 + P1 + P2 presentation) | Owner approval 2026-10-28 (current session); `docs/design/3d-asset-system.md` | `src/web/sceneStyle.ts`, `src/web/sceneWalls.ts`, `src/web/CockpitScene.tsx`, `src/web/modelCamera.ts` | High |
 | ADR-18 | Home uses the premium cockpit visual direction (Concept C): near-black surfaces, cyan/mint/amber semantics, home pulse, compact architectural preview, category quick filters, room cards, compact device cards, reduced-motion-aware native entrances and a shell-hosted mobile bottom bar; data, command and navigation contracts are preserved | ACCEPTED (P0 + P1 + P2 visual core) | Owner selected C 2026-10-28; `docs/design/ui-redesign-2026-10-28.md` §11 | `src/theme.ts`, `src/screens/HomeScreen.tsx`, `src/components/MainTabBar.tsx`, `src/components/home/{HomePulse,HomeArchitecture,FadeIn}.tsx`, `useReducedMotion.ts`, `HomePlanOverview.tsx`, `src/components/DeviceSummaryCard.tsx`, `src/screens/DiagnosticsScreen.tsx` | High (selection) / Medium (not device-observed) |
 
 ---
@@ -147,6 +147,8 @@ The Gradle APK path (`export:embed`) embeds the GLBs; a release APK built from t
 all 23 and rendered the furnished sample offline on the Seeker. The `expo export` JS/OTA artifact
 still omits them, which OQ-09 records as a tooling residual rather than a standalone blocker.
 
+**P2 (2026-11-16).** One owner-approved value changed: the proportional `0.05` margin around the model is replaced by an exact fit in which the drawn silhouette spans 80 % of the limiting viewport dimension (`MODEL_FILL = 0.8`); elevation 38°, yaw 35° and FOV 26° are unchanged. The phone orbit lens narrowed from 45° to 30°. Device names are attached, collision-free tags; each marker condition has its own silhouette in addition to its colour; selection is an emissive accent; daylight appears only under saved `window` lines. Desktop hosts give the scene the 2D stage height. Evidence is Implemented + Automated on web (`check:spatial-ui`, software renderer); GPU cost and native rendering are unmeasured. [Details](../design/3d-asset-system.md).
+
 ### ADR-18 — Home visual direction (Concept C)
 
 **Decision.** The owner selected the **Premium Smart Home Cockpit** after reviewing three rendered
@@ -177,6 +179,8 @@ type/lint/format; clean public captures). P1 was **Built/Installed/Observed** on
 release; the P2 release built but the Seeker disconnected before installation. It is not a named
 candidate; TalkBack, 200% text, iOS safe areas, native P2 motion and native performance are not
 accepted; the APK is private and not shareable.
+
+**2026-11-16 polish.** Under the owner's instruction to make the product visually beautiful, the direction was extended without changing data, command or navigation contracts: one type scale (nine sizes, nothing under 11 px), one card language and one set of interaction states across every screen; Settings restructured into steps with its security warning always visible; desktop Home composed on a single grid; and the 2D plan redrawn as an architectural drawing on a floor-shaped stage. Three layout choices await the owner's confirmation: the flat device lattice without room titles on wide Home, the removal of count-only card headlines, and the faint 1 m drafting grid behind the plan. Maturity: Implemented + Automated on web (1146 tests, four browser recettes); nothing observed on a device. [Details](../design/ui-redesign-2026-10-28.md).
 
 ---
 
