@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import type { EntityRecord } from "../../core/types";
 import type { CameraImageError } from "../../services/cameraImage";
@@ -52,6 +53,10 @@ function CameraCaption({ image }: { image: CameraImageState }) {
 /**
  * Latest available still image for a camera entity. The data URI is the only
  * thing rendered: no authenticated URL or token ever reaches this component.
+ *
+ * A retrieved frame the platform cannot decode is a failure of that frame: it
+ * is shown like a frame that could not be loaded, with no fetched time, and the
+ * next retrieved frame is tried again.
  */
 export function CameraImageCard({
   entity,
@@ -62,7 +67,14 @@ export function CameraImageCard({
   profileId: string | null;
   ready: boolean;
 }) {
-  const image = useCameraImage({ entity, profileId, ready });
+  const retrieved = useCameraImage({ entity, profileId, ready });
+  // The frame is identified by its retrieval time: the hook returns a new state
+  // object on every render, and keeping the data URI here would retain it.
+  const [undecodableAt, setUndecodableAt] = useState<string | null>(null);
+  const image: CameraImageState =
+    retrieved.status === "loaded" && retrieved.fetchedAt === undecodableAt
+      ? { status: "error", reason: "network" }
+      : retrieved;
   return (
     <Panel>
       <Label>Latest available image</Label>
@@ -72,6 +84,7 @@ export function CameraImageCard({
           style={styles.image}
           resizeMode="cover"
           accessibilityLabel={`${entity.name} camera image`}
+          onError={() => setUndecodableAt(image.fetchedAt)}
         />
       ) : image.status === "loading" ? (
         <Placeholder text="Loading image…" />
