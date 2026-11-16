@@ -5,6 +5,7 @@ import type { EntityRecord } from "../../core/types";
 import { session } from "../../services/runtime";
 import {
   cameraCacheKey,
+  evictCameraCache,
   fetchCameraImage,
   readCameraCache,
   writeCameraCache,
@@ -47,6 +48,10 @@ function toState(result: CameraImageResult): CameraImageState {
  * still image every 10 s only while the screen is focused and the app is
  * foregrounded, never with overlapping requests, and drops results from an
  * obsolete profile/entity. Cache and state hold only the token-free data URI.
+ *
+ * A refresh that fails — including one that throws — replaces the shown frame
+ * with its error and evicts the cached frame, so an older image is never
+ * presented as the latest one after a failure.
  */
 export function useCameraImage({
   entity,
@@ -86,17 +91,24 @@ export function useCameraImage({
 
     const refresh = async () => {
       if (inFlight) return;
-      const request = session.cameraImageRequest(entity.entityId);
-      if (!request) return;
       inFlight = true;
+      let fetched: CameraImageResult | null;
       try {
-        const fetched = await fetchCameraImage(request);
-        if (cancelled) return;
-        if (fetched.kind === "image") writeCameraCache(cacheKey, fetched);
-        setResult(fetched);
-      } finally {
-        inFlight = false;
+        const request = session.cameraImageRequest(entity.entityId);
+        fetched = request ? await fetchCameraImage(request) : null;
+      } catch {
+        // `fetchCameraImage` is total by contract. Should it or the session
+        // ever throw, the failure is shown like any other instead of leaving
+        // "loading" or a previous frame on screen.
+        fetched = { kind: "error", reason: "network" };
       }
+      inFlight = false;
+      if (cancelled || fetched === null) return;
+      // The cache only ever seeds the frame of the latest completed retrieval:
+      // once one fails, the older frame must not come back as the current one.
+      if (fetched.kind === "image") writeCameraCache(cacheKey, fetched);
+      else evictCameraCache(cacheKey);
+      setResult(fetched);
     };
 
     void refresh();

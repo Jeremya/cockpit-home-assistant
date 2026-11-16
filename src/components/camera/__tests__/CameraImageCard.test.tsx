@@ -59,6 +59,10 @@ describe("CameraImageCard", () => {
 
   test.each([
     ["cross_origin_redirect", /redirects to another server/],
+    [
+      "unverified_origin",
+      /could not be verified as coming from Home Assistant/,
+    ],
     ["https_downgrade", /unencrypted connection/],
     ["not_an_image", /did not return an image/],
     ["too_large", /too large/],

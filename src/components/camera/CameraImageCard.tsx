@@ -9,6 +9,8 @@ function errorMessage(reason: CameraImageError): string {
   switch (reason) {
     case "cross_origin_redirect":
       return "The image redirects to another server and was not loaded.";
+    case "unverified_origin":
+      return "The image could not be verified as coming from Home Assistant and was not loaded.";
     case "https_downgrade":
       return "The image would use an unencrypted connection and was not loaded.";
     case "not_an_image":

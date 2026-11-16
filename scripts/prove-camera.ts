@@ -10,7 +10,10 @@ import {
  * Loopback proof for the camera image transport (I01). Two local origins are
  * driven through the real `fetchCameraImage` with a fake bearer. The second
  * origin must receive no request — and therefore no credential — on a
- * cross-origin redirect. No configured HA or physical device is contacted.
+ * cross-origin redirect. Two further cases use the platform `fetch` of this
+ * Node process against real sockets: a body cut after the headers, and a caller
+ * abort while the body is stalled. No configured HA or physical device is
+ * contacted.
  */
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -20,6 +23,9 @@ interface Seen {
   path: string;
   authorization: string | null;
 }
+
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function startServer(
   handler: (req: http.IncomingMessage, res: http.ServerResponse) => void,
@@ -90,9 +96,35 @@ async function main() {
     res.end(PNG);
   });
 
+  // Settled by the server: the stalled body's first bytes left, then its
+  // connection was closed by the client.
+  let stalledSent!: () => void;
+  let stalledClosed!: () => void;
+  const stalledBodySent = new Promise<void>((resolve) => {
+    stalledSent = resolve;
+  });
+  const stalledConnectionClosed = new Promise<void>((resolve) => {
+    stalledClosed = resolve;
+  });
+
   const seenA: Seen[] = [];
   const originA = await startServer((req, res) => {
-    if (req.url === "/same-origin") {
+    if (req.url === "/truncated") {
+      // Headers and a first chunk, then the connection drops mid-body.
+      res.writeHead(200, {
+        "content-type": "image/png",
+        "content-length": "1024",
+      });
+      res.write(PNG, () => res.socket?.destroy());
+    } else if (req.url === "/stalled") {
+      // Headers and a first chunk, then nothing: the body never completes.
+      res.on("close", stalledClosed);
+      res.writeHead(200, {
+        "content-type": "image/png",
+        "content-length": "1024",
+      });
+      res.write(PNG, stalledSent);
+    } else if (req.url === "/same-origin") {
       res.writeHead(302, { location: "/image.png" });
       res.end();
     } else if (req.url === "/api/camera_proxy/camera.door") {
@@ -155,8 +187,36 @@ async function main() {
     );
     assert.deepEqual(notImage, { kind: "error", reason: "not_an_image" });
 
+    // Platform fetch, body cut after the headers: an honest network failure,
+    // neither a rejection nor a pending promise.
+    const truncated = await fetchCameraImage({
+      uri: `http://127.0.0.1:${originA.port}/truncated`,
+      headers,
+    });
+    assert.deepEqual(truncated, { kind: "error", reason: "network" });
+
+    // Platform fetch, caller abort while the body is stalled: the retrieval
+    // ends at once and the connection is really closed, not left to linger.
+    const caller = new AbortController();
+    const stalled = fetchCameraImage(
+      { uri: `http://127.0.0.1:${originA.port}/stalled`, headers },
+      { signal: caller.signal },
+    );
+    await stalledBodySent;
+    await delay(100);
+    caller.abort();
+    assert.deepEqual(await stalled, { kind: "error", reason: "network" });
+    const connectionClosed = await new Promise<boolean>((resolve) => {
+      const guard = setTimeout(() => resolve(false), 5_000);
+      void stalledConnectionClosed.then(() => {
+        clearTimeout(guard);
+        resolve(true);
+      });
+    });
+    assert.equal(connectionClosed, true);
+
     console.log(
-      "PASS: camera transport retrieves same-origin images, follows same-origin redirects with the bearer, and refuses a cross-origin redirect before the second origin receives any request (and therefore no credential). Loopback only; no physical device or configured HA was contacted.",
+      "PASS: camera transport retrieves same-origin images, follows same-origin redirects with the bearer, and refuses a cross-origin redirect before the second origin receives any request (and therefore no credential). With the platform fetch, a body cut after the headers resolves as a network error, and a caller abort during a stalled body resolves as a network error and closes the connection. Loopback only; no physical device or configured HA was contacted.",
     );
   } finally {
     await originA.close();
