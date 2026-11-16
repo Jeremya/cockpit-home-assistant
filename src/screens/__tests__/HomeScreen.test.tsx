@@ -379,7 +379,10 @@ test.each(["floor", "profile", "revision", "hidden", "blur", "unmount"])(
             ...preferences,
             spatial: {
               ...preferences.spatial,
-              plan: { ...preferences.spatial.plan!, revision: 2 },
+              plan: {
+                ...preferences.spatial.plan!,
+                revision: preferences.spatial.plan!.revision + 1,
+              },
             },
           },
         });

@@ -18,21 +18,30 @@ test("an unseeded profile receives a private copy of the default plan once", () 
   const seeded = seedSpatial(emptySpatial(), bundled);
   expect(seeded.plan).toEqual(bundled);
   expect(seeded.plan).not.toBe(bundled);
-  expect(seeded.seededFrom).toEqual({ planId: "sample-home", revision: 1 });
+  expect(seeded.seededFrom).toEqual({
+    planId: "sample-home",
+    revision: bundled.revision,
+  });
   seeded.plan!.floors[0]!.name = "Edited";
   expect(bundled.floors[0]!.name).not.toBe("Edited");
-  expect(seedSpatial(seeded, revised(bundled, 2))).toBe(seeded);
+  expect(seedSpatial(seeded, revised(bundled, bundled.revision + 1))).toBe(
+    seeded,
+  );
 });
 
 test("a new bundled revision is reported but never replaces saved geometry", () => {
   const saved = seedSpatial(emptySpatial(), bundled);
   saved.plan!.floors[0]!.name = "My edit";
-  const next = revised(bundled, 2);
+  const next = revised(bundled, bundled.revision + 1);
   expect(defaultPlanChanged(saved, bundled)).toBe(false);
   expect(defaultPlanChanged(saved, next)).toBe(true);
-  expect(defaultPlanChanged(saved, { ...next, id: "other", revision: 1 })).toBe(
-    true,
-  );
+  expect(
+    defaultPlanChanged(saved, {
+      ...next,
+      id: "other",
+      revision: bundled.revision,
+    }),
+  ).toBe(true);
   expect(planForProfile(saved, next).floors[0]!.name).toBe("My edit");
   expect(defaultPlanChanged(emptySpatial(), next)).toBe(false);
 });

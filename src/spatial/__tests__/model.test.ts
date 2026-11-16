@@ -58,10 +58,17 @@ test("optional furniture footprints are validated like the rest of the floor", (
   };
   floor.furniture = [sofa];
   expect(parseHousePlan(furnished)?.floors[0]!.furniture).toHaveLength(1);
+  // Older plans without a variant stay valid; a variant must be allowlisted.
+  floor.furniture = [{ ...sofa, variant: "sofa" }];
+  expect(parseHousePlan(furnished)?.floors[0]!.furniture?.[0]?.variant).toBe(
+    "sofa",
+  );
   for (const broken of [
     { ...sofa, center: { x: -50, z: 0 } },
     { ...sofa, width: 0 },
     { ...sofa, kind: "throne" },
+    { ...sofa, variant: "throne" },
+    { ...sofa, variant: 42 },
     { ...sofa, id: floor.rooms[0].id },
   ]) {
     floor.furniture = [broken];

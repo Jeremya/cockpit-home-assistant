@@ -14,7 +14,7 @@
     "package-lock.json": "76ef20d916c5f4ad790e1e6f9c737b58bac699004b603ba0b4fd59afe898cb82",
     "app.json": "da6812f82718c9ed64379f3a4f9d8d296738f634587a4a7473a65de15bd1d71d",
     "app.config.js": "1b7c522b3bfc6215fb401c977fb387ed179fffb24989c2151fa5eabffdd94e0d",
-    "metro.config.js": null,
+    "metro.config.js": "7c1a3eeefcdc83db95acb85bf03f5459d54f4ac022763afd34ebcd1053806239",
     "babel.config.js": null,
     "jest.config.js": "b35b333041c57f2a108c5eaa5ca78c0fcf0c2143623f1055bef3042410080811",
     "eslint.config.js": "2d22744e2d35b71a4523f356f46fbe5ffb03791b4b567947f26f208580657db8",

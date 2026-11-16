@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "sample-home",
-  "revision": 1,
+  "revision": 2,
   "name": "Sample home",
   "source": "sample",
   "scale": "approximate",
@@ -107,6 +107,235 @@
             "x": 4,
             "z": 6
           }
+        }
+      ],
+      "furniture": [
+        {
+          "id": "sample-f1-rug",
+          "name": "Rug",
+          "kind": "rug",
+          "variant": "rug",
+          "shape": "rect",
+          "center": {
+            "x": 2.0,
+            "z": 3.0
+          },
+          "width": 2.6,
+          "depth": 1.9
+        },
+        {
+          "id": "sample-f1-sofa",
+          "name": "Sofa",
+          "kind": "seating",
+          "variant": "sofa",
+          "shape": "rect",
+          "center": {
+            "x": 0.62,
+            "z": 3.0
+          },
+          "width": 2.0,
+          "depth": 0.8,
+          "rotation": 90
+        },
+        {
+          "id": "sample-f1-coffee-table",
+          "name": "Coffee table",
+          "kind": "table",
+          "variant": "coffeeTable",
+          "shape": "rect",
+          "center": {
+            "x": 1.9,
+            "z": 3.0
+          },
+          "width": 1.1,
+          "depth": 0.7
+        },
+        {
+          "id": "sample-f1-tv-stand",
+          "name": "TV stand",
+          "kind": "storage",
+          "variant": "tvStand",
+          "shape": "rect",
+          "center": {
+            "x": 3.45,
+            "z": 1.2
+          },
+          "width": 1.7,
+          "depth": 0.5,
+          "rotation": 90
+        },
+        {
+          "id": "sample-f1-floor-lamp",
+          "name": "Floor lamp",
+          "kind": "fixture",
+          "variant": "floorLamp",
+          "shape": "ellipse",
+          "center": {
+            "x": 0.6,
+            "z": 1.5
+          },
+          "width": 0.4,
+          "depth": 0.4
+        },
+        {
+          "id": "sample-f1-plant",
+          "name": "Potted plant",
+          "kind": "plant",
+          "variant": "plant",
+          "shape": "ellipse",
+          "center": {
+            "x": 0.65,
+            "z": 5.35
+          },
+          "width": 0.5,
+          "depth": 0.5
+        },
+        {
+          "id": "sample-f1-armchair",
+          "name": "Armchair",
+          "kind": "seating",
+          "variant": "armchair",
+          "shape": "rect",
+          "center": {
+            "x": 2.8,
+            "z": 5.0
+          },
+          "width": 0.9,
+          "depth": 0.9,
+          "rotation": 210
+        },
+        {
+          "id": "sample-f1-counter",
+          "name": "Kitchen counter",
+          "kind": "counter",
+          "variant": "counter",
+          "shape": "rect",
+          "center": {
+            "x": 4.95,
+            "z": 5.5
+          },
+          "width": 1.4,
+          "depth": 0.7
+        },
+        {
+          "id": "sample-f1-sink",
+          "name": "Kitchen sink",
+          "kind": "fixture",
+          "variant": "sink",
+          "shape": "rect",
+          "center": {
+            "x": 6.2,
+            "z": 5.5
+          },
+          "width": 0.9,
+          "depth": 0.7
+        },
+        {
+          "id": "sample-f1-stove",
+          "name": "Stove",
+          "kind": "appliance",
+          "variant": "stove",
+          "shape": "rect",
+          "center": {
+            "x": 7.0,
+            "z": 5.5
+          },
+          "width": 0.9,
+          "depth": 0.7
+        },
+        {
+          "id": "sample-f1-fridge",
+          "name": "Refrigerator",
+          "kind": "appliance",
+          "variant": "fridge",
+          "shape": "rect",
+          "center": {
+            "x": 4.55,
+            "z": 4.3
+          },
+          "width": 0.9,
+          "depth": 0.7,
+          "rotation": 90
+        },
+        {
+          "id": "sample-f1-dining-table",
+          "name": "Dining table",
+          "kind": "table",
+          "variant": "diningTable",
+          "shape": "rect",
+          "center": {
+            "x": 6.0,
+            "z": 2.6
+          },
+          "width": 1.9,
+          "depth": 1.05
+        },
+        {
+          "id": "sample-f1-chair-1",
+          "name": "Dining chair",
+          "kind": "seating",
+          "variant": "chair",
+          "shape": "rect",
+          "center": {
+            "x": 5.55,
+            "z": 1.75
+          },
+          "width": 0.5,
+          "depth": 0.5,
+          "rotation": 180
+        },
+        {
+          "id": "sample-f1-chair-2",
+          "name": "Dining chair",
+          "kind": "seating",
+          "variant": "chair",
+          "shape": "rect",
+          "center": {
+            "x": 6.45,
+            "z": 1.75
+          },
+          "width": 0.5,
+          "depth": 0.5,
+          "rotation": 180
+        },
+        {
+          "id": "sample-f1-chair-3",
+          "name": "Dining chair",
+          "kind": "seating",
+          "variant": "chair",
+          "shape": "rect",
+          "center": {
+            "x": 5.55,
+            "z": 3.45
+          },
+          "width": 0.5,
+          "depth": 0.5
+        },
+        {
+          "id": "sample-f1-chair-4",
+          "name": "Dining chair",
+          "kind": "seating",
+          "variant": "chair",
+          "shape": "rect",
+          "center": {
+            "x": 6.45,
+            "z": 3.45
+          },
+          "width": 0.5,
+          "depth": 0.5
+        },
+        {
+          "id": "sample-f1-kitchen-plant",
+          "name": "Kitchen plant",
+          "kind": "plant",
+          "variant": "plant",
+          "shape": "ellipse",
+          "center": {
+            "x": 4.5,
+            "z": 1.2
+          },
+          "width": 0.5,
+          "depth": 0.5
         }
       ]
     },

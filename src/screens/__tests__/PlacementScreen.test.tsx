@@ -133,7 +133,10 @@ test("profile and plan replacement discard drafts", async () => {
         ...state.preferences,
         spatial: {
           ...state.preferences.spatial,
-          plan: { ...state.preferences.spatial.plan!, revision: 2 },
+          plan: {
+            ...state.preferences.spatial.plan!,
+            revision: state.preferences.spatial.plan!.revision + 1,
+          },
         },
       },
     })),

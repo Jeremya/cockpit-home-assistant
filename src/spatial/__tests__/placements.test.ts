@@ -127,6 +127,7 @@ test("a concave cutout and an outside chosen room are rejected separately", () =
         },
       ],
       lines: [],
+      furniture: [],
     },
   ];
   const plan = parseHousePlan(raw)!;

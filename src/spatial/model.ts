@@ -27,11 +27,40 @@ export type FurnitureKind =
   | "appliance"
   | "fixture"
   | "plant";
+/** Presentation variant for the 3D furniture catalog; optional for older plans. */
+export const furnitureVariants = [
+  "sofa",
+  "armchair",
+  "coffeeTable",
+  "tvStand",
+  "floorLamp",
+  "plant",
+  "rug",
+  "rugRound",
+  "diningTable",
+  "chair",
+  "desk",
+  "deskChair",
+  "counter",
+  "stove",
+  "sink",
+  "fridge",
+  "bed",
+  "nightstand",
+  "wardrobe",
+  "bathroomSink",
+  "toilet",
+  "bathtub",
+  "shower",
+] as const;
+export type FurnitureVariant = (typeof furnitureVariants)[number];
 /** Rough footprint for orientation only; never a measured or HA-derived object. */
 export interface PlanFurniture {
   id: string;
   name: string;
   kind: FurnitureKind;
+  /** Optional 3D model variant; older plans fall back by kind. */
+  variant?: FurnitureVariant;
   shape: "rect" | "ellipse";
   center: PlanPoint;
   /** Meters along X and Z before rotation. */
@@ -40,6 +69,7 @@ export interface PlanFurniture {
   /** Degrees, counter-clockwise seen from above. */
   rotation?: number;
 }
+/** Older plans carry no variant; the 3D scene degrades to a kind-level default. */
 export interface PlanFloor {
   id: string;
   name: string;
@@ -68,7 +98,7 @@ export function planBounds(points: PlanPoint[]) {
 }
 export function pointInPolygon(
   point: PlanPoint,
-  polygon: PlanPoint[],
+  polygon: readonly PlanPoint[],
 ): boolean {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -209,6 +239,8 @@ export function parseHousePlan(value: unknown): HousePlan | null {
           ids.has(item.id) ||
           !text(item.name) ||
           !furnitureKinds.includes(String(item.kind)) ||
+          (item.variant !== undefined &&
+            !furnitureVariants.includes(item.variant as FurnitureVariant)) ||
           !["rect", "ellipse"].includes(String(item.shape)) ||
           !point(item.center) ||
           !pointInPolygon(item.center, outline) ||
@@ -258,6 +290,7 @@ function copyPlan(plan: HousePlan): HousePlan {
           id: item.id,
           name: item.name,
           kind: item.kind,
+          ...(item.variant !== undefined && { variant: item.variant }),
           shape: item.shape,
           center: pt(item.center),
           width: item.width,

@@ -138,7 +138,7 @@ test("invalid or unrepresentable inputs never produce a pose with NaN/Infinity",
     yaw: MODEL_YAW,
     zoomFactor: 1,
   };
-  for (const value of [0, -1, 49, 50, NaN, Infinity])
+  for (const value of [0, -1, NaN, Infinity])
     for (const key of ["width", "height"] as const)
       expect(
         fitModelCamera({
@@ -146,6 +146,10 @@ test("invalid or unrepresentable inputs never produce a pose with NaN/Infinity",
           viewport: { ...valid.viewport, [key]: value },
         }),
       ).toBeNull();
+  // The margin is proportional, so any positive viewport stays representable.
+  expect(
+    fitModelCamera({ ...valid, viewport: { width: 49, height: 50 } }),
+  ).not.toBeNull();
   for (const value of [NaN, Infinity, -Infinity]) {
     expect(fitModelCamera({ ...valid, yaw: value })).toBeNull();
     expect(fitModelCamera({ ...valid, zoomFactor: value })).toBeNull();

@@ -1,7 +1,10 @@
 import type { Condition } from "../core/types";
+import { resolveFurnitureVariant } from "./furnitureCatalog";
 import {
   planBounds,
   pointInPolygon,
+  type FurnitureKind,
+  type FurnitureVariant,
   type PlanFloor,
   type PlanLine,
   type PlanPoint,
@@ -21,11 +24,25 @@ export interface SceneRoom {
   polygon: PlanPoint[];
   label: PlanPoint;
 }
+export interface SceneFurniture {
+  id: string;
+  kind: FurnitureKind;
+  variant: FurnitureVariant;
+  shape: "rect" | "ellipse";
+  center: PlanPoint;
+  width: number;
+  depth: number;
+  /** Degrees, counter-clockwise seen from above; always present. */
+  rotation: number;
+  /** Legacy/photo-derived footprints are fitted to their drawn rectangle. */
+  fitToFootprint: boolean;
+}
 export interface SceneFloor {
   id: string;
   outline: PlanPoint[];
   rooms: SceneRoom[];
   lines: PlanLine[];
+  furniture: SceneFurniture[];
   center: PlanPoint;
   extent: number; // largest side, meters
 }
@@ -71,6 +88,23 @@ export function toSceneFloor(floor: PlanFloor): SceneFloor {
       label: room.label,
     })),
     lines: floor.lines,
+    furniture: (floor.furniture ?? []).flatMap((item) => {
+      const resolved = resolveFurnitureVariant(item);
+      if (!resolved) return [];
+      return [
+        {
+          id: item.id,
+          kind: item.kind,
+          variant: resolved.variant,
+          shape: item.shape,
+          center: { x: item.center.x, z: item.center.z },
+          width: item.width,
+          depth: item.depth,
+          rotation: item.rotation ?? 0,
+          fitToFootprint: resolved.fitToFootprint,
+        },
+      ];
+    }),
     center: {
       x: (bounds.minX + bounds.maxX) / 2,
       z: (bounds.minZ + bounds.maxZ) / 2,

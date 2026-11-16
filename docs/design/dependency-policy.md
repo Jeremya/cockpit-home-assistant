@@ -151,3 +151,16 @@ credentials-shaped public test values. Each reproduced
 the same expiry and the strict gate unchanged. Both runners passed on the
 integrated tree locally and in the Linux Playwright 1.64.1 container.
 
+
+## Metro GLB asset extension — 2026-10-28
+
+The P1 furniture pipeline adds a root `metro.config.js` whose only change to the
+default Expo config is `resolver.assetExts` gaining `glb`. It adds no resolver
+alias, transformer, dependency, signing input or release behaviour; the shared
+DOM scene fetches the committed CC0 models at runtime. Per the rule above, the
+previously absent config is a reviewed input, so its SHA-256 is recorded in
+`scripts/dependency-audit-policy.json` (previously `null`). This does not
+re-review the unrelated uncommitted camera (`package.json`) change already in
+the working tree; that still needs its own review before a clean-checkout audit
+can pass. No dependency version, lockfile, advisory, exception or expiry
+changed here.

@@ -19,12 +19,12 @@ import {
   type SceneMetrics,
 } from "../web/sceneModel";
 import { FloorPlanView, type FloorPlanMarker } from "./FloorPlanView";
+import { EXTERIOR_WALL_HEIGHT } from "../web/sceneStyle";
 import { Body, Button, colors } from "./ui";
 import { useRendererActivity } from "./rendererActivity";
 import { buildFeatures } from "../config/build";
 
 export const SCENE_WATCHDOG_MS = 10_000;
-const PREVIEW_WALL_HEIGHT = 0.6;
 export type SceneFailure = SceneErrorCode | "watchdog";
 const failureText: Record<SceneFailure, string> = {
   watchdog: "The 3D view did not start in time.",
@@ -276,7 +276,7 @@ function SceneAttempt(
             cameraMode={props.cameraMode ?? "orbit"}
             interactive={ready}
             visible={visible && focused && active}
-            wallHeight={PREVIEW_WALL_HEIGHT}
+            wallHeight={EXTERIOR_WALL_HEIGHT}
             simulate={simulate}
             {...bridge}
             dom={{

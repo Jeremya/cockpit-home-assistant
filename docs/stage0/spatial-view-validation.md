@@ -64,3 +64,34 @@ Tests must use actual schema-2 saved public placements, not S01's `fixtureMarker
 Rendered fps means frames submitted during a pointer gesture, not GPU time or Android compositor fps. Idle/hidden/unfocused counters need stable sampling windows; legitimate observation, layout or resume invalidations are separate from a render loop. Native UI transitions and context-loss recovery must be exercised in the installed artifact. Do not substitute browser checks for Pixel acceptance.
 
 Future hardware gates include Pixel S02 acceptance, larger placement counts/longer memory and thermal trials, TalkBack/large system fonts, iOS and standalone household HA behavior. S01's dated measurements remain evidence for that earlier artifact only. Actual lamp/feeder positions are still user configuration, not inferred from this proof.
+
+## P1 furniture assets — standalone APK proof, 2026-10-28
+
+The OQ-09 warning was reproduced on `expo export --platform android` but does not affect the Gradle
+APK path. This section records the standalone asset proof for P0/P1; it is not a new S02 acceptance
+or a release candidate.
+
+**Artifact.** Release APK built from the dirty working tree with
+`cd android && ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a`:
+
+- `android/app/build/outputs/apk/release/app-release.apk`, 43 MB
+- package `com.larrabee.homecockpit`, versionName `0.1.0`, **debug-signed** (same certificate as the
+  installed dev client)
+- SHA-256 `731dd0cf2dbf082ce618b70ff226eb03f42618b304c3facfcca0af990c83c92c`
+
+**Embedding.** `unzip -l` lists all **23** furniture GLBs under
+`assets/www.bundle/assets/assets/furniture/<name>.<md5>.glb`, matching the relative paths in the
+DOM component bundle. The Gradle `export:embed` path persists DOM assets with the bundle; the
+`expo export --platform android` JS/OTA artifact does not (OQ-09 residual).
+
+**Offline observation.** The APK was installed over the dev client (`adb install -r`; data
+preserved). Metro was stopped and `adb reverse --remove-all` was executed before launch. The app
+opened on the saved HA profile; switching to the demo profile and Floor 1 → 3D view rendered the
+furnished sample (sofa, rug, tables, chairs, kitchen units) from the APK. No private capture is
+committed. The Play Protect confirmation was dismissed locally.
+
+**Boundary.** This proves the DOM asset path and offline furniture rendering. It is not a named
+trial, a Pixel/GPU measurement, or M04 acceptance. Because `.local/home-plan.json` was present, the
+APK bundles the locally prepared personal plan (`my-home`): it is a **private local artifact and
+must not be shared**. The demo profile uses the public sample, and no capture or APK is committed.
+The trial channel still disables 3D (`buildFeatures.spatial3d`).

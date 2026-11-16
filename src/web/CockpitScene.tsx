@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import type { DOMProps } from "expo/dom";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { ModelCameraController } from "./ModelCameraController";
 import type { Point3 } from "./modelCamera";
 import { colors } from "../theme";
@@ -17,6 +18,21 @@ import {
 import { disposeGroup } from "./sceneResources";
 import { layoutMarkerLabels, overlaps } from "./labelLayout";
 import { planBounds, pointInPolygon } from "../spatial/model";
+import {
+  cameraFacing,
+  FLOOR_THICKNESS,
+  FLOOR_TILE_METRES,
+  floorSurface,
+  floorSurfaceColor,
+  PLINTH_HEIGHT,
+  PLINTH_OVERHANG,
+  scenePalette,
+  WALL_CAP_HEIGHT,
+  type FloorSurface,
+} from "./sceneStyle";
+import { wallPieces } from "./sceneWalls";
+import { tallestFurniture } from "./furnitureCatalog";
+import { addFurniture } from "./furnitureScene";
 import {
   FrameStats,
   classifyGesture,
@@ -55,20 +71,142 @@ export interface CockpitSceneProps {
   dom?: DOMProps;
 }
 
-const roomColors: Record<string, number> = {
-  living: 0x2f4a50,
-  kitchen: 0x4a3f3a,
-  bedroom: 0x3d3a57,
-  bathroom: 0x2d4a5e,
-  storage: 0x3d4352,
-  circulation: 0x2c3646,
-};
-const selectedColor = 0x3f6694;
+const SELECTED_FLOOR_COLOR = new THREE.Color(
+  scenePalette.selectedFloor,
+).getHex();
+
+/** Deterministic texture noise: a plan renders identically on every rebuild. */
+function seeded(seed: number) {
+  let state = seed >>> 0 || 1;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let value = Math.imul(state ^ (state >>> 15), 1 | state);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Small procedural floor tile; no external texture request is made. */
+function surfaceTexture(
+  surface: FloorSurface,
+  cache: Map<FloorSurface, THREE.Texture>,
+) {
+  const cached = cache.get(surface);
+  if (cached) return cached;
+  const { base, seam, accent } = floorSurfaceColor[surface];
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext("2d")!;
+  const random = seeded(surface === "oak" ? 7 : surface === "walnut" ? 19 : 31);
+  context.fillStyle = base;
+  context.fillRect(0, 0, size, size);
+  if (surface === "stone") {
+    context.fillStyle = accent;
+    context.globalAlpha = 0.3;
+    for (let blot = 0; blot < 90; blot++) {
+      context.beginPath();
+      context.arc(
+        random() * size,
+        random() * size,
+        2 + random() * 10,
+        0,
+        Math.PI * 2,
+      );
+      context.fill();
+    }
+    context.fillStyle = seam;
+    context.globalAlpha = 0.25;
+    for (let speck = 0; speck < 240; speck++) {
+      context.beginPath();
+      context.arc(
+        random() * size,
+        random() * size,
+        0.5 + random() * 1.2,
+        0,
+        Math.PI * 2,
+      );
+      context.fill();
+    }
+  } else {
+    const rows = 6;
+    const rowHeight = size / rows;
+    for (let row = 0; row < rows; row++) {
+      const y = row * rowHeight;
+      context.fillStyle = row % 2 ? accent : seam;
+      context.globalAlpha = 0.12 + random() * 0.1;
+      context.fillRect(0, y, size, rowHeight);
+      context.fillStyle = seam;
+      context.globalAlpha = 0.55;
+      context.fillRect(0, y + rowHeight - 1, size, 1);
+      const offset = (row % 2 ? 0.45 : 0.1) * size;
+      context.fillRect(offset, y, 1, rowHeight);
+      context.fillRect((offset + size * 0.5) % size, y, 1, rowHeight);
+      context.globalAlpha = 0.12;
+      for (let line = 0; line < 3; line++) {
+        const grain = y + rowHeight * (0.25 + random() * 0.5);
+        context.beginPath();
+        context.moveTo(0, grain);
+        context.bezierCurveTo(
+          size * 0.3,
+          grain + (random() - 0.5) * 3,
+          size * 0.7,
+          grain + (random() - 0.5) * 3,
+          size,
+          grain,
+        );
+        context.strokeStyle = seam;
+        context.stroke();
+      }
+    }
+  }
+  context.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1 / FLOOR_TILE_METRES, 1 / FLOOR_TILE_METRES);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  cache.set(surface, texture);
+  return texture;
+}
+
+function roundedBox(
+  width: number,
+  height: number,
+  depth: number,
+  radius = 0.02,
+) {
+  const safe = Math.max(
+    0.001,
+    Math.min(radius, Math.min(width, height, depth) / 2 - 0.001),
+  );
+  return new RoundedBoxGeometry(width, height, depth, 2, safe);
+}
+
+/** One static key light per built floor; the shadow map is redrawn only on rebuild. */
+function fitKeyLight(runtime: Runtime, floor: SceneFloor) {
+  const distance = floor.extent * 1.6 + 5;
+  runtime.keyLight.position
+    .set(0.7, 1, 0.28)
+    .normalize()
+    .multiplyScalar(distance);
+  runtime.keyLight.target.position.set(0, 0, 0);
+  runtime.keyLight.target.updateMatrixWorld();
+  const size = floor.extent / 2 + 2.5;
+  const shadowCamera = runtime.keyLight.shadow.camera;
+  shadowCamera.left = -size;
+  shadowCamera.right = size;
+  shadowCamera.top = size;
+  shadowCamera.bottom = -size;
+  shadowCamera.near = 0.5;
+  shadowCamera.far = distance * 2 + size * 2;
+  shadowCamera.updateProjectionMatrix();
+}
 
 interface Runtime {
   model: ModelCameraController | null;
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
+  keyLight: THREE.DirectionalLight;
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;
   content: THREE.Group;
@@ -106,7 +244,7 @@ function labelSprite(text: string, icon?: SceneMarker["icon"]) {
     context.fill();
   }
   context.font = "500 30px sans-serif";
-  context.fillStyle = "#e5e9f2";
+  context.fillStyle = icon ? "#e5e9f2" : scenePalette.labelInk;
   context.textAlign = "center";
   context.textBaseline = "middle";
   if (icon) {
@@ -151,12 +289,18 @@ function labelSprite(text: string, icon?: SceneMarker["icon"]) {
   return sprite;
 }
 
-function buildFloor(runtime: Runtime, floor: SceneFloor, wallHeight: number) {
+function buildFloor(
+  runtime: Runtime,
+  floor: SceneFloor,
+  wallHeight: number,
+  cameraMode: "orbit" | "model",
+) {
   disposeGroup(runtime.content);
   runtime.roomMeshes.clear();
   runtime.roomLabels.clear();
   runtime.markerNodes.clear();
   runtime.selectionKey = null;
+  const textures = new Map<FloorSurface, THREE.Texture>();
   for (const room of floor.rooms) {
     const shape = new THREE.Shape(
       room.polygon.map(
@@ -164,16 +308,19 @@ function buildFloor(runtime: Runtime, floor: SceneFloor, wallHeight: number) {
       ),
     );
     const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.06,
+      depth: FLOOR_THICKNESS,
       bevelEnabled: false,
     });
     geometry.rotateX(-Math.PI / 2); // shape (x, z) → world (x, 0, −z)
     const mesh = new THREE.Mesh(
       geometry,
       new THREE.MeshStandardMaterial({
-        color: roomColors[room.kind] ?? 0x333846,
+        map: surfaceTexture(floorSurface[room.kind] ?? "stone", textures),
+        roughness: 0.82,
+        metalness: 0,
       }),
     );
+    mesh.receiveShadow = true;
     mesh.userData.roomId = room.id;
     runtime.roomMeshes.set(room.id, mesh);
     runtime.content.add(mesh);
@@ -183,33 +330,112 @@ function buildFloor(runtime: Runtime, floor: SceneFloor, wallHeight: number) {
     label.position.set(at.x, at.y, at.z);
     runtime.content.add(label);
   }
-  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xbbc3d0 });
-  const windowMaterial = new THREE.MeshStandardMaterial({
-    color: 0x7cc4ff,
-    transparent: true,
-    opacity: 0.7,
+  const bounds = planBounds(floor.outline);
+  const plinth = new THREE.Mesh(
+    roundedBox(
+      bounds.maxX - bounds.minX + PLINTH_OVERHANG,
+      PLINTH_HEIGHT,
+      bounds.maxZ - bounds.minZ + PLINTH_OVERHANG,
+      0.12,
+    ),
+    new THREE.MeshStandardMaterial({
+      color: scenePalette.plinth,
+      roughness: 0.9,
+      metalness: 0,
+    }),
+  );
+  plinth.position.set(0, -PLINTH_HEIGHT / 2, 0);
+  plinth.receiveShadow = true;
+  runtime.content.add(plinth);
+
+  const wallBody = new THREE.MeshStandardMaterial({
+    color: scenePalette.wallBody,
+    roughness: 0.95,
   });
-  for (const line of floor.lines) {
-    if (line.kind === "step") continue;
-    const a = planToWorld(line.from, floor.center);
-    const b = planToWorld(line.to, floor.center);
-    const length = Math.hypot(b.x - a.x, b.z - a.z);
-    if (length < 0.01) continue;
-    const height = line.kind === "window" ? wallHeight * 0.6 : wallHeight;
+  const wallCap = new THREE.MeshStandardMaterial({
+    color: scenePalette.wallCap,
+    roughness: 0.8,
+  });
+  const frameMaterial = new THREE.MeshStandardMaterial({
+    color: scenePalette.windowFrame,
+    roughness: 0.6,
+  });
+  const glassMaterial = new THREE.MeshStandardMaterial({
+    color: scenePalette.glass,
+    roughness: 0.08,
+    metalness: 0,
+    transparent: true,
+    opacity: 0.22,
+    depthWrite: false,
+    emissive: new THREE.Color(scenePalette.glassEmissive),
+    emissiveIntensity: 0.5,
+  });
+  for (const piece of wallPieces(floor.outline, floor.lines, {
+    exteriorHeight: wallHeight,
+    facing: cameraFacing(cameraMode),
+  })) {
+    const a = planToWorld(piece.from, floor.center, FLOOR_THICKNESS);
+    const b = planToWorld(piece.to, floor.center, FLOOR_THICKNESS);
+    const span = Math.hypot(b.x - a.x, b.z - a.z);
+    if (span < 0.01) continue;
+    // Close corners and meet partitions by half a wall thickness at each end.
+    const length = span + piece.thickness;
+    const rotation = -Math.atan2(b.z - a.z, b.x - a.x);
+    const x = (a.x + b.x) / 2;
+    const z = (a.z + b.z) / 2;
+    const bodyHeight = Math.max(0.01, piece.height - WALL_CAP_HEIGHT);
+    const glazing = piece.kind === "window";
+    // RoundedBoxGeometry keeps BoxGeometry's indexed material groups, so the
+    // body and the dark architectural cap are separate single-material meshes.
     const wall = new THREE.Mesh(
-      new THREE.BoxGeometry(
+      roundedBox(
         length,
-        height,
-        line.kind === "window" ? 0.05 : 0.08,
+        bodyHeight,
+        piece.thickness,
+        Math.min(0.02, piece.thickness * 0.2),
       ),
-      line.kind === "window" ? windowMaterial : wallMaterial,
+      glazing ? glassMaterial : wallBody,
     );
-    wall.position.set((a.x + b.x) / 2, height / 2 + 0.06, (a.z + b.z) / 2);
-    wall.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x);
+    wall.position.set(x, FLOOR_THICKNESS + bodyHeight / 2, z);
+    wall.rotation.y = rotation;
+    wall.castShadow = !glazing;
+    wall.receiveShadow = !glazing;
     runtime.content.add(wall);
+    const cap = new THREE.Mesh(
+      roundedBox(
+        length,
+        WALL_CAP_HEIGHT,
+        piece.thickness + 0.012,
+        Math.min(0.01, piece.thickness * 0.1),
+      ),
+      glazing ? frameMaterial : wallCap,
+    );
+    cap.position.set(
+      x,
+      FLOOR_THICKNESS + piece.height - WALL_CAP_HEIGHT / 2,
+      z,
+    );
+    cap.rotation.y = rotation;
+    cap.castShadow = true;
+    cap.receiveShadow = true;
+    runtime.content.add(cap);
   }
+  addFurniture(
+    {
+      content: runtime.content,
+      invalidate: () => runtime.invalidate(),
+      isDisposed: () => runtime.disposed,
+      refreshShadows: () => {
+        runtime.renderer.shadowMap.needsUpdate = true;
+      },
+    },
+    floor,
+  );
+  fitKeyLight(runtime, floor);
   runtime.rebuilds++;
-  runtime.builtKey = JSON.stringify([floor, wallHeight]);
+  runtime.builtKey = JSON.stringify([floor, wallHeight, cameraMode]);
+  // Static geometry: draw the shadow map once instead of every frame.
+  runtime.renderer.shadowMap.needsUpdate = true;
 }
 
 function updateMarkers(
@@ -233,17 +459,28 @@ function frameCamera(
   runtime: Runtime,
   floor: SceneFloor,
   selectedRoomId: string | null = null,
+  wallHeight = 0,
 ) {
   const room = floor.rooms.find((item) => item.id === selectedRoomId);
+  const top =
+    FLOOR_THICKNESS +
+    Math.max(
+      wallHeight,
+      tallestFurniture(floor.furniture.map((item) => item.variant)),
+    );
   // Framing must not depend on camera-relative label offsets from a previous orbit.
   const bounds = new THREE.Box3().setFromPoints(
     (room?.polygon ?? floor.outline).flatMap((point) =>
-      [0, 1.5].map((y) => {
+      [-PLINTH_HEIGHT, top].map((y) => {
         const at = planToWorld(point, floor.center, y);
         return new THREE.Vector3(at.x, at.y, at.z);
       }),
     ),
   );
+  if (!room)
+    bounds.expandByVector(
+      new THREE.Vector3(PLINTH_OVERHANG / 2, 0, PLINTH_OVERHANG / 2),
+    );
   const target = bounds.getCenter(new THREE.Vector3());
   const direction = new THREE.Vector3(0, 0.85, 0.75).normalize();
   const up = new THREE.Vector3(0, 1, 0).projectOnPlane(direction).normalize();
@@ -283,24 +520,33 @@ function frameScene(
   roomId: string | null = null,
   animate = false,
   reset = false,
+  wallHeight = 0,
 ) {
   if (!runtime.model) {
-    frameCamera(runtime, floor, roomId);
+    frameCamera(runtime, floor, roomId, wallHeight);
     return;
   }
   const room = floor.rooms.find((item) => item.id === roomId);
   const points = (room?.polygon ?? floor.outline).map((point) =>
     planToWorld(point, floor.center),
   );
+  const pad = room ? 0.04 : PLINTH_OVERHANG / 2 + 0.04;
   const min: Point3 = [
-    Math.min(...points.map((p) => p.x)) - 0.04,
-    0,
-    Math.min(...points.map((p) => p.z)) - 0.04,
+    Math.min(...points.map((p) => p.x)) - pad,
+    room ? 0 : -PLINTH_HEIGHT,
+    Math.min(...points.map((p) => p.z)) - pad,
   ];
   const max: Point3 = [
-    Math.max(...points.map((p) => p.x)) + 0.04,
-    Math.max(0.9, 0.06 + 0.6),
-    Math.max(...points.map((p) => p.z)) + 0.04,
+    Math.max(...points.map((p) => p.x)) + pad,
+    Math.max(
+      0.9,
+      FLOOR_THICKNESS +
+        Math.max(
+          wallHeight,
+          tallestFurniture(floor.furniture.map((item) => item.variant)),
+        ),
+    ),
+    Math.max(...points.map((p) => p.z)) + pad,
   ];
   runtime.model.setBounds({ min, max }, reset, animate, performance.now());
 }
@@ -407,12 +653,21 @@ export default function CockpitScene(props: CockpitSceneProps) {
       return;
     }
     rendererCreated();
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    // Static house: redraw shadow maps on rebuild, never per frame.
+    renderer.shadowMap.autoUpdate = false;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(colors.background);
-    scene.add(new THREE.HemisphereLight(0xdfe7ff, 0x1a1f2b, 1.6));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-    sun.position.set(4, 10, 6);
-    scene.add(sun);
+    scene.background = new THREE.Color(scenePalette.stage);
+    scene.add(new THREE.HemisphereLight(0xdfe7ff, 0x2a2521, 0.6));
+    const keyLight = new THREE.DirectionalLight(0xfff2e0, 2.4);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.bias = -0.0006;
+    keyLight.shadow.normalBias = 0.03;
+    scene.add(keyLight, keyLight.target);
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
     const content = new THREE.Group();
     scene.add(content);
@@ -428,6 +683,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
       model: null,
       renderer,
       scene,
+      keyLight,
       camera,
       controls,
       content,
@@ -588,7 +844,13 @@ export default function CockpitScene(props: CockpitSceneProps) {
       camera.aspect = clientWidth / clientHeight;
       camera.updateProjectionMatrix();
       if (r.model) r.model.resize(clientWidth, clientHeight);
-      else frameCamera(r, latest.current.floor, latest.current.selectedRoomId);
+      else
+        frameCamera(
+          r,
+          latest.current.floor,
+          latest.current.selectedRoomId,
+          latest.current.wallHeight,
+        );
       r.invalidate();
     };
     const observer = new ResizeObserver(resize);
@@ -736,9 +998,21 @@ export default function CockpitScene(props: CockpitSceneProps) {
     r.listenersActive = 11;
 
     try {
-      buildFloor(r, latest.current.floor, latest.current.wallHeight);
+      buildFloor(
+        r,
+        latest.current.floor,
+        latest.current.wallHeight,
+        latest.current.cameraMode ?? "orbit",
+      );
       updateMarkers(r, latest.current.floor, latest.current.markers);
-      frameScene(r, latest.current.floor, latest.current.selectedRoomId);
+      frameScene(
+        r,
+        latest.current.floor,
+        latest.current.selectedRoomId,
+        false,
+        false,
+        latest.current.wallHeight,
+      );
       resize();
     } catch {
       void latest.current.onSceneError("init_failed");
@@ -787,16 +1061,18 @@ export default function CockpitScene(props: CockpitSceneProps) {
     resetKey,
     visible,
     simulate,
+    cameraMode,
   } = props;
   useEffect(() => {
     const r = runtime.current;
-    if (!r || r.builtKey === JSON.stringify([floor, wallHeight])) return;
-    buildFloor(r, floor, wallHeight);
+    const mode = cameraMode ?? "orbit";
+    if (!r || r.builtKey === JSON.stringify([floor, wallHeight, mode])) return;
+    buildFloor(r, floor, wallHeight, mode);
     updateMarkers(r, floor, latest.current.markers);
-    frameScene(r, floor, null, false, true);
+    frameScene(r, floor, null, false, true, wallHeight);
     r.invalidate();
     // Markers/selection have their own effects; a floor change implies both.
-  }, [floor, wallHeight]);
+  }, [floor, wallHeight, cameraMode]);
 
   useEffect(() => {
     const r = runtime.current;
@@ -810,11 +1086,8 @@ export default function CockpitScene(props: CockpitSceneProps) {
     if (r.selectionKey === key) return;
     r.selectionKey = key;
     for (const [id, mesh] of r.roomMeshes) {
-      const room = latest.current.floor.rooms.find((item) => item.id === id);
       (mesh.material as THREE.MeshStandardMaterial).color.setHex(
-        id === selectedRoomId
-          ? selectedColor
-          : (roomColors[room?.kind ?? ""] ?? 0x333846),
+        id === selectedRoomId ? SELECTED_FLOOR_COLOR : 0xffffff,
       );
     }
     // Orbit stays instant; model transitions run only until their target is reached.
@@ -824,6 +1097,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
       selectedRoomId,
       true,
       selectedRoomId === null,
+      latest.current.wallHeight,
     );
     r.invalidate();
   }, [selectedRoomId, resetKey, floor]);
@@ -878,7 +1152,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
         position: "absolute",
         inset: 0,
         overflow: "hidden",
-        background: colors.background,
+        background: scenePalette.stage,
         outlineOffset: -3,
       }}
     />

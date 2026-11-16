@@ -28,6 +28,44 @@ test("scene floors carry only geometry, never dimensions or other free text", ()
     label: floor.rooms[0]!.label,
   });
   expect(scene.lines).toHaveLength(floor.lines.length);
+  expect(scene.furniture).toHaveLength(floor.furniture!.length);
+  const rendered = JSON.stringify(scene.furniture);
+  expect(rendered).not.toContain('"name"');
+  expect(scene.furniture[0]).toEqual({
+    id: floor.furniture![0]!.id,
+    kind: floor.furniture![0]!.kind,
+    variant: floor.furniture![0]!.variant,
+    shape: floor.furniture![0]!.shape,
+    center: floor.furniture![0]!.center,
+    width: floor.furniture![0]!.width,
+    depth: floor.furniture![0]!.depth,
+    rotation: floor.furniture![0]!.rotation ?? 0,
+    fitToFootprint: false,
+  });
+});
+
+test("older furniture without a variant falls back by kind for the 3D scene", () => {
+  const legacy = {
+    ...floor,
+    furniture: [
+      {
+        id: "legacy-seat",
+        name: "Seat",
+        kind: "seating" as const,
+        shape: "rect" as const,
+        center: { x: 2, z: 2 },
+        width: 1,
+        depth: 1,
+      },
+    ],
+  };
+  const scene = toSceneFloor(legacy);
+  expect(scene.furniture[0]).toMatchObject({
+    id: "legacy-seat",
+    variant: "armchair",
+    rotation: 0,
+    fitToFootprint: true,
+  });
 });
 
 test("plan and world coordinates round-trip around the floor center, larger Z drawn farther away", () => {

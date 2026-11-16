@@ -300,9 +300,12 @@ test("touching a room polygon selects that room", async () => {
 });
 
 test("the profile's saved plan is shown, with a notice when the default has changed", async () => {
-  withPlan((plan) => {
-    plan.name = "Saved home";
-  }, 2);
+  withPlan(
+    (plan) => {
+      plan.name = "Saved home";
+    },
+    Math.max(1, sampleHouse.revision - 1),
+  );
   const screen = await renderAsync(<HousePlanScreen />);
   expect(screen.getByText("Saved home")).toBeTruthy();
   expect(screen.getByText(/A newer default plan is available/)).toBeTruthy();

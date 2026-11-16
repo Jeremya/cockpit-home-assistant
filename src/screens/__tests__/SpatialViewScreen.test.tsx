@@ -162,7 +162,10 @@ test("a profile/plan change resets selection and rejects the obsolete scene", ()
         ...preferences,
         spatial: {
           ...preferences.spatial,
-          plan: { ...preferences.spatial.plan!, revision: 2 },
+          plan: {
+            ...preferences.spatial.plan!,
+            revision: preferences.spatial.plan!.revision + 1,
+          },
         },
       },
     }),

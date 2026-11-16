@@ -1,11 +1,12 @@
 /** Presentation constants, independent of house geometry and renderer state. */
 export const MODEL_FOV = 26;
-export const MODEL_ELEVATION = (48 * Math.PI) / 180;
+export const MODEL_ELEVATION = (38 * Math.PI) / 180;
 export const MODEL_YAW = (35 * Math.PI) / 180;
 export const MODEL_YAW_RANGE = (40 * Math.PI) / 180;
 export const MODEL_TRANSITION_MS = 220;
-export const MODEL_MARGIN_PX = 20;
-export const MODEL_MARGIN_FRACTION = 0.1;
+/** Framing margin is proportional to the canvas; no absolute pixel term. */
+export const MODEL_MARGIN_PX = 0;
+export const MODEL_MARGIN_FRACTION = 0.05;
 export type Point3 = [number, number, number];
 export interface ModelCameraInput {
   bounds: { min: Point3; max: Point3 };

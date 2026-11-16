@@ -99,6 +99,10 @@ class ControlledBackend extends BackendEvents {
   callService = jest.fn<Promise<ServiceCallResult>, [ServiceCall]>(
     async () => ({ kind: "accepted" }),
   );
+  getCameraImageRequest = jest.fn((entityId: string) => ({
+    uri: `https://a.example/api/camera_proxy/${entityId}`,
+    headers: { Authorization: "Bearer camera-token" },
+  }));
   async setForeground() {}
 }
 const a: ConnectionSettings = {
@@ -210,6 +214,26 @@ test("Retry never chooses demo without an explicit demo attempt", async () => {
   expect(HomeAssistantBackend).not.toHaveBeenCalled();
 });
 
+test("cameraImageRequest requires a ready session and a camera entity", async () => {
+  const { backends } = setup();
+  await manager.connect(a);
+  // No snapshot yet: nothing to request.
+  expect(manager.cameraImageRequest("camera.front_door")).toBeNull();
+
+  const cameraEntity = entity({
+    key: "entity:camera.front_door",
+    entityId: "camera.front_door",
+    domain: "camera",
+  });
+  backends[0]!.snapshot(basicSnapshot([cameraEntity]));
+  expect(manager.cameraImageRequest("camera.front_door")).toEqual({
+    uri: "https://a.example/api/camera_proxy/camera.front_door",
+    headers: { Authorization: "Bearer camera-token" },
+  });
+  // A non-camera entity is refused even though the session is ready.
+  expect(manager.cameraImageRequest("switch.lamp")).toBeNull();
+});
+
 test("existing v1 preferences migrate on connect and spatial data stays per profile", async () => {
   const { prefStore } = setup();
   const v1 = (favorite: string) => ({
@@ -270,7 +294,7 @@ test("demo is seeded from the public sample and saved with the first snapshot", 
   await flush();
   expect(stored(prefStore).demo.spatial.seededFrom).toEqual({
     planId: "sample-home",
-    revision: 1,
+    revision: mockSampleHouse.revision,
   });
 });
 
@@ -320,7 +344,11 @@ test("a new bundled revision keeps the saved plan and is reported", async () => 
       },
     }),
   );
-  mockHaDefault = { ...mockHaDefault, revision: 2, name: "New default" };
+  mockHaDefault = {
+    ...mockHaDefault,
+    revision: mockHaDefault.revision + 1,
+    name: "New default",
+  };
   await manager.connect(a);
   backends[0]!.snapshot();
   await flush();
