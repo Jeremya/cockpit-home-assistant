@@ -1,9 +1,16 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import type { PlanFloor } from "../../spatial/model";
 import { FloorPlanView, type FloorPlanMarker } from "../FloorPlanView";
 import { Icon } from "../EntityIcon";
 import { colors } from "../ui";
 import { radii, spacing } from "../../theme";
+import { planFrames } from "../../spatial/planStyle";
 
 /**
  * Compact architectural orientation on Home. It is a static SVG preview, not a
@@ -20,6 +27,7 @@ export function HomeArchitecture({
   markers: FloorPlanMarker[];
   onOpen: () => void;
 }) {
+  const { height } = useWindowDimensions();
   return (
     <Pressable
       accessibilityRole="button"
@@ -32,18 +40,19 @@ export function HomeArchitecture({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
         aria-hidden
-        style={styles.plan}
       >
         <FloorPlanView
           floor={floor}
           selectedRoom={selectedRoomId}
           onSelectRoom={() => undefined}
           markers={markers}
-          height={172}
+          sizing={planFrames.preview(height)}
+          density="compact"
+          stageRadius={0}
         />
       </View>
       <View style={styles.caption}>
-        <View>
+        <View style={styles.captionText}>
           <Text style={styles.eyebrow}>ARCHITECTURAL PREVIEW</Text>
           <Text style={styles.title}>
             {floor.name} · {floor.rooms.length}{" "}
@@ -67,7 +76,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     overflow: "hidden",
   },
-  plan: { height: 172 },
   caption: {
     flexDirection: "row",
     alignItems: "center",
@@ -78,9 +86,11 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
+  // Large text wraps inside the card instead of pushing the link out of it.
+  captionText: { flex: 1, minWidth: 0 },
   eyebrow: {
     color: colors.accent,
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: "800",
     letterSpacing: 1.6,
   },
@@ -90,6 +100,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 2,
   },
-  link: { flexDirection: "row", alignItems: "center", gap: 4 },
+  link: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
   linkText: { color: colors.accent, fontSize: 12, fontWeight: "700" },
 });

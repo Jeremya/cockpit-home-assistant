@@ -4,6 +4,7 @@ import type { HousePlan } from "../spatial/model";
 import { minTouchTarget, radii, spacing, typography } from "../theme";
 import { FloorPlanView, type FloorPlanMarker } from "./FloorPlanView";
 import { buildFeatures } from "../config/build";
+import { planFrames } from "../spatial/planStyle";
 import { useSpatialViewState } from "../spatial/spatialViewState";
 import type { SceneMarker } from "../web/sceneModel";
 import { CockpitSceneView } from "./CockpitSceneView";
@@ -155,7 +156,8 @@ export function HomePlanOverview({
               markers={markers}
               onSelectRoom={onRoom}
               onMarkerPress={onMarker}
-              height={wide ? 260 : 200}
+              sizing={wide ? planFrames.cardWide : planFrames.card}
+              stageRadius={radii.control}
             />
           )}
           <ScrollView

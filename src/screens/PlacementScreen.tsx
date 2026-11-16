@@ -253,6 +253,7 @@ function PlacementEditor({
           <Panel style={{ padding: 8 }}>
             <FloorPlanView
               floor={floor}
+              stageRadius={18}
               selectedRoom={roomId}
               onSelectRoom={() => undefined}
               markers={

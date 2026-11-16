@@ -23,6 +23,7 @@ import { openPlacement } from "../spatial/navigation";
 import { placementSceneMarkers } from "../spatial/scene";
 import { areaLinkStatus, entitiesByPlanRoom, own } from "../spatial/selectors";
 import type { HousePlan, RoomKind } from "../spatial/model";
+import { planFrames } from "../spatial/planStyle";
 import { FloorPlanView } from "../components/FloorPlanView";
 import { restoreReadingFocus } from "../components/readingFocus";
 import { useSpatialViewState } from "../spatial/spatialViewState";
@@ -435,10 +436,10 @@ function HousePlanContent({
               />
             ) : (
               <FloorPlanView
-                height={
+                sizing={
                   desktop
-                    ? Math.max(400, Math.min(560, height - 260))
-                    : undefined
+                    ? planFrames.desktop(height)
+                    : planFrames.screen(height)
                 }
                 floor={floor}
                 selectedRoom={room?.id ?? null}
