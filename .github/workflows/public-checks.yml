@@ -46,6 +46,7 @@ jobs:
       - run: npm run test:tooling
       - run: npm run proof:dependencies
       - run: npm run proof:protocol
+      - run: npm run proof:camera
       - run: npm run export:android -- --source-maps
       - run: npm run check:runtime-dependencies -- dist android
       - name: Check public provenance after exports

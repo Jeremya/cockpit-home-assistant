@@ -14,6 +14,7 @@ import {
 } from "../../services/deviceNavigation";
 import { entityAppearance, Icon } from "../EntityIcon";
 import { SwitchControl } from "../controls/SwitchControl";
+import { CameraImageCard } from "../camera/CameraImageCard";
 import { Body, Button, Label, Panel, colors, styles } from "../ui";
 import { detailGap } from "./layout";
 import { DetailMessage, DetailTitle, notConnected } from "./DetailTitle";
@@ -132,12 +133,6 @@ function ReadingBody({
             {"\n"}Mode: {entity.state}
           </Body>
         )}
-        {entity.domain === "camera" && (
-          <Body>
-            No verified image source is configured for this camera. Capture time
-            is unknown.
-          </Body>
-        )}
         <Body>{assessment.explanation}</Body>
         <Body>
           {cap?.kind === "switch"
@@ -147,6 +142,13 @@ function ReadingBody({
             : "Read-only observation. Values reflect the last state reported to Maurice. A fresh HA connection does not confirm a recent device poll."}
         </Body>
       </Panel>
+      {entity.domain === "camera" && (
+        <CameraImageCard
+          entity={entity}
+          profileId={profileId}
+          ready={status.kind === "ready"}
+        />
+      )}
       {cap?.kind === "switch" && profileId && (
         <SwitchControl
           key={`${profileId}:${snapshot.sessionId}:${entity.key}:${entity.entityId}`}

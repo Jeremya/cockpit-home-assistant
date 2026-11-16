@@ -388,6 +388,22 @@ export class SessionManager {
   dismissCommand(id: string) {
     return this.commandTracker.dismiss(id);
   }
+  /**
+   * A camera entity's authenticated image request, validated against the live
+   * session. Returns null unless the session is ready and the entity is an
+   * available camera in the current snapshot. The raw bearer never leaves the
+   * camera image service; screens consume only its sanitized output.
+   */
+  cameraImageRequest(
+    entityId: string,
+  ): { uri: string; headers: Record<string, string> } | null {
+    const state = useCockpit.getState();
+    if (!this.backend || !state.snapshot || state.status.kind !== "ready")
+      return null;
+    const entity = state.snapshot.entities[entityId];
+    if (!entity || entity.domain !== "camera") return null;
+    return this.backend.getCameraImageRequest(entityId);
+  }
   bootstrap(): Promise<void> {
     this.boot ??= this.load();
     return this.boot;

@@ -33,6 +33,14 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+test("the demo camera returns a deterministic, token-free image frame", async () => {
+  await start();
+  const request = backend.getCameraImageRequest("camera.front_door");
+  expect(request.uri).toMatch(/^data:image\/png;base64,/);
+  expect(request.headers).toEqual({});
+  expect(request.uri).not.toContain("token");
+});
+
 test.each<[ServiceCall, DemoOptions, string, unknown]>([
   [call("switch", "turn_on", "switch.living_lamp"), {}, "state", "on"],
   [
