@@ -1,11 +1,23 @@
 import { useState } from "react";
-import { AppState, Pressable, Text, View } from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { switchOutcomeText } from "../../commands/switchControl";
 import type { CommandTarget } from "../../commands/types";
 import { useCockpit } from "../../core/store";
 import type { EntityRecord, HomeSnapshot } from "../../core/types";
 import { commands, session } from "../../services/runtime";
-import { Body, Button, Label, Panel, colors, styles } from "../ui";
+import { minTouchTarget, radii, spacing, typography } from "../../theme";
+import { Icon } from "../EntityIcon";
+import {
+  Body,
+  Button,
+  Label,
+  Notice,
+  Panel,
+  colors,
+  styles,
+  type Interaction,
+} from "../ui";
+import { outcomeTone } from "./outcomeTone";
 import { useSwitchCommand } from "./useSwitchCommand";
 
 export function SwitchControl({
@@ -73,26 +85,28 @@ export function SwitchControl({
         : "Permission could not be saved. Review the current device and try again.",
     );
   }
+  const look = outcome ? outcomeTone(outcome) : null;
   return (
     <Panel>
-      <Label>
-        {mode === "demo" ? "Simulated power control" : "Power control"}
-      </Label>
-      <Body>
-        {mode === "demo"
-          ? "This changes the offline demo lamp only."
-          : "Sends an On or Off request through Home Assistant."}
-      </Body>
+      <View style={control.head}>
+        <Label>
+          {mode === "demo" ? "Simulated power control" : "Power control"}
+        </Label>
+        <Body>
+          {mode === "demo"
+            ? "This changes the offline demo lamp only."
+            : "Sends an On or Off request through Home Assistant."}
+        </Body>
+      </View>
       {mode === "homeAssistant" && (
-        <View style={{ gap: 12 }}>
+        <View style={control.group}>
           {review ? (
             <>
-              <Label>Allow {entity.name}?</Label>
-              <Body>
+              <Notice tone="warning" title={`Allow ${entity.name}?`}>
                 Only allow a lamp or a load you can safely switch. This
                 permission applies to this device in this home. Allowing it
                 sends no power request.
-              </Body>
+              </Notice>
               <Button
                 title="Allow this device"
                 disabled={saving || !active || !ready}
@@ -127,8 +141,9 @@ export function SwitchControl({
           ) : null}
         </View>
       )}
-      <View style={{ flexDirection: "row", gap: 12 }}>
+      <View style={control.actions}>
         {[true, false].map((on) => {
+          // The observed state is not an action: its side stays flat.
           const selected = entity.state === (on ? "on" : "off");
           const disabled = !!blocked || busy || selected;
           return (
@@ -139,25 +154,16 @@ export function SwitchControl({
               accessibilityState={{ disabled, busy }}
               disabled={disabled}
               onPress={() => send(on)}
-              style={({ pressed }) => [
-                styles.button,
-                {
-                  flex: 1,
-                  backgroundColor: selected
-                    ? colors.accentSurface
-                    : colors.raised,
-                  borderWidth: 1,
-                  borderColor: selected ? colors.accent : colors.border,
-                  opacity: blocked || busy || pressed ? 0.55 : 1,
-                },
+              style={({ pressed, hovered }: Interaction) => [
+                control.action,
+                selected && control.current,
+                hovered && !disabled && control.hovered,
+                pressed && !disabled && control.pressed,
+                (!!blocked || busy) && control.disabled,
               ]}
             >
-              <Text
-                style={[
-                  styles.buttonText,
-                  { color: selected ? colors.accent : colors.text },
-                ]}
-              >
+              {!disabled && <Icon name="power" size={18} color={colors.text} />}
+              <Text style={[control.actionText, disabled && control.muted]}>
                 {on ? "Turn on" : "Turn off"}
               </Text>
             </Pressable>
@@ -165,22 +171,31 @@ export function SwitchControl({
         })}
       </View>
       {blocked && <Body>{blocked}</Body>}
-      {outcome && (
+      {outcome && look && (
         <View
           accessibilityLiveRegion="polite"
           testID="switch-outcome"
-          style={{ gap: 8 }}
+          style={control.group}
         >
-          <Label>
-            Requested{" "}
-            {outcome.desired.intent.kind === "setSwitch" &&
-            outcome.desired.intent.on
-              ? "On"
-              : "Off"}
-          </Label>
-          <Body>{switchOutcomeText(outcome, mode === "demo")}</Body>
+          <Notice
+            tone={look.tone}
+            icon={look.icon}
+            title={`Requested ${
+              outcome.desired.intent.kind === "setSwitch" &&
+              outcome.desired.intent.on
+                ? "On"
+                : "Off"
+            }`}
+          >
+            {switchOutcomeText(outcome, mode === "demo")}
+          </Notice>
           {!busy && (
-            <Button title="Dismiss result" secondary onPress={dismissOutcome} />
+            <Button
+              title="Dismiss result"
+              variant="quiet"
+              style={control.dismiss}
+              onPress={dismissOutcome}
+            />
           )}
         </View>
       )}
@@ -192,3 +207,32 @@ export function SwitchControl({
     </Panel>
   );
 }
+const control = StyleSheet.create({
+  head: { gap: spacing.xs },
+  group: { gap: spacing.sm },
+  actions: { flexDirection: "row", gap: spacing.md },
+  action: {
+    flex: 1,
+    minHeight: minTouchTarget,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.control,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.raised,
+  },
+  current: { backgroundColor: "transparent", borderColor: colors.border },
+  hovered: { backgroundColor: colors.hover },
+  pressed: { backgroundColor: colors.accentSurface },
+  disabled: { opacity: 0.45 },
+  actionText: { ...typography.body, color: colors.text, fontWeight: "600" },
+  muted: { color: colors.muted },
+  dismiss: {
+    alignSelf: "flex-start",
+    paddingHorizontal: spacing.sm,
+    marginLeft: -spacing.sm,
+  },
+});

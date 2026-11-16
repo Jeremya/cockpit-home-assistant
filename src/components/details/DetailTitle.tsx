@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
-import { Body, styles } from "../ui";
-import { detailGap } from "./layout";
+import { Body, Label, styles } from "../ui";
+import { spacing } from "../../theme";
 
 /** The detail's one heading; the panel moves focus here when a detail opens. */
 export function DetailTitle({ children }: { children: string }) {
@@ -16,6 +16,24 @@ export function DetailTitle({ children }: { children: string }) {
     </View>
   );
 }
+/** Where the reading sits, its name and what it is: one header for every detail. */
+export function DetailHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <View style={{ gap: spacing.sm }}>
+      {!!eyebrow && <Label>{eyebrow}</Label>}
+      <DetailTitle>{title}</DetailTitle>
+      {!!description && <Body>{description}</Body>}
+    </View>
+  );
+}
 /** A target that cannot be shown: never a hint of another home's data. */
 export function DetailMessage({
   title,
@@ -24,12 +42,7 @@ export function DetailMessage({
   title: string;
   body: string;
 }) {
-  return (
-    <View style={{ gap: detailGap }}>
-      <DetailTitle>{title}</DetailTitle>
-      <Body>{body}</Body>
-    </View>
-  );
+  return <DetailHeader title={title} description={body} />;
 }
 export const notConnected = {
   title: "Not connected",

@@ -1,10 +1,26 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { switchOutcomeText } from "../../commands/switchControl";
 import type { EntityRecord, HomeSnapshot } from "../../core/types";
-import { minTouchTarget, radii, spacing, typography } from "../../theme";
+import {
+  colors,
+  layout,
+  minTouchTarget,
+  radii,
+  spacing,
+  typography,
+} from "../../theme";
 import { Icon } from "../EntityIcon";
-import { colors } from "../ui";
+import type { Interaction } from "../ui";
+import { outcomeTone } from "./outcomeTone";
 import { useSwitchCommand } from "./useSwitchCommand";
+
+const toneInk = {
+  neutral: colors.muted,
+  accent: colors.accent,
+  warning: colors.warning,
+  danger: colors.danger,
+  observed: colors.comfort,
+} as const;
 
 /** A card's sibling power target; enrollment stays in the device summary. */
 export function CompactPowerAction({
@@ -34,6 +50,7 @@ export function CompactPowerAction({
     (on === null
       ? "A known On or Off state is required for power control."
       : null);
+  const look = outcome ? outcomeTone(outcome) : null;
   return (
     <View style={action.container}>
       {allowed && (
@@ -47,9 +64,11 @@ export function CompactPowerAction({
           accessibilityState={{ disabled, busy }}
           disabled={disabled}
           onPress={() => on !== null && send(on)}
-          style={({ pressed }) => [
+          style={({ pressed, hovered }: Interaction) => [
             action.button,
-            { opacity: disabled || pressed ? 0.55 : 1 },
+            hovered && action.hovered,
+            pressed && action.pressed,
+            disabled && action.disabled,
           ]}
         >
           <Icon name="power" size={18} color={colors.text} />
@@ -61,26 +80,36 @@ export function CompactPowerAction({
       {allowed && explanation && (
         <Text style={action.muted}>{explanation}</Text>
       )}
-      {outcome && (
+      {outcome && look && (
         <View
           accessibilityLiveRegion="polite"
           testID="card-switch-outcome"
           style={action.outcome}
         >
-          <Text style={action.text}>
-            Requested{" "}
-            {outcome.desired.intent.kind === "setSwitch" &&
-            outcome.desired.intent.on
-              ? "On"
-              : "Off"}
-            : {switchOutcomeText(outcome, mode === "demo")}
-          </Text>
+          <View style={action.outcomeRow}>
+            <View style={action.outcomeIcon}>
+              <Icon name={look.icon} size={14} color={toneInk[look.tone]} />
+            </View>
+            <Text style={[action.text, action.outcomeText]}>
+              <Text style={[action.strong, { color: toneInk[look.tone] }]}>
+                Requested{" "}
+                {outcome.desired.intent.kind === "setSwitch" &&
+                outcome.desired.intent.on
+                  ? "On"
+                  : "Off"}
+              </Text>
+              : {switchOutcomeText(outcome, mode === "demo")}
+            </Text>
+          </View>
           {!busy && (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Dismiss result for ${entity.name}`}
               onPress={dismissOutcome}
-              style={action.dismiss}
+              style={({ pressed, hovered }: Interaction) => [
+                action.dismiss,
+                (hovered || pressed) && action.dismissActive,
+              ]}
             >
               <Text style={action.link}>Dismiss result</Text>
             </Pressable>
@@ -98,8 +127,8 @@ export function CompactPowerAction({
 const action = StyleSheet.create({
   container: {
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingHorizontal: layout.cardPadding,
+    paddingBottom: layout.cardPadding,
   },
   button: {
     minHeight: minTouchTarget,
@@ -109,14 +138,29 @@ const action = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.control,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
     backgroundColor: colors.raised,
   },
+  hovered: { backgroundColor: colors.hover },
+  pressed: { backgroundColor: colors.accentSurface },
+  disabled: { opacity: 0.45 },
   buttonText: { ...typography.body, color: colors.text, fontWeight: "600" },
-  outcome: { gap: spacing.xs },
+  outcome: { gap: 0 },
+  outcomeRow: { flexDirection: "row", gap: spacing.sm },
+  outcomeIcon: { paddingTop: 3 },
   text: { ...typography.secondary, color: colors.text },
+  outcomeText: { flex: 1 },
+  strong: { fontWeight: "600" },
   muted: { ...typography.secondary, color: colors.muted },
-  dismiss: { minHeight: minTouchTarget, justifyContent: "center" },
-  link: { ...typography.secondary, color: colors.accent },
+  dismiss: {
+    minHeight: minTouchTarget,
+    alignSelf: "flex-start",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    marginLeft: 14,
+    borderRadius: radii.control,
+  },
+  dismissActive: { backgroundColor: colors.raised },
+  link: { ...typography.secondary, color: colors.accent, fontWeight: "600" },
 });

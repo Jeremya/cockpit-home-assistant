@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useCockpit } from "../../core/store";
 import { getCapability } from "../../core/capabilities";
 import { assessEntity } from "../../core/policy";
@@ -12,12 +12,16 @@ import {
   openDeviceSummary,
   type DeviceDestination,
 } from "../../services/deviceNavigation";
+import { readingTint } from "../EntityCard";
 import { entityAppearance, Icon } from "../EntityIcon";
 import { SwitchControl } from "../controls/SwitchControl";
 import { CameraImageCard } from "../camera/CameraImageCard";
-import { Body, Button, Label, Panel, colors, styles } from "../ui";
+import { Body, Button, Caption, KeyValue, Label, Panel, colors } from "../ui";
+import { radii, spacing, typography } from "../../theme";
+import { SourceLabel, detail } from "./DeviceSummaryContent";
+import { FadeIn } from "../home/FadeIn";
 import { detailGap } from "./layout";
-import { DetailMessage, DetailTitle, notConnected } from "./DetailTitle";
+import { DetailHeader, DetailMessage, notConnected } from "./DetailTitle";
 
 export type ReadingDetailContentProps = {
   /** The home the target belongs to; another current home shows nothing of it. */
@@ -75,158 +79,199 @@ function ReadingBody({
   const cap = getCapability(entity, snapshot.config);
   const room = roomId(entity, snapshot, preferences);
   const favorite = preferences.favorites.includes(entity.key);
-  const { icon, tint } = entityAppearance(entity, status.kind === "ready");
-  const assessment = assessEntity(entity, status.kind === "ready");
+  const ready = status.kind === "ready";
+  const appearance = entityAppearance(entity, ready);
+  const { icon } = appearance;
+  // A known Off is a plain value: the active colour is for On only.
+  const tint = readingTint(entity, ready, appearance.tint);
+  const assessment = assessEntity(entity, ready);
   const device = entity.deviceId
     ? snapshot.devices[entity.deviceId]
     : undefined;
   return (
-    <View testID="reading-detail" style={{ gap: detailGap }}>
-      <Label>{room ? snapshot.areas[room]?.name : "Unassigned"}</Label>
-      <DetailTitle>{entity.name}</DetailTitle>
-      {device && (device.manufacturer || device.model) && (
-        <Body>
-          {[device.manufacturer, device.model].filter(Boolean).join(" · ")}
-        </Body>
-      )}
-      <Panel>
-        <View style={[styles.row, { marginBottom: 16 }]}>
-          <View
-            style={{
-              width: 58,
-              height: 58,
-              borderRadius: 19,
-              backgroundColor: `${tint}16`,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon name={icon} color={tint} size={28} />
-          </View>
-          <Body>{kindLabel[entity.domain]}</Body>
-        </View>
-        <Label>
-          {status.kind === "ready"
-            ? mode === "demo"
-              ? "Simulated observation"
-              : "As reported by Home Assistant"
-            : "Cached observation"}
-        </Label>
-        <Text
-          style={{
-            color: tint,
-            fontSize: 48,
-            fontWeight: "400",
-            letterSpacing: -1,
-            marginVertical: 8,
-          }}
-        >
-          {primaryValue(entity, snapshot.config)}
-        </Text>
-        {cap?.kind === "climate" && (
-          <Body>
-            Target:{" "}
-            {entity.attributes.temperature !== undefined
-              ? String(entity.attributes.temperature)
-              : `${String(entity.attributes.target_temp_low ?? "—")} – ${String(entity.attributes.target_temp_high ?? "—")}`}{" "}
-            {cap.unit}
-            {"\n"}Mode: {entity.state}
-          </Body>
-        )}
-        <Body>{assessment.explanation}</Body>
-        <Body>
-          {cap?.kind === "switch"
-            ? mode === "demo"
-              ? "Values are simulated inside Maurice. Sending a request does not change the observed value until the simulation reports it."
-              : "Values reflect the last state reported to Maurice. A fresh HA connection does not confirm a recent device poll."
-            : "Read-only observation. Values reflect the last state reported to Maurice. A fresh HA connection does not confirm a recent device poll."}
-        </Body>
-      </Panel>
-      {entity.domain === "camera" && (
-        <CameraImageCard
-          entity={entity}
-          profileId={profileId}
-          ready={status.kind === "ready"}
-        />
-      )}
-      {cap?.kind === "switch" && profileId && (
-        <SwitchControl
-          key={`${profileId}:${snapshot.sessionId}:${entity.key}:${entity.entityId}`}
-          entity={entity}
-          snapshot={snapshot}
-          profileId={profileId}
-          mode={mode}
-          ready={status.kind === "ready"}
-        />
-      )}
-      {entity.deviceId && profileId && isVisible(entity, preferences) && (
-        <Button
-          title="All readings for this device"
-          secondary
-          onPress={() =>
-            openDeviceSummary(profileId, entity.deviceId!, onOpenDevice)
+    // Native eases a detail in; web and reduced motion show it at once.
+    <FadeIn>
+      <View testID="reading-detail" style={{ gap: detailGap }}>
+        <DetailHeader
+          eyebrow={room ? snapshot.areas[room]?.name : "Unassigned"}
+          title={entity.name}
+          description={
+            device && (device.manufacturer || device.model)
+              ? [device.manufacturer, device.model].filter(Boolean).join(" · ")
+              : undefined
           }
         />
-      )}
-      <Button
-        title={favorite ? "Remove from favorites" : "Add to favorites"}
-        secondary
-        onPress={() =>
-          session.updatePreferences((p) => ({
-            ...p,
-            favorites: favorite
-              ? p.favorites.filter((value) => value !== entity.key)
-              : [...p.favorites, entity.key],
-          }))
-        }
-      />
-      <Panel>
-        <Label>Observation details</Label>
-        <Body>
-          Entity: {entity.entityId}
-          {"\n"}Last changed: {new Date(entity.lastChanged).toLocaleString()}
-          {"\n"}Last updated: {new Date(entity.lastUpdated).toLocaleString()}
-          {"\n"}Snapshot received:{" "}
-          {new Date(snapshot.receivedAt).toLocaleString()}
-          {"\n"}Availability:{" "}
-          {["unknown", "unavailable"].includes(entity.state)
-            ? entity.state
-            : "Reported available"}
-        </Body>
-        {entity.domain === "lock" && (
-          <Body>
-            Cloud integrations can report physical changes with a delay. Polling
-            integrations may take about 30 seconds.
-          </Body>
-        )}
-      </Panel>
-      <Button
-        title={raw ? "Hide attributes" : "Show raw attributes"}
-        secondary
-        onPress={() => setRaw(!raw)}
-      />
-      {raw && (
         <Panel>
+          <View style={reading.source}>
+            <View style={[reading.icon, { backgroundColor: `${tint}1c` }]}>
+              <Icon name={icon} color={tint} size={22} />
+            </View>
+            <View style={reading.sourceCopy}>
+              <SourceLabel ready={ready} demo={mode === "demo"} />
+              <Caption>{kindLabel[entity.domain]}</Caption>
+            </View>
+          </View>
           <Text
-            selectable
-            style={{
-              color: colors.muted,
-              fontFamily: "monospace",
-              fontSize: 12,
-            }}
+            style={[
+              detail.hero,
+              {
+                color: readingTint(entity, ready, appearance.tint, colors.text),
+              },
+            ]}
           >
-            {JSON.stringify(
-              Object.fromEntries(
-                Object.entries(entity.attributes).filter(
-                  ([name]) => !/token|secret|password|url/i.test(name),
-                ),
-              ),
-              null,
-              2,
-            )}
+            {primaryValue(entity, snapshot.config)}
           </Text>
+          {cap?.kind === "climate" && (
+            <View>
+              <KeyValue
+                label="Target"
+                value={`${
+                  entity.attributes.temperature !== undefined
+                    ? String(entity.attributes.temperature)
+                    : `${String(entity.attributes.target_temp_low ?? "—")} – ${String(entity.attributes.target_temp_high ?? "—")}`
+                } ${cap.unit}`}
+              />
+              <KeyValue label="Mode" value={entity.state} last />
+            </View>
+          )}
+          <Body style={reading.assessment}>{assessment.explanation}</Body>
+          <View style={detail.footnotes}>
+            <Caption>
+              {cap?.kind === "switch"
+                ? mode === "demo"
+                  ? "Values are simulated inside Maurice. Sending a request does not change the observed value until the simulation reports it."
+                  : "Values reflect the last state reported to Maurice. A fresh HA connection does not confirm a recent device poll."
+                : "Read-only observation. Values reflect the last state reported to Maurice. A fresh HA connection does not confirm a recent device poll."}
+            </Caption>
+          </View>
         </Panel>
-      )}
-    </View>
+        {entity.domain === "camera" && (
+          <CameraImageCard
+            entity={entity}
+            profileId={profileId}
+            ready={ready}
+          />
+        )}
+        {cap?.kind === "switch" && profileId && (
+          <SwitchControl
+            key={`${profileId}:${snapshot.sessionId}:${entity.key}:${entity.entityId}`}
+            entity={entity}
+            snapshot={snapshot}
+            profileId={profileId}
+            mode={mode}
+            ready={ready}
+          />
+        )}
+        <View style={reading.actions}>
+          {entity.deviceId && profileId && isVisible(entity, preferences) && (
+            <Button
+              title="All readings for this device"
+              secondary
+              icon="list"
+              style={reading.action}
+              onPress={() =>
+                openDeviceSummary(profileId, entity.deviceId!, onOpenDevice)
+              }
+            />
+          )}
+          <Button
+            title={favorite ? "Remove from favorites" : "Add to favorites"}
+            secondary
+            icon="star"
+            style={reading.action}
+            onPress={() =>
+              session.updatePreferences((p) => ({
+                ...p,
+                favorites: favorite
+                  ? p.favorites.filter((value) => value !== entity.key)
+                  : [...p.favorites, entity.key],
+              }))
+            }
+          />
+        </View>
+        <Panel>
+          <Label tone="neutral">Observation details</Label>
+          <View>
+            <KeyValue label="Entity" value={entity.entityId} />
+            <KeyValue
+              label="Last changed"
+              value={new Date(entity.lastChanged).toLocaleString()}
+            />
+            <KeyValue
+              label="Last updated"
+              value={new Date(entity.lastUpdated).toLocaleString()}
+            />
+            <KeyValue
+              label="Snapshot received"
+              value={new Date(snapshot.receivedAt).toLocaleString()}
+            />
+            <KeyValue
+              label="Availability"
+              value={
+                ["unknown", "unavailable"].includes(entity.state)
+                  ? entity.state
+                  : "Reported available"
+              }
+              last
+            />
+          </View>
+          {entity.domain === "lock" && (
+            <Caption>
+              Cloud integrations can report physical changes with a delay.
+              Polling integrations may take about 30 seconds.
+            </Caption>
+          )}
+          <Button
+            title={raw ? "Hide attributes" : "Show raw attributes"}
+            variant="quiet"
+            accessibilityExpanded={raw}
+            style={reading.disclosure}
+            onPress={() => setRaw(!raw)}
+          />
+          {raw && (
+            <Text selectable style={reading.raw}>
+              {JSON.stringify(
+                Object.fromEntries(
+                  Object.entries(entity.attributes).filter(
+                    ([name]) => !/token|secret|password|url/i.test(name),
+                  ),
+                ),
+                null,
+                2,
+              )}
+            </Text>
+          )}
+        </Panel>
+      </View>
+    </FadeIn>
   );
 }
+const reading = StyleSheet.create({
+  source: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  icon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.control,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sourceCopy: { flex: 1, minWidth: 0, gap: 2 },
+  assessment: { color: colors.text },
+  // Side by side where both fit; each keeps a full 48 dp row otherwise.
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  action: { flexGrow: 1, flexBasis: 220 },
+  // The label aligns with the column; the padding keeps the 48 dp target.
+  disclosure: {
+    alignSelf: "flex-start",
+    paddingHorizontal: spacing.sm,
+    marginLeft: -spacing.sm,
+  },
+  raw: {
+    ...typography.caption,
+    color: colors.muted,
+    fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
+    padding: spacing.md,
+    borderRadius: radii.control,
+    backgroundColor: colors.background,
+  },
+});

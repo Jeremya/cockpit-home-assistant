@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../EntityIcon";
-import { colors } from "../ui";
+import { colors, type Interaction } from "../ui";
 import { minTouchTarget, radii, spacing, typography } from "../../theme";
 
 /** The desktop panel's frame: a step back inside the panel, a named exit and
@@ -35,7 +35,11 @@ export function DetailPane({
               accessibilityRole="button"
               accessibilityLabel="Back to previous detail"
               onPress={onBack}
-              style={({ pressed }) => [pane.action, pressed && pane.pressed]}
+              style={({ pressed, hovered }: Interaction) => [
+                pane.action,
+                hovered && pane.hovered,
+                pressed && pane.pressed,
+              ]}
             >
               <Icon name="chevron-left" size={18} color={colors.text} />
               <Text style={pane.label}>Back</Text>
@@ -46,7 +50,11 @@ export function DetailPane({
             accessibilityRole="button"
             accessibilityLabel="Close details"
             onPress={onClose}
-            style={({ pressed }) => [pane.action, pressed && pane.pressed]}
+            style={({ pressed, hovered }: Interaction) => [
+              pane.action,
+              hovered && pane.hovered,
+              pressed && pane.pressed,
+            ]}
           >
             <Icon name="x" size={18} color={colors.text} />
             <Text style={pane.label}>Close</Text>
@@ -60,7 +68,7 @@ export function DetailPane({
 const pane = StyleSheet.create({
   container: {
     flex: 1,
-    borderLeftWidth: 1,
+    borderLeftWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.background,
     minHeight: 0,
@@ -71,7 +79,7 @@ const pane = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
   action: {
@@ -84,7 +92,8 @@ const pane = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radii.control,
   },
-  pressed: { opacity: 0.6 },
+  hovered: { backgroundColor: colors.raised },
+  pressed: { backgroundColor: colors.hover },
   label: { ...typography.secondary, color: colors.text, fontWeight: "600" },
   // The only scroll container is the route adapter inside this bounded body.
   body: { flex: 1, minHeight: 0 },

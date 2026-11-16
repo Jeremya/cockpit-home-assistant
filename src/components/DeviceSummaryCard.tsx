@@ -2,16 +2,16 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { primarySwitch } from "../commands/switchControl";
 import type { DeviceSummary } from "../core/deviceSummaries";
 import { presentDevice } from "../core/devicePresentation";
-import { getCondition } from "../core/policy";
 import { primaryValue } from "../core/presentation";
 import { useCockpit } from "../core/store";
 import type { HomeSnapshot } from "../core/types";
 import { openDeviceSummary } from "../services/deviceNavigation";
 import { focusOriginId } from "../navigation/detailNavigation";
 import { CompactPowerAction } from "./controls/CompactPowerAction";
+import { readingTint } from "./EntityCard";
 import { entityAppearance, Icon } from "./EntityIcon";
-import { colors } from "./ui";
-import { radii, spacing, typography } from "../theme";
+import { colors, type Interaction } from "./ui";
+import { layout, radii, spacing, typography } from "../theme";
 
 export function DeviceSummaryCard({
   summary,
@@ -38,16 +38,14 @@ export function DeviceSummaryCard({
   const appearance = entityAppearance(shown, ready);
   const { icon } = appearance;
   // Only a ready, qualified On observation gets the active color; never a request.
-  const tint =
-    shown.domain === "switch" &&
-    !["unknown", "unavailable", "stale"].includes(getCondition(shown, ready))
-      ? ready && shown.state === "on"
-        ? appearance.tint
-        : colors.muted
-      : appearance.tint;
+  const tint = readingTint(shown, ready, appearance.tint);
+  // A reading count is not an observation: the subtitle already states it.
+  const leads = !!primary || display.feeder;
   const supporting = display.feeder
     ? display.rows.slice(1, 4)
-    : display.rows.filter((row) => row.key !== primary?.key).slice(0, 2);
+    : leads
+      ? display.rows.filter((row) => row.key !== primary?.key).slice(0, 2)
+      : display.rows.slice(0, 3);
   // Sibling targets: opening the detail and requesting power never nest.
   return (
     <View style={card.container}>
@@ -55,24 +53,28 @@ export function DeviceSummaryCard({
         nativeID={focusOriginId("device", summary.id)}
         accessibilityRole="button"
         accessibilityLabel={`Open device: ${summary.name}`}
-        accessibilityHint={`${headline}. ${display.qualifiers.join(". ")} Opens related readings.`}
+        accessibilityHint={`${summary.roomLabel}. ${headline}. ${display.qualifiers.join(". ")} Opens related readings.`}
         onPress={() =>
           summary.deviceId &&
           openDeviceSummary(summary.profileId, summary.deviceId)
         }
-        style={({ pressed }) => [card.open, { opacity: pressed ? 0.7 : 1 }]}
+        style={({ pressed, hovered }: Interaction) => [
+          card.open,
+          hovered && card.hovered,
+          pressed && card.pressed,
+        ]}
       >
         <View style={card.header}>
-          <View style={[card.icon, { backgroundColor: `${tint}16` }]}>
+          <View style={[card.icon, { backgroundColor: `${tint}1c` }]}>
             <Icon
               name={display.feeder ? "package" : icon}
               color={tint}
-              size={23}
+              size={20}
             />
           </View>
-          <View style={{ flex: 1, minWidth: 0, gap: spacing.xs }}>
+          <View style={card.heading}>
             <Text style={card.name}>{summary.name}</Text>
-            <Text style={card.muted}>
+            <Text style={card.meta}>
               {summary.roomLabel} · {summary.members.length}{" "}
               {summary.members.length === 1 ? "reading" : "readings"}
             </Text>
@@ -82,24 +84,41 @@ export function DeviceSummaryCard({
           )}
           <Icon name="chevron-right" size={18} />
         </View>
-        {display.feeder && <Text style={card.muted}>Last reported feed</Text>}
-        <Text style={[card.value, { color: tint }]}>{headline}</Text>
-        {supporting.map((row) => (
-          <View key={row.key ?? row.label} style={card.reading}>
-            <Text style={[card.muted, { flex: 1 }]}>{row.label}</Text>
-            <Text style={card.readingValue}>{row.value}</Text>
+        {leads && (
+          <View style={card.lead}>
+            {display.feeder && (
+              <Text style={card.meta}>Last reported feed</Text>
+            )}
+            <Text style={[card.value, { color: tint }]}>{headline}</Text>
           </View>
-        ))}
+        )}
+        {!!supporting.length && (
+          <View style={card.readings}>
+            {supporting.map((row) => (
+              <View key={row.key ?? row.label} style={card.reading}>
+                <Text style={card.readingLabel}>{row.label}</Text>
+                <Text style={card.readingValue}>{row.value}</Text>
+              </View>
+            ))}
+          </View>
+        )}
         {display.qualifiers.map((qualifier) => (
-          <Text
-            key={qualifier}
-            style={[
-              card.muted,
-              { color: ready ? colors.warning : colors.muted },
-            ]}
-          >
-            {qualifier}
-          </Text>
+          <View key={qualifier} style={card.qualifier}>
+            <Icon
+              name={ready ? "alert-circle" : "clock"}
+              size={14}
+              color={ready ? colors.warning : colors.muted}
+            />
+            <Text
+              style={[
+                card.meta,
+                card.qualifierText,
+                { color: ready ? colors.warning : colors.muted },
+              ]}
+            >
+              {qualifier}
+            </Text>
+          </View>
         ))}
       </Pressable>
       {power && (
@@ -116,51 +135,60 @@ export function DeviceSummaryCard({
   );
 }
 const card = StyleSheet.create({
+  // Fills its grid cell, so the cards of one row end on the same line.
   container: {
+    flexGrow: 1,
     borderRadius: radii.card,
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  open: { padding: spacing.md, gap: spacing.sm, borderRadius: radii.card },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
+  open: {
+    flexGrow: 1,
+    padding: layout.cardPadding,
     gap: spacing.md,
-    marginBottom: spacing.xs,
+    borderRadius: radii.card,
   },
+  hovered: { backgroundColor: colors.raised },
+  pressed: { backgroundColor: colors.hover },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   icon: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 11,
+    borderRadius: radii.control,
   },
-  name: {
-    ...typography.name,
-    fontSize: 15,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  muted: { ...typography.secondary, color: colors.muted, fontSize: 12 },
+  heading: { flex: 1, minWidth: 0, gap: 2 },
+  name: { ...typography.name, color: colors.text, fontWeight: "600" },
+  meta: { ...typography.caption, color: colors.muted },
+  lead: { gap: 2 },
   value: {
     ...typography.value,
-    fontSize: 22,
-    lineHeight: 28,
     fontWeight: "600",
+    letterSpacing: -0.4,
     fontVariant: ["tabular-nums"],
+  },
+  readings: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   reading: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "baseline",
-    columnGap: spacing.sm,
+    columnGap: spacing.md,
   },
+  readingLabel: { ...typography.secondary, color: colors.muted, flex: 1 },
   readingValue: {
     ...typography.secondary,
     color: colors.text,
+    fontWeight: "500",
     flexShrink: 1,
-    fontSize: 12,
     fontVariant: ["tabular-nums"],
   },
+  qualifier: { flexDirection: "row", alignItems: "center", gap: 6 },
+  qualifierText: { flex: 1 },
 });

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { DeviceSummaryContent } from "../components/details/DeviceSummaryContent";
-import { styles } from "../components/ui";
+import { Screen } from "../components/ui";
+import { useWorkspacePanel } from "../navigation/workspacePanel";
 
 /** Route adapter: parameters and the only scroll container; content is shared. */
 export function DeviceSummaryScreen() {
@@ -11,11 +12,12 @@ export function DeviceSummaryScreen() {
     profile: string;
   }>();
   const [width, setWidth] = useState(0);
+  const { paneled } = useWorkspacePanel();
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <Screen narrow={paneled}>
       <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
         <DeviceSummaryContent profileId={profile} deviceId={id} width={width} />
       </View>
-    </ScrollView>
+    </Screen>
   );
 }
