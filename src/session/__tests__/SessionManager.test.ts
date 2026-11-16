@@ -3,6 +3,13 @@ import { DemoBackend } from "../demo/DemoBackend";
 import { SessionManager } from "../SessionManager";
 import { BackendEvents } from "../types";
 import { Credentials } from "../../services/credentials";
+import {
+  cameraCacheKey,
+  clearCameraCache,
+  readCameraCache,
+  writeCameraCache,
+  type CameraImageResult,
+} from "../../services/cameraImage";
 import { PreferencesStorage } from "../../preferences/storage";
 import { useCockpit } from "../../core/store";
 import type {
@@ -170,6 +177,57 @@ test("Forget removes saved A after an unsuccessful attempt to connect to B", asy
   });
   await manager.forget();
   expect(await credentials.load()).toBeNull();
+});
+describe("Forget and cached camera frames", () => {
+  const other = "https://c.example";
+  const frame = {
+    kind: "image",
+    dataUri: "data:image/png;base64,AAAA",
+    contentType: "image/png",
+    fetchedAt: "2026-10-26T12:00:00.000Z",
+    capturedAt: null,
+  } satisfies CameraImageResult;
+  const frameOf = (origin: string) =>
+    cameraCacheKey(profileIdFor(origin), "entity:camera.front_door");
+  afterEach(() => {
+    for (const origin of [a.url, b.url, other])
+      clearCameraCache(profileIdFor(origin));
+  });
+
+  test("Forget drops the forgotten home's frames and keeps another home's", async () => {
+    setup();
+    await manager.connect(a);
+    writeCameraCache(frameOf(a.url), frame);
+    writeCameraCache(frameOf(other), frame);
+    await manager.forget();
+    expect(readCameraCache(frameOf(a.url))).toBeUndefined();
+    expect(readCameraCache(frameOf(other))).toEqual(frame);
+  });
+
+  test("Forget drops the frames of the saved home it removes while another attempt is current", async () => {
+    const { credentials } = setup([undefined, { code: "auth_invalid" }]);
+    await manager.connect(a);
+    await expect(manager.connect(b)).rejects.toMatchObject({
+      code: "auth_invalid",
+    });
+    writeCameraCache(frameOf(a.url), frame);
+    writeCameraCache(frameOf(other), frame);
+    await manager.forget();
+    expect(await credentials.load()).toBeNull();
+    expect(readCameraCache(frameOf(a.url))).toBeUndefined();
+    expect(readCameraCache(frameOf(other))).toEqual(frame);
+  });
+
+  test("Forget drops the active home's frames even when stored credentials cannot be read", async () => {
+    const { credentials } = setup();
+    await manager.connect(a);
+    writeCameraCache(frameOf(a.url), frame);
+    jest
+      .spyOn(credentials, "load")
+      .mockRejectedValue(new Error("storage unavailable"));
+    await expect(manager.forget()).rejects.toThrow("storage unavailable");
+    expect(readCameraCache(frameOf(a.url))).toBeUndefined();
+  });
 });
 test("Retry targets the requested HA when preferences failed before backend construction", async () => {
   const { preferences } = setup();

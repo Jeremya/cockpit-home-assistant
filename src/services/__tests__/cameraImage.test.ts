@@ -13,12 +13,18 @@ import {
   type CameraImageResult,
 } from "../cameraImage";
 
+/**
+ * A response as every platform fetch gives it: the body is read through
+ * `arrayBuffer()`. Passing `blob` instead models a transport that only offers a
+ * Blob, so the response then has no `arrayBuffer()` at all.
+ */
 function response(
   status: number,
   options: {
     url?: string;
     headers?: Record<string, string>;
     body?: Uint8Array | string;
+    arrayBuffer?: () => Promise<ArrayBuffer>;
     blob?: () => Promise<Blob>;
   } = {},
 ): CameraFetchResponse {
@@ -26,30 +32,38 @@ function response(
     options.body instanceof Uint8Array
       ? options.body
       : new TextEncoder().encode(options.body ?? "");
-  return {
+  const head = {
     status,
     ok: status >= 200 && status < 300,
     url: options.url ?? "https://ha.example/api/camera_proxy/camera.door",
     headers: {
       get: (name: string) => options.headers?.[name.toLowerCase()] ?? null,
     },
-    blob:
-      options.blob ??
-      (async () =>
-        new Blob([body.buffer as ArrayBuffer], {
-          type: options.headers?.["content-type"] ?? "image/png",
-        })),
   };
+  if (options.blob) return { ...head, blob: options.blob };
+  return {
+    ...head,
+    arrayBuffer: options.arrayBuffer ?? (async () => bufferOf(body)),
+  };
+}
+function bufferOf(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
 }
 
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+/** The eight PNG signature bytes above, as the data URI they must become. */
+const pngDataUri = "data:image/png;base64,iVBORw0KGgo=";
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const request = {
   uri: "https://ha.example/api/camera_proxy/camera.door",
   headers: { Authorization: "Bearer secret-token" },
 };
 const imageHeaders = { "content-type": "image/png" };
-/** A body the server never finishes sending. */
-const stalledBody = () => new Promise<Blob>(() => {});
+/** A body the server never finishes sending, on either read path. */
+const stalled = <T>() => new Promise<T>(() => {});
 /** Records how a retrieval settles; `fetchCameraImage` must never reject. */
 function settlement(retrieval: Promise<CameraImageResult>) {
   const settled = jest.fn<void, [CameraImageResult]>();
@@ -277,19 +291,139 @@ describe("fetchCameraImage", () => {
   });
 });
 
-describe("fetchCameraImage after the headers arrive", () => {
-  test("maps a body read that rejects to a network error", async () => {
-    const fetchImpl: CameraFetch = jest.fn(async () =>
-      response(200, {
-        headers: imageHeaders,
-        blob: () => Promise.reject(new Error("connection reset")),
-      }),
-    );
-    await expect(fetchCameraImage(request, { fetchImpl })).resolves.toEqual({
+describe("fetchCameraImage body read", () => {
+  const retrieve = (served: CameraFetchResponse) =>
+    fetchCameraImage(request, { fetchImpl: jest.fn(async () => served) });
+  const blobOf = (bytes: Uint8Array) => async () =>
+    new Blob([bufferOf(bytes)], { type: "image/png" });
+
+  test("reads the bytes through arrayBuffer, with no Blob involved", async () => {
+    const served = response(200, { headers: imageHeaders, body: png });
+    expect(served.blob).toBeUndefined();
+    await expect(retrieve(served)).resolves.toMatchObject({
+      kind: "image",
+      dataUri: pngDataUri,
+      contentType: "image/png",
+    });
+  });
+
+  test("prefers arrayBuffer when the response also offers a Blob", async () => {
+    const blob = jest.fn(blobOf(new Uint8Array([1, 2, 3])));
+    const served = {
+      ...response(200, { headers: imageHeaders, body: png }),
+      blob,
+    };
+    await expect(retrieve(served)).resolves.toMatchObject({
+      kind: "image",
+      dataUri: pngDataUri,
+    });
+    expect(blob).not.toHaveBeenCalled();
+  });
+
+  test("falls back to the Blob when the response offers nothing else", async () => {
+    const served = response(200, { headers: imageHeaders, blob: blobOf(png) });
+    expect(served.arrayBuffer).toBeUndefined();
+    await expect(retrieve(served)).resolves.toMatchObject({
+      kind: "image",
+      dataUri: pngDataUri,
+      contentType: "image/png",
+    });
+  });
+
+  test("reports a response with no way to read its body as a network error", async () => {
+    const { status, ok, url, headers } = response(200, {
+      headers: imageHeaders,
+      body: png,
+    });
+    const unreadable: CameraFetchResponse = { status, ok, url, headers };
+    await expect(retrieve(unreadable)).resolves.toEqual({
       kind: "error",
       reason: "network",
     });
   });
+
+  test.each<[string, (bytes: Uint8Array) => CameraFetchResponse]>([
+    [
+      "arrayBuffer",
+      (bytes) =>
+        response(200, {
+          headers: imageHeaders,
+          arrayBuffer: async () => bufferOf(bytes),
+        }),
+    ],
+    [
+      "Blob",
+      (bytes) => response(200, { headers: imageHeaders, blob: blobOf(bytes) }),
+    ],
+  ])("bounds the bytes actually read through %s", async (_path, serve) => {
+    await expect(
+      retrieve(serve(new Uint8Array(MAX_IMAGE_BYTES + 1))),
+    ).resolves.toEqual({ kind: "error", reason: "too_large" });
+    await expect(
+      retrieve(serve(new Uint8Array(MAX_IMAGE_BYTES))),
+    ).resolves.toMatchObject({ kind: "image" });
+    await expect(retrieve(serve(new Uint8Array(0)))).resolves.toEqual({
+      kind: "empty",
+    });
+  });
+
+  test("encodes the same data URI without Buffer, the branch a phone or browser runtime takes", async () => {
+    // Every byte value, a length that is not a multiple of three, and more
+    // than one encoding chunk.
+    const bytes = Uint8Array.from(
+      { length: 0x8000 * 2 + 5 },
+      (_, index) => (index * 31) % 256,
+    );
+    const expected = `data:image/png;base64,${Buffer.from(bytes).toString("base64")}`;
+    const runtime = globalThis as { Buffer?: typeof Buffer };
+    const nodeBuffer = runtime.Buffer;
+    let result: CameraImageResult;
+    try {
+      runtime.Buffer = undefined;
+      result = await retrieve(
+        response(200, { headers: imageHeaders, body: bytes }),
+      );
+    } finally {
+      runtime.Buffer = nodeBuffer;
+    }
+    expect(result.kind === "image" && result.dataUri === expected).toBe(true);
+  });
+
+  test("does not report a body read that yields no buffer as an empty image", async () => {
+    const served = response(200, {
+      headers: imageHeaders,
+      arrayBuffer: async () => undefined as unknown as ArrayBuffer,
+    });
+    await expect(retrieve(served)).resolves.toEqual({
+      kind: "error",
+      reason: "network",
+    });
+  });
+
+  test.each<[string, CameraFetchResponse]>([
+    [
+      "arrayBuffer",
+      response(200, {
+        headers: imageHeaders,
+        arrayBuffer: () => Promise.reject(new Error("connection reset")),
+      }),
+    ],
+    [
+      "Blob",
+      response(200, {
+        headers: imageHeaders,
+        blob: () => Promise.reject(new Error("connection reset")),
+      }),
+    ],
+  ])(
+    "maps a %s read that rejects to a network error",
+    async (_path, served) => {
+      await expect(retrieve(served)).resolves.toEqual({
+        kind: "error",
+        reason: "network",
+      });
+    },
+  );
 
   test("maps a blob whose bytes cannot be read to a network error", async () => {
     const unreadable = {
@@ -306,7 +440,7 @@ describe("fetchCameraImage after the headers arrive", () => {
     });
   });
 
-  test("maps a platform Blob without arrayBuffer to a network error", async () => {
+  test("maps a Blob-only response whose Blob has no arrayBuffer to a network error", async () => {
     // React Native's own Blob exposes size and type but no byte access.
     const opaque = { size: png.byteLength, type: "image/png" } as Blob;
     const fetchImpl: CameraFetch = jest.fn(async () =>
@@ -317,24 +451,41 @@ describe("fetchCameraImage after the headers arrive", () => {
       reason: "network",
     });
   });
+});
 
+describe("fetchCameraImage after the headers arrive", () => {
   test.each([
     ["empty", ""],
     ["unparseable", "not a url"],
   ])(
     "refuses a response whose final URL is %s without reading its body",
     async (_label, url) => {
-      const blob = jest.fn(async () => new Blob([png.buffer as ArrayBuffer]));
-      const fetchImpl: CameraFetch = jest.fn(async () =>
-        response(200, { url, headers: imageHeaders, blob }),
-      );
+      const arrayBuffer = jest.fn(async () => bufferOf(png));
+      const blob = jest.fn(async () => new Blob([bufferOf(png)]));
+      const fetchImpl: CameraFetch = jest.fn(async () => ({
+        ...response(200, { url, headers: imageHeaders, arrayBuffer }),
+        blob,
+      }));
       await expect(fetchCameraImage(request, { fetchImpl })).resolves.toEqual({
         kind: "error",
         reason: "unverified_origin",
       });
+      expect(arrayBuffer).not.toHaveBeenCalled();
       expect(blob).not.toHaveBeenCalled();
     },
   );
+
+  test("does not read the body of a response that is not an image", async () => {
+    const arrayBuffer = jest.fn(async () => bufferOf(png));
+    const fetchImpl: CameraFetch = jest.fn(async () =>
+      response(200, { headers: { "content-type": "text/html" }, arrayBuffer }),
+    );
+    await expect(fetchCameraImage(request, { fetchImpl })).resolves.toEqual({
+      kind: "error",
+      reason: "not_an_image",
+    });
+    expect(arrayBuffer).not.toHaveBeenCalled();
+  });
 
   test("does not attribute a status to Home Assistant when the origin is unproven", async () => {
     for (const [url, reason] of [
@@ -387,6 +538,16 @@ describe("fetchCameraImage after the headers arrive", () => {
       }),
     ],
     [
+      "throws from arrayBuffer() synchronously",
+      async () =>
+        response(200, {
+          headers: imageHeaders,
+          arrayBuffer: () => {
+            throw new TypeError("body already used");
+          },
+        }),
+    ],
+    [
       "throws from blob() synchronously",
       async () =>
         response(200, {
@@ -423,19 +584,46 @@ describe("fetchCameraImage deadline and abort", () => {
     expect(settled).toHaveBeenCalledWith({ kind: "error", reason: "timeout" });
   });
 
-  test("times out when the body is still being read at the deadline, and stops the transport", async () => {
-    let transport: AbortSignal | undefined;
-    const fetchImpl: CameraFetch = jest.fn(async (_url, init) => {
-      transport = init.signal;
-      return response(200, { headers: imageHeaders, blob: stalledBody });
-    });
+  test.each<[string, () => CameraFetchResponse]>([
+    [
+      "arrayBuffer",
+      () =>
+        response(200, { headers: imageHeaders, arrayBuffer: () => stalled() }),
+    ],
+    ["Blob", () => response(200, { headers: imageHeaders, blob: stalled })],
+  ])(
+    "times out when %s is still being read at the deadline, and stops the transport",
+    async (_path, serve) => {
+      let transport: AbortSignal | undefined;
+      const fetchImpl: CameraFetch = jest.fn(async (_url, init) => {
+        transport = init.signal;
+        return serve();
+      });
+      const settled = settlement(fetchCameraImage(request, { fetchImpl }));
+      await jest.advanceTimersByTimeAsync(14_999);
+      expect(settled).not.toHaveBeenCalled();
+      expect(transport?.aborted).toBe(false);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(settled).toHaveBeenCalledWith({
+        kind: "error",
+        reason: "timeout",
+      });
+      expect(transport?.aborted).toBe(true);
+    },
+  );
+
+  test("times out when the Blob arrives but its bytes do not", async () => {
+    const pending = {
+      size: png.byteLength,
+      type: "image/png",
+      arrayBuffer: () => stalled<ArrayBuffer>(),
+    } as unknown as Blob;
+    const fetchImpl: CameraFetch = jest.fn(async () =>
+      response(200, { headers: imageHeaders, blob: async () => pending }),
+    );
     const settled = settlement(fetchCameraImage(request, { fetchImpl }));
-    await jest.advanceTimersByTimeAsync(14_999);
-    expect(settled).not.toHaveBeenCalled();
-    expect(transport?.aborted).toBe(false);
-    await jest.advanceTimersByTimeAsync(1);
+    await jest.advanceTimersByTimeAsync(15_000);
     expect(settled).toHaveBeenCalledWith({ kind: "error", reason: "timeout" });
-    expect(transport?.aborted).toBe(true);
   });
 
   test("spends one 15 s budget across redirect hops, not one per hop", async () => {
@@ -463,7 +651,10 @@ describe("fetchCameraImage deadline and abort", () => {
     let transport: AbortSignal | undefined;
     const fetchImpl: CameraFetch = jest.fn(async (_url, init) => {
       transport = init.signal;
-      return response(200, { headers: imageHeaders, blob: stalledBody });
+      return response(200, {
+        headers: imageHeaders,
+        arrayBuffer: () => stalled(),
+      });
     });
     const settled = settlement(
       fetchCameraImage(request, { fetchImpl, signal: caller.signal }),

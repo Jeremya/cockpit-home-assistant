@@ -10,13 +10,19 @@ import {
  * Loopback proof for the camera image transport (I01). Two local origins are
  * driven through the real `fetchCameraImage` with a fake bearer. The second
  * origin must receive no request — and therefore no credential — on a
- * cross-origin redirect. Two further cases use the platform `fetch` of this
- * Node process against real sockets: a body cut after the headers, and a caller
- * abort while the body is stalled. No configured HA or physical device is
- * contacted.
+ * cross-origin redirect; what each origin received is recorded by the origin
+ * itself, not by the client.
+ *
+ * The redirect paths run twice: through a minimal transport that only offers a
+ * Blob and cannot follow a redirect, and through the platform `fetch` of this
+ * Node process, which reads `response.arrayBuffer()` as the app does and would
+ * follow a redirect if `redirect: "manual"` were not honoured. The platform
+ * `fetch` also covers a body cut after the headers and a caller abort while the
+ * body is stalled. No configured HA or physical device is contacted.
  */
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_DATA_URI = `data:image/png;base64,${PNG.toString("base64")}`;
 const BEARER = "camera-proof-token";
 
 interface Seen {
@@ -89,9 +95,18 @@ function nodeFetch(seen: Seen[]): CameraFetch {
     });
 }
 
+/** What a loopback origin actually received, recorded by the server itself. */
+function record(received: Seen[], req: http.IncomingMessage) {
+  received.push({
+    path: req.url ?? "",
+    authorization: req.headers.authorization ?? null,
+  });
+}
+
 async function main() {
-  const seenB: Seen[] = [];
-  const originB = await startServer((_req, res) => {
+  const receivedB: Seen[] = [];
+  const originB = await startServer((req, res) => {
+    record(receivedB, req);
     res.writeHead(200, { "content-type": "image/png" });
     res.end(PNG);
   });
@@ -108,7 +123,9 @@ async function main() {
   });
 
   const seenA: Seen[] = [];
+  const receivedA: Seen[] = [];
   const originA = await startServer((req, res) => {
+    record(receivedA, req);
     if (req.url === "/truncated") {
       // Headers and a first chunk, then the connection drops mid-body.
       res.writeHead(200, {
@@ -154,6 +171,7 @@ async function main() {
     );
     assert.equal(direct.kind, "image");
     assert(direct.kind === "image" && !direct.dataUri.includes(BEARER));
+    assert.equal(direct.kind === "image" && direct.dataUri, PNG_DATA_URI);
     assert.equal(seenA.at(-1)?.authorization, `Bearer ${BEARER}`);
 
     // Same-origin redirect: followed with the credential.
@@ -178,7 +196,7 @@ async function main() {
       { fetchImpl: nodeFetch(seenA) },
     );
     assert.deepEqual(cross, { kind: "error", reason: "cross_origin_redirect" });
-    assert.equal(seenB.length, 0);
+    assert.equal(receivedB.length, 0);
 
     // Non-image content type is refused.
     const notImage = await fetchCameraImage(
@@ -186,6 +204,46 @@ async function main() {
       { fetchImpl: nodeFetch(seenA) },
     );
     assert.deepEqual(notImage, { kind: "error", reason: "not_an_image" });
+
+    // The same three paths through the platform fetch, as the app uses it: the
+    // transport above only offers a Blob and cannot follow a redirect at all,
+    // whereas this one reads `response.arrayBuffer()` and would follow a
+    // redirect if `redirect: "manual"` were not passed or not honoured.
+    const platformDirect = await fetchCameraImage({
+      uri: `http://127.0.0.1:${originA.port}/image.png`,
+      headers,
+    });
+    assert.equal(
+      platformDirect.kind === "image" && platformDirect.dataUri,
+      PNG_DATA_URI,
+    );
+    assert.deepEqual(receivedA.at(-1), {
+      path: "/image.png",
+      authorization: `Bearer ${BEARER}`,
+    });
+
+    const platformSame = await fetchCameraImage({
+      uri: `http://127.0.0.1:${originA.port}/same-origin`,
+      headers,
+    });
+    assert.equal(
+      platformSame.kind === "image" && platformSame.dataUri,
+      PNG_DATA_URI,
+    );
+    assert.deepEqual(receivedA.slice(-2), [
+      { path: "/same-origin", authorization: `Bearer ${BEARER}` },
+      { path: "/image.png", authorization: `Bearer ${BEARER}` },
+    ]);
+
+    const platformCross = await fetchCameraImage({
+      uri: `http://127.0.0.1:${originA.port}/api/camera_proxy/camera.door`,
+      headers,
+    });
+    assert.deepEqual(platformCross, {
+      kind: "error",
+      reason: "cross_origin_redirect",
+    });
+    assert.equal(receivedB.length, 0);
 
     // Platform fetch, body cut after the headers: an honest network failure,
     // neither a rejection nor a pending promise.
@@ -216,7 +274,7 @@ async function main() {
     assert.equal(connectionClosed, true);
 
     console.log(
-      "PASS: camera transport retrieves same-origin images, follows same-origin redirects with the bearer, and refuses a cross-origin redirect before the second origin receives any request (and therefore no credential). With the platform fetch, a body cut after the headers resolves as a network error, and a caller abort during a stalled body resolves as a network error and closes the connection. Loopback only; no physical device or configured HA was contacted.",
+      "PASS: camera transport retrieves same-origin images, follows same-origin redirects with the bearer, and refuses a cross-origin redirect before the second origin receives any request (and therefore no credential), through a Blob-only transport and through this process's platform fetch reading response.arrayBuffer(). With the platform fetch, a body cut after the headers resolves as a network error, and a caller abort during a stalled body resolves as a network error and closes the connection. Loopback and Node only; no physical device or configured HA was contacted.",
     );
   } finally {
     await originA.close();

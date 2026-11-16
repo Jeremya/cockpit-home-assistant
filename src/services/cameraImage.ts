@@ -27,6 +27,9 @@
  * - `fetchCameraImage` is total: it never rejects. Whatever the transport does
  *   after the headers arrive — a body read or byte access that rejects, throws
  *   or is missing — becomes `{ kind: "error", reason: "network" }`.
+ * - The body is read through `response.arrayBuffer()`; a Blob is only a
+ *   fallback, because React Native's Blob cannot expose its bytes. Size and
+ *   emptiness are judged on the bytes actually read.
  * - One 15 s budget covers the whole retrieval: every redirect hop, the body
  *   read and the encoding. It is not renewed per hop. Spending it yields
  *   `timeout`; a caller abort yields `network`. Either one also aborts the
@@ -63,13 +66,18 @@ export interface CameraImageRequest {
   headers: Record<string, string>;
 }
 
-/** Structural view of the fetch response the retriever needs. */
+/**
+ * Structural view of the fetch response the retriever needs. The body is read
+ * through `arrayBuffer()`, which every platform fetch offers; `blob()` is only
+ * a fallback for a transport that offers nothing else.
+ */
 export interface CameraFetchResponse {
   readonly status: number;
   readonly ok: boolean;
   readonly url: string;
   readonly headers: { get(name: string): string | null };
-  blob(): Promise<Blob>;
+  arrayBuffer?(): Promise<ArrayBuffer>;
+  blob?(): Promise<Blob>;
 }
 export type CameraFetch = (
   url: string,
@@ -206,9 +214,27 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function blobToDataUri(blob: Blob, contentType: string): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  return `data:${contentType};base64,${bytesToBase64(bytes)}`;
+/**
+ * Reads the whole body as bytes. `response.arrayBuffer()` comes first because a
+ * Blob is not portable: React Native's own Blob has a size but no
+ * `arrayBuffer()`, so a frame read through it cannot be decoded on the phone.
+ * The Blob is used only when the response offers nothing else. A response with
+ * neither, or a read that yields no buffer, throws: it is a failure, never an
+ * empty image.
+ */
+async function readBodyBytes(
+  response: CameraFetchResponse,
+): Promise<Uint8Array> {
+  let buffer: ArrayBuffer;
+  if (typeof response.arrayBuffer === "function")
+    buffer = await response.arrayBuffer();
+  else if (typeof response.blob === "function")
+    buffer = await (await response.blob()).arrayBuffer();
+  else throw new TypeError("Camera image response has no readable body");
+  // Checked by shape, not `instanceof`: buffers may come from another realm.
+  if (typeof buffer?.byteLength !== "number")
+    throw new TypeError("Camera image body read returned no buffer");
+  return new Uint8Array(buffer);
 }
 
 function dataUriContentType(uri: string): string {
@@ -308,15 +334,15 @@ export async function fetchCameraImage(
 
       // The body is read inside the same budget: a stalled, dropped or
       // unreadable body ends as a result below, never as a pending promise.
-      const blob = await active.run(() => response.blob());
-      if (blob.size === 0) return { kind: "empty" };
-      if (blob.size > CAMERA_MAX_BYTES)
+      // The size bound applies to the bytes actually read.
+      const bytes = await active.run(() => readBodyBytes(response));
+      if (bytes.byteLength === 0) return { kind: "empty" };
+      if (bytes.byteLength > CAMERA_MAX_BYTES)
         return { kind: "error", reason: "too_large" };
 
-      const dataUri = await active.run(() => blobToDataUri(blob, contentType));
       return {
         kind: "image",
-        dataUri,
+        dataUri: `data:${contentType};base64,${bytesToBase64(bytes)}`,
         contentType,
         fetchedAt,
         capturedAt: null,

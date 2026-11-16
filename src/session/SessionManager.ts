@@ -7,6 +7,7 @@ import type {
 } from "../core/types";
 import { useCockpit } from "../core/store";
 import { Credentials } from "../services/credentials";
+import { clearCameraCache } from "../services/cameraImage";
 import { PreferencesStorage } from "../preferences/storage";
 import {
   emptyPreferences,
@@ -700,11 +701,17 @@ export class SessionManager {
   async forget() {
     const profileId = useCockpit.getState().profileId ?? this.browserProfile;
     const authorization = this.endBrowser();
+    // Local use has ended: its camera frames go now, whatever fails below.
+    if (profileId) clearCameraCache(profileId);
     if (profileId?.startsWith("ha:")) await this.forgetRemembered(profileId);
     await authorization?.close();
     // Wait for queued saves before choosing the actual persisted profile to remove.
     const saved = await this.credentials.load();
-    if (saved) await this.credentials.forget(saved.url);
+    if (saved) {
+      // The persisted profile can differ from the active one.
+      clearCameraCache(profileIdFor(saved.url));
+      await this.credentials.forget(saved.url);
+    }
     this.savedSettings = undefined;
   }
   async retry() {
