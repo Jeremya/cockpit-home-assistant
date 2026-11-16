@@ -468,6 +468,9 @@ function HomeContent({
   );
   // Four filters across need about 80 px each to keep a label on one line.
   const cramped = !sideBySide && (overviewWidth ?? Infinity) < 330;
+  // A tablet-wide single column pairs the pulse with its filters instead of
+  // stretching each across the screen.
+  const paired = !sideBySide && (overviewWidth ?? 0) >= 600;
   const flagged = !ready || !!attention.length;
   const attentionSection = snapshot && (
     <Panel
@@ -663,15 +666,23 @@ function HomeContent({
             >
               {welcoming && sideBySide && welcome}
               <FadeIn delay={60}>
-                <View style={home.cockpitTop}>
-                  <HomePulse
-                    rooms={roomStats}
-                    devices={totalDevices}
-                    alerts={ready ? attention.length : 0}
-                    ready={ready}
-                    cached={!!snapshot}
-                  />
-                  <View style={[home.quickRow, cramped && home.quickRowWrap]}>
+                <View style={[home.cockpitTop, paired && home.cockpitPaired]}>
+                  <View style={paired && home.pulsePaired}>
+                    <HomePulse
+                      rooms={roomStats}
+                      devices={totalDevices}
+                      alerts={ready ? attention.length : 0}
+                      ready={ready}
+                      cached={!!snapshot}
+                    />
+                  </View>
+                  <View
+                    style={[
+                      home.quickRow,
+                      (cramped || paired) && home.quickRowWrap,
+                      paired && home.quickPaired,
+                    ]}
+                  >
                     {quickActions.map((action) => {
                       const selected = category === action.id;
                       return (
@@ -693,7 +704,7 @@ function HomeContent({
                           }}
                           style={({ pressed, hovered }: Interaction) => [
                             home.quickTile,
-                            cramped && home.quickTileHalf,
+                            (cramped || paired) && home.quickTileHalf,
                             hovered && home.tileHovered,
                             selected && home.quickTileSelected,
                             pressed && { transform: [{ scale: 0.985 }] },
@@ -957,6 +968,9 @@ const home = StyleSheet.create({
   cockpitTop: { gap: gridGap },
   quickRow: { flexDirection: "row", gap: spacing.sm },
   quickRowWrap: { flexWrap: "wrap" },
+  cockpitPaired: { flexDirection: "row", alignItems: "stretch" },
+  pulsePaired: { flex: 6, minWidth: 0 },
+  quickPaired: { flex: 5, alignContent: "stretch" },
   quickTileHalf: { flexBasis: "40%" },
   quickTile: {
     flex: 1,

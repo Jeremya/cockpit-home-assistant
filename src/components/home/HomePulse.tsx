@@ -169,6 +169,8 @@ export function HomePulse({
 
 const styles = StyleSheet.create({
   card: {
+    // Fills a taller cell when it sits beside the filters.
+    flexGrow: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.lg,
@@ -190,7 +192,8 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.eyebrow, color: colors.accent },
   title: { ...typography.headline, color: colors.text },
   meta: { ...typography.caption, color: colors.muted },
-  roomList: { marginTop: spacing.sm, gap: spacing.xs },
+  // Bounded so a count stays beside its room on a wide card.
+  roomList: { marginTop: spacing.sm, gap: spacing.xs, maxWidth: 320 },
   roomRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   dot: { width: 6, height: 6, borderRadius: 3 },
   roomName: {
