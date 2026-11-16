@@ -6,6 +6,10 @@ import { session } from "../../services/runtime";
 import type { SessionError } from "../../core/types";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+jest.mock("../EntityIcon", () => ({
+  ...jest.requireActual("../EntityIcon"),
+  Icon: () => null,
+}));
 jest.mock("../../services/runtime", () => ({
   session: { retry: jest.fn().mockResolvedValue(undefined) },
 }));

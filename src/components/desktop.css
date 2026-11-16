@@ -7,6 +7,7 @@
   background: #06090f;
   color: #f2f7fc;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 .maurice-main {
   display: flex;
@@ -24,7 +25,7 @@
   display: flex;
   flex-direction: column;
   flex: 0 0 224px;
-  padding: 32px 18px 24px;
+  padding: 32px 16px 24px;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   background: #0d141e;
   overflow-y: auto;
@@ -32,34 +33,38 @@
 .maurice-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 4px;
+  gap: 12px;
+  padding: 4px 8px;
+  border-radius: 12px;
   color: inherit;
   text-decoration: none;
 }
 .maurice-brand strong {
   display: block;
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 21px;
+  font-weight: 700;
   letter-spacing: 2px;
 }
 .maurice-brand small {
   display: block;
   color: #9aabbd;
-  font-size: 10px;
-  margin-top: 6px;
+  font-size: 12px;
+  line-height: 17px;
 }
 .maurice-nav-label {
-  margin: 52px 14px 14px;
+  margin: 32px 12px 12px;
   color: #9aabbd;
   text-transform: uppercase;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1.5px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
 }
 .maurice-sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 .maurice-nav-link {
   display: flex;
@@ -67,52 +72,86 @@
   gap: 12px;
   min-height: 48px;
   box-sizing: border-box;
-  padding: 12px 14px;
+  padding: 12px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: 12px;
   color: #9aabbd;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 21px;
+  font-weight: 500;
   text-decoration: none;
 }
 .maurice-nav-link:hover {
   color: #f2f7fc;
   background: #121b27;
 }
+.maurice-nav-link:active {
+  background: #182433;
+}
 .maurice-nav-link[aria-current="page"] {
   color: #f2f7fc;
+  font-weight: 600;
   background: #0f1a26;
-  border-color: rgba(125, 211, 252, 0.35);
+  border-color: rgba(125, 211, 252, 0.42);
 }
 .maurice-sidebar-status {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 32px 14px 0;
+  gap: 8px;
+  padding: 24px 12px 0;
   margin-top: auto;
   color: #9aabbd;
   font-size: 12px;
-  line-height: 19px;
+  line-height: 17px;
 }
 .maurice-dot {
   flex: 0 0 6px;
   height: 6px;
   border-radius: 50%;
-  background: #a5afc2;
+  background: #9aabbd;
 }
 .maurice-dot.ready {
   background: #5eead4;
 }
+/* One focus ring for every keyboard-reachable control, whatever renders it. */
 .maurice-web
   :is(
     a,
     button,
     input,
+    textarea,
     [role="button"],
+    [role="link"],
     [role="tab"],
-    [role="switch"]
+    [role="switch"],
+    [tabindex="0"]
   ):focus-visible {
-  outline: 2px solid #98c2ff;
-  outline-offset: 3px;
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+/* React Native Web draws a 40 x 20 switch; its control gets the 48 px target. */
+.maurice-web input[role="switch"] {
+  top: -14px;
+  right: -4px;
+  bottom: -14px;
+  left: -4px;
+  width: auto;
+  height: auto;
+  border-radius: 14px;
+}
+.maurice-web input::placeholder {
+  color: #9aabbd;
+  opacity: 1;
+}
+/* Quiet state changes: colour only, so layout and target sizes never move. */
+@media (prefers-reduced-motion: no-preference) {
+  .maurice-web
+    :is(a, [role="button"], [role="link"], [role="tab"], .maurice-nav-link) {
+    transition:
+      background-color 120ms ease-out,
+      border-color 120ms ease-out,
+      color 120ms ease-out;
+  }
 }
 .maurice-skip {
   position: fixed;
@@ -120,10 +159,11 @@
   top: -100px;
   z-index: 100;
   padding: 14px 20px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #7dd3fc;
-  color: #0b0f19;
+  color: #06121c;
   font-size: 14px;
+  font-weight: 600;
   text-decoration: none;
 }
 .maurice-skip:focus {

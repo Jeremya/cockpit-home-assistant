@@ -2,10 +2,10 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "./EntityIcon";
-import { colors } from "./ui";
+import { colors, type Interaction } from "./ui";
 import { useResponsiveLayout } from "./layout";
 import { mainTabFor, type MainTab } from "./shellNavigation";
-import { minTouchTarget } from "../theme";
+import { minTouchTarget, radii, spacing, typography } from "../theme";
 
 const destinations: {
   id: MainTab;
@@ -32,30 +32,41 @@ export function MainTabBar() {
       accessibilityRole="tablist"
       accessibilityLabel="Main navigation mobile"
     >
-      {destinations.map((destination) => (
-        <Pressable
-          key={destination.id}
-          accessibilityRole="link"
-          accessibilityLabel={destination.label}
-          accessibilityState={{ selected: active === destination.id }}
-          onPress={() => router.push(destination.href as never)}
-          style={styles.item}
-        >
-          <Icon
-            name={destination.icon}
-            size={20}
-            color={active === destination.id ? colors.accent : colors.muted}
-          />
-          <Text
-            style={[
-              styles.label,
-              active === destination.id && { color: colors.accent },
-            ]}
+      {destinations.map((destination) => {
+        const selected = active === destination.id;
+        return (
+          <Pressable
+            key={destination.id}
+            accessibilityRole="link"
+            accessibilityLabel={destination.label}
+            accessibilityState={{ selected }}
+            onPress={() => router.push(destination.href as never)}
+            style={styles.item}
           >
-            {destination.label}
-          </Text>
-        </Pressable>
-      ))}
+            {({ pressed, hovered }: Interaction) => (
+              <>
+                {/* The pill marks the current place by shape as well as colour. */}
+                <View
+                  style={[
+                    styles.well,
+                    selected && styles.wellSelected,
+                    !selected && (hovered || pressed) && styles.wellActive,
+                  ]}
+                >
+                  <Icon
+                    name={destination.icon}
+                    size={20}
+                    color={selected ? colors.accent : colors.muted}
+                  />
+                </View>
+                <Text style={[styles.label, selected && styles.labelSelected]}>
+                  {destination.label}
+                </Text>
+              </>
+            )}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -69,7 +80,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingTop: 8,
+    paddingTop: spacing.sm,
     backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
@@ -79,7 +90,23 @@ const styles = StyleSheet.create({
     minHeight: minTouchTarget,
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
+    gap: 2,
   },
-  label: { color: colors.muted, fontSize: 10, fontWeight: "600" },
+  well: {
+    width: 56,
+    height: 30,
+    borderRadius: radii.pill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wellSelected: { backgroundColor: colors.accentTint },
+  wellActive: { backgroundColor: colors.raised },
+  label: {
+    ...typography.eyebrow,
+    textTransform: "none",
+    letterSpacing: 0.2,
+    color: colors.muted,
+    fontWeight: "600",
+  },
+  labelSelected: { color: colors.accent, fontWeight: "700" },
 });
