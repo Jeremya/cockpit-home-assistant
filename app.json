@@ -11,7 +11,7 @@
       "package": "com.larrabee.homecockpit",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0e2a4e"
+        "backgroundColor": "#030b16"
       }
     },
     "ios": {

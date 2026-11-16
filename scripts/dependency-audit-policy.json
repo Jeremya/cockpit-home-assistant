@@ -9,7 +9,7 @@
   "reviewedFiles": {
     "package.json": "dbc8b5abe9b214b405fa78b025a929eaa07ecdbfa32866d7cf9a23cc83c9ff86",
     "package-lock.json": "62a44f723a42b641f617533611f6da56a33afe94f65c9571d18e658824a8c0bd",
-    "app.json": "da6812f82718c9ed64379f3a4f9d8d296738f634587a4a7473a65de15bd1d71d",
+    "app.json": "0b8c3053aec9ec61cbc5c2cc84507322a4404e623751bbbb709b0e2ecc02829a",
     "app.config.js": "1b7c522b3bfc6215fb401c977fb387ed179fffb24989c2151fa5eabffdd94e0d",
     "metro.config.js": "7c1a3eeefcdc83db95acb85bf03f5459d54f4ac022763afd34ebcd1053806239",
     "babel.config.js": null,
