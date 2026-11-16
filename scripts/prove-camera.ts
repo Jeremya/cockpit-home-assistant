@@ -1,284 +1,177 @@
 import assert from "node:assert/strict";
 import http from "node:http";
-import type { AddressInfo } from "node:net";
 import {
   fetchCameraImage,
   type CameraFetch,
+  type CameraImageResult,
 } from "../src/services/cameraImage";
+import {
+  CAMERA_FIXTURE_TOKEN,
+  CAMERA_SCENARIOS,
+  FIXTURE_PNG,
+  startCameraFixture,
+} from "./camera-fixture.mjs";
 
 /**
- * Loopback proof for the camera image transport (I01). Two local origins are
- * driven through the real `fetchCameraImage` with a fake bearer. The second
- * origin must receive no request — and therefore no credential — on a
- * cross-origin redirect; what each origin received is recorded by the origin
- * itself, not by the client.
+ * Loopback proof for the camera image transport (I01), driven through the
+ * public camera fixture (`scripts/camera-fixture.mjs`). The fixture's two
+ * origins record what they received themselves: origin B must receive no
+ * request — and therefore no credential — on a cross-origin redirect.
  *
- * The redirect paths run twice: through a minimal transport that only offers a
- * Blob and cannot follow a redirect, and through the platform `fetch` of this
- * Node process, which reads `response.arrayBuffer()` as the app does and would
- * follow a redirect if `redirect: "manual"` were not honoured. The platform
- * `fetch` also covers a body cut after the headers and a caller abort while the
- * body is stalled. No configured HA or physical device is contacted.
+ * Every scenario the Android recipe uses runs here through the real
+ * `fetchCameraImage`, twice where the transport matters: through a minimal
+ * transport that only offers a Blob and cannot follow a redirect, and through
+ * the platform `fetch` of this Node process, which reads
+ * `response.arrayBuffer()` as the app does and would follow a redirect if
+ * `redirect: "manual"` were not honoured. The two scenarios that only end on
+ * the 15 s budget are ended here by a caller abort, to keep the proof short;
+ * the deadline itself is covered with fake timers in Jest, and the native
+ * recipe observes it in real time. No configured HA or physical device is
+ * contacted. This is Node evidence only; it says nothing about Android.
  */
 
-const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const PNG_DATA_URI = `data:image/png;base64,${PNG.toString("base64")}`;
-const BEARER = "camera-proof-token";
-
-interface Seen {
-  path: string;
-  authorization: string | null;
-}
+const FIXTURE_DATA_URI = `data:image/png;base64,${FIXTURE_PNG.toString("base64")}`;
+const headers = { Authorization: `Bearer ${CAMERA_FIXTURE_TOKEN}` };
 
 const delay = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-function startServer(
-  handler: (req: http.IncomingMessage, res: http.ServerResponse) => void,
-): Promise<{ port: number; close: () => Promise<void> }> {
-  const server = http.createServer(handler);
-  return new Promise((resolve) => {
-    server.listen(0, "127.0.0.1", () => {
-      const { port } = server.address() as AddressInfo;
-      resolve({
-        port,
-        close: () => new Promise<void>((done) => server.close(() => done())),
-      });
-    });
-  });
-}
-
 /** Honors `redirect: "manual"`: returns the 3xx response, never follows it. */
-function nodeFetch(seen: Seen[]): CameraFetch {
-  return (url, init) =>
-    new Promise((resolve, reject) => {
-      const parsed = new URL(url);
-      const request = http.request(
-        {
-          host: parsed.hostname,
-          port: parsed.port,
-          path: parsed.pathname + parsed.search,
-          method: "GET",
-          headers: init.headers,
-        },
-        (response) => {
-          const chunks: Buffer[] = [];
-          response.on("data", (chunk: Buffer) => chunks.push(chunk));
-          response.on("end", () => {
-            const body = Buffer.concat(chunks);
-            seen.push({
-              path: parsed.pathname,
-              authorization:
-                init.headers.Authorization ??
-                init.headers.authorization ??
-                null,
-            });
-            resolve({
-              status: response.statusCode ?? 0,
-              ok:
-                (response.statusCode ?? 0) >= 200 &&
-                (response.statusCode ?? 0) < 300,
-              url,
-              headers: {
-                get: (name: string) => {
-                  const value = response.headers[name.toLowerCase()];
-                  return typeof value === "string" ? value : null;
-                },
+const blobOnlyFetch: CameraFetch = (url, init) =>
+  new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const request = http.request(
+      {
+        host: parsed.hostname,
+        port: parsed.port,
+        path: parsed.pathname + parsed.search,
+        method: "GET",
+        headers: init.headers,
+        signal: init.signal,
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("error", reject);
+        response.on("aborted", () => reject(new Error("aborted")));
+        response.on("end", () => {
+          const body = Buffer.concat(chunks);
+          const status = response.statusCode ?? 0;
+          resolve({
+            status,
+            ok: status >= 200 && status < 300,
+            url,
+            headers: {
+              get: (name: string) => {
+                const value = response.headers[name.toLowerCase()];
+                return typeof value === "string" ? value : null;
               },
-              blob: async () => new Blob([new Uint8Array(body)]),
-            });
+            },
+            blob: async () => new Blob([new Uint8Array(body)]),
           });
-        },
-      );
-      request.on("error", reject);
-      request.end();
-    });
-}
-
-/** What a loopback origin actually received, recorded by the server itself. */
-function record(received: Seen[], req: http.IncomingMessage) {
-  received.push({
-    path: req.url ?? "",
-    authorization: req.headers.authorization ?? null,
+        });
+      },
+    );
+    request.on("error", reject);
+    request.end();
   });
+
+function outcome(result: CameraImageResult): string {
+  return result.kind === "error" ? `error:${result.reason}` : result.kind;
 }
 
 async function main() {
-  const receivedB: Seen[] = [];
-  const originB = await startServer((req, res) => {
-    record(receivedB, req);
-    res.writeHead(200, { "content-type": "image/png" });
-    res.end(PNG);
-  });
-
-  // Settled by the server: the stalled body's first bytes left, then its
-  // connection was closed by the client.
-  let stalledSent!: () => void;
-  let stalledClosed!: () => void;
-  const stalledBodySent = new Promise<void>((resolve) => {
-    stalledSent = resolve;
-  });
-  const stalledConnectionClosed = new Promise<void>((resolve) => {
-    stalledClosed = resolve;
-  });
-
-  const seenA: Seen[] = [];
-  const receivedA: Seen[] = [];
-  const originA = await startServer((req, res) => {
-    record(receivedA, req);
-    if (req.url === "/truncated") {
-      // Headers and a first chunk, then the connection drops mid-body.
-      res.writeHead(200, {
-        "content-type": "image/png",
-        "content-length": "1024",
-      });
-      res.write(PNG, () => res.socket?.destroy());
-    } else if (req.url === "/stalled") {
-      // Headers and a first chunk, then nothing: the body never completes.
-      res.on("close", stalledClosed);
-      res.writeHead(200, {
-        "content-type": "image/png",
-        "content-length": "1024",
-      });
-      res.write(PNG, stalledSent);
-    } else if (req.url === "/same-origin") {
-      res.writeHead(302, { location: "/image.png" });
-      res.end();
-    } else if (req.url === "/api/camera_proxy/camera.door") {
-      res.writeHead(302, {
-        location: `http://127.0.0.1:${originB.port}/image.png`,
-      });
-      res.end();
-    } else if (req.url === "/image.png") {
-      res.writeHead(200, { "content-type": "image/png" });
-      res.end(PNG);
-    } else if (req.url === "/not-image") {
-      res.writeHead(200, { "content-type": "text/html" });
-      res.end("<html></html>");
-    } else {
-      res.writeHead(404);
-      res.end();
-    }
-  });
+  const fixture = await startCameraFixture({ ha: false });
+  const uriFor = (id: string) =>
+    `${fixture.originA}/api/camera_proxy/${fixture.entityIdFor({ id })}`;
+  const transports: { name: string; fetchImpl?: CameraFetch }[] = [
+    { name: "Blob-only transport", fetchImpl: blobOnlyFetch },
+    { name: "platform fetch" },
+  ];
 
   try {
-    const headers = { Authorization: `Bearer ${BEARER}` };
+    for (const transport of transports) {
+      for (const scenario of CAMERA_SCENARIOS) {
+        // The Blob-only transport buffers in `end`, so a cut body rejects
+        // before the headers are seen; its own result is still `network`.
+        const timed = scenario.contract === "error:timeout";
+        fixture.reset();
+        const caller = new AbortController();
+        const pending = fetchCameraImage(
+          { uri: uriFor(scenario.id), headers },
+          { fetchImpl: transport.fetchImpl, signal: caller.signal },
+        );
+        let result: CameraImageResult;
+        if (timed) {
+          // Ended by the caller instead of the 15 s budget (see above).
+          await delay(300);
+          caller.abort();
+          result = await pending;
+          assert.equal(
+            outcome(result),
+            "error:network",
+            `${transport.name} / ${scenario.id}`,
+          );
+          // The transport really closed the connection, not left it to linger.
+          let closed = false;
+          for (let i = 0; i < 50 && !closed; i++) {
+            closed = fixture
+              .requests()
+              .every((r) => r.origin !== "A" || r.closedAfterMs !== null);
+            if (!closed) await delay(100);
+          }
+          assert.equal(
+            closed,
+            true,
+            `${transport.name} / ${scenario.id} closed`,
+          );
+        } else {
+          result = await pending;
+          assert.equal(
+            outcome(result),
+            scenario.contract,
+            `${transport.name} / ${scenario.id}`,
+          );
+        }
 
-    // Direct same-origin image: succeeds, credential attached, token not echoed.
-    const direct = await fetchCameraImage(
-      { uri: `http://127.0.0.1:${originA.port}/image.png`, headers },
-      { fetchImpl: nodeFetch(seenA) },
-    );
-    assert.equal(direct.kind, "image");
-    assert(direct.kind === "image" && !direct.dataUri.includes(BEARER));
-    assert.equal(direct.kind === "image" && direct.dataUri, PNG_DATA_URI);
-    assert.equal(seenA.at(-1)?.authorization, `Bearer ${BEARER}`);
+        const requests = fixture.requests();
+        // The credential is never echoed into the result.
+        assert(!JSON.stringify(result).includes(CAMERA_FIXTURE_TOKEN));
+        // Origin B is never contacted, whatever the scenario.
+        assert.equal(
+          requests.filter((r) => r.origin === "B").length,
+          0,
+          `${transport.name} / ${scenario.id}: origin B contacted`,
+        );
+        // Every request origin A received carried the credential.
+        assert(requests.every((r) => r.credential));
 
-    // Same-origin redirect: followed with the credential.
-    const same = await fetchCameraImage(
-      { uri: `http://127.0.0.1:${originA.port}/same-origin`, headers },
-      { fetchImpl: nodeFetch(seenA) },
-    );
-    assert.equal(same.kind, "image");
-    assert(seenA.some((s) => s.path === "/same-origin"));
-    assert(
-      seenA
-        .filter((s) => s.path === "/image.png")
-        .every((s) => s.authorization === `Bearer ${BEARER}`),
-    );
-
-    // Cross-origin redirect: refused before the second origin sees a request.
-    const cross = await fetchCameraImage(
-      {
-        uri: `http://127.0.0.1:${originA.port}/api/camera_proxy/camera.door`,
-        headers,
-      },
-      { fetchImpl: nodeFetch(seenA) },
-    );
-    assert.deepEqual(cross, { kind: "error", reason: "cross_origin_redirect" });
-    assert.equal(receivedB.length, 0);
-
-    // Non-image content type is refused.
-    const notImage = await fetchCameraImage(
-      { uri: `http://127.0.0.1:${originA.port}/not-image`, headers },
-      { fetchImpl: nodeFetch(seenA) },
-    );
-    assert.deepEqual(notImage, { kind: "error", reason: "not_an_image" });
-
-    // The same three paths through the platform fetch, as the app uses it: the
-    // transport above only offers a Blob and cannot follow a redirect at all,
-    // whereas this one reads `response.arrayBuffer()` and would follow a
-    // redirect if `redirect: "manual"` were not passed or not honoured.
-    const platformDirect = await fetchCameraImage({
-      uri: `http://127.0.0.1:${originA.port}/image.png`,
-      headers,
-    });
-    assert.equal(
-      platformDirect.kind === "image" && platformDirect.dataUri,
-      PNG_DATA_URI,
-    );
-    assert.deepEqual(receivedA.at(-1), {
-      path: "/image.png",
-      authorization: `Bearer ${BEARER}`,
-    });
-
-    const platformSame = await fetchCameraImage({
-      uri: `http://127.0.0.1:${originA.port}/same-origin`,
-      headers,
-    });
-    assert.equal(
-      platformSame.kind === "image" && platformSame.dataUri,
-      PNG_DATA_URI,
-    );
-    assert.deepEqual(receivedA.slice(-2), [
-      { path: "/same-origin", authorization: `Bearer ${BEARER}` },
-      { path: "/image.png", authorization: `Bearer ${BEARER}` },
-    ]);
-
-    const platformCross = await fetchCameraImage({
-      uri: `http://127.0.0.1:${originA.port}/api/camera_proxy/camera.door`,
-      headers,
-    });
-    assert.deepEqual(platformCross, {
-      kind: "error",
-      reason: "cross_origin_redirect",
-    });
-    assert.equal(receivedB.length, 0);
-
-    // Platform fetch, body cut after the headers: an honest network failure,
-    // neither a rejection nor a pending promise.
-    const truncated = await fetchCameraImage({
-      uri: `http://127.0.0.1:${originA.port}/truncated`,
-      headers,
-    });
-    assert.deepEqual(truncated, { kind: "error", reason: "network" });
-
-    // Platform fetch, caller abort while the body is stalled: the retrieval
-    // ends at once and the connection is really closed, not left to linger.
-    const caller = new AbortController();
-    const stalled = fetchCameraImage(
-      { uri: `http://127.0.0.1:${originA.port}/stalled`, headers },
-      { signal: caller.signal },
-    );
-    await stalledBodySent;
-    await delay(100);
-    caller.abort();
-    assert.deepEqual(await stalled, { kind: "error", reason: "network" });
-    const connectionClosed = await new Promise<boolean>((resolve) => {
-      const guard = setTimeout(() => resolve(false), 5_000);
-      void stalledConnectionClosed.then(() => {
-        clearTimeout(guard);
-        resolve(true);
-      });
-    });
-    assert.equal(connectionClosed, true);
+        if (scenario.id === "image" || scenario.id === "same_redirect")
+          assert.equal(
+            result.kind === "image" && result.dataUri,
+            FIXTURE_DATA_URI,
+          );
+        if (scenario.id === "same_redirect")
+          assert.deepEqual(
+            requests.map((r) => r.path),
+            [
+              "/api/camera_proxy/camera.fixture_same_redirect",
+              "/frames/same-origin.png",
+            ],
+          );
+        if (scenario.id === "cross_redirect")
+          assert.deepEqual(
+            requests.map((r) => r.path),
+            ["/api/camera_proxy/camera.fixture_cross_redirect"],
+          );
+      }
+    }
 
     console.log(
-      "PASS: camera transport retrieves same-origin images, follows same-origin redirects with the bearer, and refuses a cross-origin redirect before the second origin receives any request (and therefore no credential), through a Blob-only transport and through this process's platform fetch reading response.arrayBuffer(). With the platform fetch, a body cut after the headers resolves as a network error, and a caller abort during a stalled body resolves as a network error and closes the connection. Loopback and Node only; no physical device or configured HA was contacted.",
+      `PASS: camera transport, ${CAMERA_SCENARIOS.length} fixture scenarios through a Blob-only transport and through this process's platform fetch reading response.arrayBuffer(). Same-origin images and same-origin redirects are retrieved byte-exact with the bearer; a cross-origin redirect is refused before the second origin receives any request (and therefore no credential); non-image, undecodable, cut, unauthorized, stalled and unanswered retrievals end as their contracted results, and an abort closes the connection. Loopback and Node only; no physical device or configured HA was contacted.`,
     );
   } finally {
-    await originA.close();
-    await originB.close();
+    await fixture.close();
   }
 }
 
