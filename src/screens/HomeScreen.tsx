@@ -21,7 +21,16 @@ import { useCockpit } from "../core/store";
 import { attentionSummary } from "../core/selectors";
 import { deviceSummaries, type DeviceSummary } from "../core/deviceSummaries";
 import { session } from "../services/runtime";
-import { Body, Button, Label, Panel, colors, styles } from "../components/ui";
+import {
+  Body,
+  Button,
+  Heading,
+  Label,
+  Panel,
+  colors,
+  styles,
+  type Interaction,
+} from "../components/ui";
 import {
   Icon,
   entityAppearance,
@@ -52,9 +61,14 @@ import {
   type HomeSelection,
   type HomeViewState,
 } from "../spatial/homeSelection";
-import { CardGrid } from "../components/CardGrid";
+import {
+  CardGrid,
+  gridColumns,
+  gridGap,
+  gridUnit,
+} from "../components/CardGrid";
 import { useResponsiveLayout } from "../components/layout";
-import { minTouchTarget, radii, spacing, typography } from "../theme";
+import { layout, minTouchTarget, radii, spacing, typography } from "../theme";
 
 export function HomeScreen() {
   const profileId = useCockpit((state) => state.profileId);
@@ -249,6 +263,25 @@ function HomeContent({
     bucket.items.push(group);
     buckets.set(key, bucket);
   }
+  // A wide window shows every room as one lattice in the same room order: each
+  // card already names its room, and no row is left a column short. It follows
+  // the window, not the measured column, so opening the panel moves no card.
+  const lattice = desktop && isAll;
+  const sections: {
+    key: string;
+    name: string | null;
+    items: DeviceSummary[];
+  }[] = lattice
+    ? displayed.length
+      ? [
+          {
+            key: "all",
+            name: categoryFavorites.length ? "Other devices" : null,
+            items: [...buckets.values()].flatMap((bucket) => bucket.items),
+          },
+        ]
+      : []
+    : [...buckets].map(([key, bucket]) => ({ key, ...bucket }));
   const count = coverage?.visibleCount ?? 0;
   const groupForEntity = new Map(
     summaries.flatMap((group) =>
@@ -396,14 +429,60 @@ function HomeContent({
         )}
       </CardGrid>
     );
+  // The house and the first card column share one grid: the lead column is one
+  // unit of the device grid, the house the rest.
+  const leadWidth =
+    overviewWidth === null
+      ? undefined
+      : gridColumns(overviewWidth) >= 3
+        ? gridUnit(overviewWidth)
+        : (overviewWidth - gridGap) / 2;
+  // Before any home is connected: one invitation, and nothing to assess.
+  const welcoming = !snapshot && status.kind === "idle";
+  const welcome = (
+    <Panel style={home.welcome}>
+      <View style={home.welcomeCopy}>
+        <Label>Welcome home</Label>
+        <Heading>One place for your household.</Heading>
+        <Body>
+          Connect to Home Assistant to see your rooms and devices, or explore a
+          simulated home.
+        </Body>
+      </View>
+      <View style={home.welcomeActions}>
+        <Button
+          title="Connect Home Assistant"
+          style={home.welcomeAction}
+          onPress={() => router.push("/settings")}
+        />
+        <Button
+          title="Explore demo home"
+          secondary
+          style={home.welcomeAction}
+          onPress={() => {
+            void session.connect({ demo: true }).catch(() => undefined);
+          }}
+        />
+      </View>
+    </Panel>
+  );
+  // Four filters across need about 80 px each to keep a label on one line.
+  const cramped = !sideBySide && (overviewWidth ?? Infinity) < 330;
+  const flagged = !ready || !!attention.length;
   const attentionSection = snapshot && (
-    <Panel style={[home.attention, sideBySide && home.attentionAside]}>
+    <Panel
+      style={[
+        home.attention,
+        flagged && home.attentionFlagged,
+        sideBySide && home.attentionAside,
+      ]}
+    >
       <View style={styles.row}>
         <View style={home.heading}>
           <Icon
-            name={ready && !attention.length ? "info" : "alert-circle"}
+            name={flagged ? "alert-circle" : "info"}
             size={18}
-            color={ready && !attention.length ? colors.muted : colors.warning}
+            color={flagged ? colors.warning : colors.muted}
           />
           <Text accessibilityRole="header" style={home.attentionTitle}>
             Needs attention
@@ -416,7 +495,7 @@ function HomeContent({
       {!ready ? (
         <Body>Status unknown while disconnected.</Body>
       ) : attention.length ? (
-        <>
+        <View>
           {(expandedAttention ? attention : attention.slice(0, 2)).map(
             (entity) => (
               <EntityCard
@@ -432,7 +511,10 @@ function HomeContent({
               accessibilityRole="button"
               accessibilityState={{ expanded: expandedAttention }}
               onPress={() => setExpandedAttention((value) => !value)}
-              style={home.expand}
+              style={({ pressed, hovered }: Interaction) => [
+                home.expand,
+                (hovered || pressed) && home.expandActive,
+              ]}
             >
               <Text style={home.link}>
                 {expandedAttention
@@ -441,7 +523,7 @@ function HomeContent({
               </Text>
             </Pressable>
           )}
-        </>
+        </View>
       ) : (
         <Body>
           {count
@@ -483,7 +565,7 @@ function HomeContent({
               style={home.homeIcon}
               accessibilityIgnoresInvertColors
             />
-            <View style={{ gap: 4, flexShrink: 1 }}>
+            <View style={{ gap: 2, flexShrink: 1 }}>
               <Text style={home.brandName}>
                 {mode === "demo" ? "Maurice · demo home" : "Maurice"}
               </Text>
@@ -502,6 +584,7 @@ function HomeContent({
             <Button
               title={refreshing ? "Refreshing…" : "Refresh"}
               secondary
+              icon="refresh-cw"
               disabled={refreshing || !snapshot}
               onPress={() => {
                 void refresh();
@@ -512,9 +595,10 @@ function HomeContent({
               accessibilityRole="button"
               accessibilityLabel="Settings"
               onPress={() => router.push("/settings")}
-              style={({ pressed }) => [
+              style={({ pressed, hovered }: Interaction) => [
                 home.settings,
-                pressed && { opacity: 0.6 },
+                hovered && home.settingsHovered,
+                pressed && home.settingsPressed,
               ]}
             >
               <Icon name="sliders" color={colors.text} />
@@ -523,28 +607,8 @@ function HomeContent({
         </View>
         {!initialized ? (
           <Body>Opening your home…</Body>
-        ) : !snapshot && status.kind === "idle" ? (
-          <Panel>
-            <Label>Welcome home</Label>
-            <Text style={styles.sectionTitle}>
-              One place for your household.
-            </Text>
-            <Body>
-              Connect to Home Assistant to see your rooms and devices, or
-              explore a simulated home.
-            </Body>
-            <Button
-              title="Connect Home Assistant"
-              onPress={() => router.push("/settings")}
-            />
-            <Button
-              title="Explore demo home"
-              secondary
-              onPress={() => {
-                void session.connect({ demo: true }).catch(() => undefined);
-              }}
-            />
-          </Panel>
+        ) : welcoming ? (
+          !sideBySide && welcome
         ) : (
           <SessionBanner />
         )}
@@ -559,7 +623,8 @@ function HomeContent({
                 <View style={home.alertPill}>
                   <View style={home.alertDot} />
                   <Text style={home.alertPillText}>
-                    {attention.length} ALERT
+                    {attention.length}{" "}
+                    {attention.length === 1 ? "ALERT" : "ALERTS"}
                   </Text>
                 </View>
               )}
@@ -576,72 +641,6 @@ function HomeContent({
                 />
               </FadeIn>
             )}
-            <FadeIn delay={60}>
-              <View style={[home.cockpitTop, desktop && home.cockpitTopWide]}>
-                <View style={desktop ? home.pulseWide : undefined}>
-                  <HomePulse
-                    rooms={roomStats}
-                    devices={totalDevices}
-                    alerts={ready ? attention.length : 0}
-                    ready={ready}
-                  />
-                </View>
-                <View style={[home.quickRow, desktop && home.quickRowWide]}>
-                  {quickActions.map((action) => {
-                    const selected = category === action.id;
-                    return (
-                      <Pressable
-                        key={action.id}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Filter by ${action.label.toLowerCase()}, ${action.count}`}
-                        accessibilityState={{ selected }}
-                        onPress={() => {
-                          if (action.id === "rooms") {
-                            setCategory("all");
-                            choose({ kind: "all" });
-                            return;
-                          }
-                          const next = action.id;
-                          setCategory((current) =>
-                            current === next ? "all" : next,
-                          );
-                        }}
-                        style={({ pressed }) => [
-                          home.quickTile,
-                          desktop && home.quickTileWide,
-                          selected && home.quickTileSelected,
-                          pressed && { transform: [{ scale: 0.985 }] },
-                        ]}
-                      >
-                        <View
-                          style={[
-                            home.quickIcon,
-                            selected && {
-                              backgroundColor: `${colors.accent}22`,
-                            },
-                          ]}
-                        >
-                          <Icon
-                            name={action.icon}
-                            size={18}
-                            color={selected ? colors.accent : colors.muted}
-                          />
-                        </View>
-                        <Text
-                          style={[
-                            home.quickLabel,
-                            selected && { color: colors.accent },
-                          ]}
-                        >
-                          {action.label}
-                        </Text>
-                        <Text style={home.quickCount}>{action.detail}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            </FadeIn>
           </>
         )}
         {initialized && (
@@ -652,8 +651,88 @@ function HomeContent({
             }
             style={[home.overview, sideBySide && home.wideOverview]}
           >
-            {attentionSection}
-            <View style={{ flex: sideBySide ? 1 : undefined, minWidth: 0 }}>
+            {/* Pulse, filters and attention read before the house in both layouts. */}
+            <View
+              style={[
+                home.lead,
+                sideBySide &&
+                  (leadWidth === undefined
+                    ? home.leadFlexible
+                    : { width: leadWidth }),
+              ]}
+            >
+              {welcoming && sideBySide && welcome}
+              <FadeIn delay={60}>
+                <View style={home.cockpitTop}>
+                  <HomePulse
+                    rooms={roomStats}
+                    devices={totalDevices}
+                    alerts={ready ? attention.length : 0}
+                    ready={ready}
+                    cached={!!snapshot}
+                  />
+                  <View style={[home.quickRow, cramped && home.quickRowWrap]}>
+                    {quickActions.map((action) => {
+                      const selected = category === action.id;
+                      return (
+                        <Pressable
+                          key={action.id}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Filter by ${action.label.toLowerCase()}, ${action.count}`}
+                          accessibilityState={{ selected }}
+                          onPress={() => {
+                            if (action.id === "rooms") {
+                              setCategory("all");
+                              choose({ kind: "all" });
+                              return;
+                            }
+                            const next = action.id;
+                            setCategory((current) =>
+                              current === next ? "all" : next,
+                            );
+                          }}
+                          style={({ pressed, hovered }: Interaction) => [
+                            home.quickTile,
+                            cramped && home.quickTileHalf,
+                            hovered && home.tileHovered,
+                            selected && home.quickTileSelected,
+                            pressed && { transform: [{ scale: 0.985 }] },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              home.quickIcon,
+                              selected && {
+                                backgroundColor: colors.accentTint,
+                              },
+                            ]}
+                          >
+                            <Icon
+                              name={action.icon}
+                              size={18}
+                              color={selected ? colors.accent : colors.muted}
+                            />
+                          </View>
+                          <View>
+                            <Text
+                              style={[
+                                home.quickLabel,
+                                selected && { color: colors.accent },
+                              ]}
+                            >
+                              {action.label}
+                            </Text>
+                            <Text style={home.quickCount}>{action.detail}</Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </FadeIn>
+              {attentionSection}
+            </View>
+            <View style={sideBySide ? home.houseWide : home.house}>
               <HomePlanOverview
                 plan={plan}
                 identity={identity}
@@ -688,20 +767,22 @@ function HomeContent({
         {snapshot && (
           <>
             <View style={home.section}>
-              <View
-                nativeID="home-list-title"
-                accessible
-                accessibilityRole="header"
-                accessibilityLabel="Around your home"
-                tabIndex={-1}
-              >
-                <Text style={home.title}>Around your home</Text>
+              <View style={home.sectionHead}>
+                <View
+                  nativeID="home-list-title"
+                  accessible
+                  accessibilityRole="header"
+                  accessibilityLabel="Around your home"
+                  tabIndex={-1}
+                >
+                  <Text style={home.title}>Around your home</Text>
+                </View>
+                <Text style={home.caption}>
+                  {category === "all"
+                    ? `${displayed.length} ${displayed.length === 1 ? "device" : "devices"}`
+                    : `${displayed.length} ${category} ${displayed.length === 1 ? "device" : "devices"}`}
+                </Text>
               </View>
-              <Text style={home.caption}>
-                {category === "all"
-                  ? `${displayed.length} ${displayed.length === 1 ? "device" : "devices"}`
-                  : `${displayed.length} ${category} ${displayed.length === 1 ? "device" : "devices"}`}
-              </Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -741,8 +822,9 @@ function HomeContent({
                       accessibilityState={{ selected }}
                       aria-selected={selected}
                       onPress={() => choose(option.selection)}
-                      style={({ pressed }) => [
+                      style={({ pressed, hovered }: Interaction) => [
                         home.roomCard,
+                        hovered && home.tileHovered,
                         selected && home.roomCardSelected,
                         pressed && { transform: [{ scale: 0.985 }] },
                       ]}
@@ -779,22 +861,24 @@ function HomeContent({
               </ScrollView>
             </View>
             {isAll && !!categoryFavorites.length && (
-              <View style={home.section}>
+              <View style={home.group}>
                 <View style={home.heading}>
                   <Icon name="star" size={16} color={colors.accent} />
-                  <Text accessibilityRole="header" style={home.sectionTitle}>
+                  <Text accessibilityRole="header" style={home.roomTitle}>
                     Favorites
                   </Text>
                 </View>
                 {renderGroups(categoryFavorites)}
               </View>
             )}
-            {[...buckets].map(([key, bucket]) => (
-              <View key={key} style={home.section}>
-                <Text accessibilityRole="header" style={home.roomTitle}>
-                  {bucket.name}
-                </Text>
-                {renderGroups(bucket.items)}
+            {sections.map((section) => (
+              <View key={section.key} style={home.group}>
+                {section.name !== null && (
+                  <Text accessibilityRole="header" style={home.roomTitle}>
+                    {section.name}
+                  </Text>
+                )}
+                {renderGroups(section.items)}
               </View>
             ))}
             {!isAll && !categoryFiltered.length && count > 0 && (
@@ -827,38 +911,37 @@ function HomeContent({
 }
 const home = StyleSheet.create({
   content: {
-    padding: spacing.lg,
+    padding: layout.gutter,
     paddingBottom: spacing.xxl + spacing.lg,
     gap: spacing.xl,
     maxWidth: 960,
     width: "100%",
     alignSelf: "center",
   },
-  desktopContent: { maxWidth: 1440, padding: spacing.xxl },
-  mobileContent: { paddingBottom: 112 },
+  desktopContent: {
+    maxWidth: 1440,
+    padding: layout.gutterWide,
+    gap: layout.section,
+  },
+  mobileContent: { paddingBottom: layout.tabBarClearance },
   titleRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
     gap: spacing.md,
   },
-  homeTitle: {
-    ...typography.title,
-    color: colors.text,
-    fontWeight: "700",
-    letterSpacing: -1,
-  },
-  statusLine: { ...typography.secondary, color: colors.muted },
+  homeTitle: { ...typography.display, color: colors.text },
+  statusLine: { ...typography.body, color: colors.muted },
   alertPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
+    gap: 6,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(240,179,94,0.12)",
+    borderRadius: radii.pill,
+    backgroundColor: colors.warningSurface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(240,179,94,0.32)",
+    borderColor: colors.warningBorder,
   },
   alertDot: {
     width: 6,
@@ -866,44 +949,39 @@ const home = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: colors.warning,
   },
-  alertPillText: {
-    color: colors.warning,
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-  cockpitTop: { gap: spacing.md },
-  cockpitTopWide: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: spacing.md,
-  },
-  pulseWide: { flex: 1.35, justifyContent: "center" },
+  alertPillText: { ...typography.eyebrow, color: colors.warning },
+  welcome: { gap: spacing.lg, maxWidth: 640 },
+  welcomeCopy: { gap: spacing.sm },
+  welcomeActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  welcomeAction: { flexGrow: 1, flexBasis: 200 },
+  cockpitTop: { gap: gridGap },
   quickRow: { flexDirection: "row", gap: spacing.sm },
-  quickRowWide: { flex: 1, flexWrap: "wrap", alignContent: "stretch" },
-  quickTileWide: {
-    width: "47%",
-    flexBasis: "47%",
-    flexGrow: 0,
-    flexShrink: 0,
-  },
+  quickRowWrap: { flexWrap: "wrap" },
+  quickTileHalf: { flexBasis: "40%" },
   quickTile: {
     flex: 1,
+    minWidth: 0,
     minHeight: 96,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
     borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  tileHovered: {
+    backgroundColor: colors.raised,
+    borderColor: colors.borderStrong,
   },
   quickTileSelected: {
     borderColor: colors.accent,
     backgroundColor: colors.accentSurface,
   },
   quickIcon: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderRadius: 10,
     backgroundColor: colors.raised,
     alignItems: "center",
@@ -919,17 +997,23 @@ const home = StyleSheet.create({
     color: colors.muted,
     fontVariant: ["tabular-nums"],
   },
-  overview: { gap: spacing.xl },
+  overview: { gap: gridGap },
   // Attention keeps its reading position before the house on wide screens.
-  wideOverview: { flexDirection: "row", alignItems: "flex-start" },
-  attention: {
-    padding: spacing.md,
-    gap: spacing.sm,
-    backgroundColor: "rgba(240,179,94,0.05)",
-    borderColor: "rgba(240,179,94,0.18)",
+  wideOverview: { flexDirection: "row", alignItems: "stretch" },
+  lead: { gap: gridGap, minWidth: 0 },
+  leadFlexible: { flex: 1 },
+  house: { minWidth: 0 },
+  houseWide: { flex: 2, minWidth: 0 },
+  attention: { gap: spacing.sm },
+  attentionFlagged: {
+    backgroundColor: colors.warningSurface,
+    borderColor: colors.warningBorder,
   },
-  attentionAside: { width: 360 },
-  section: { gap: spacing.md },
+  // Beside the house the lead column ends where the house does.
+  attentionAside: { flexGrow: 1 },
+  section: { gap: gridGap },
+  sectionHead: { gap: 2 },
+  group: { gap: spacing.md },
   brand: {
     flexDirection: "row",
     alignItems: "center",
@@ -943,12 +1027,17 @@ const home = StyleSheet.create({
     width: minTouchTarget,
     height: minTouchTarget,
     borderRadius: minTouchTarget / 2,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
+  settingsHovered: {
+    backgroundColor: colors.raised,
+    borderColor: colors.borderStrong,
+  },
+  settingsPressed: { backgroundColor: colors.hover },
   heading: {
     flexDirection: "row",
     alignItems: "center",
@@ -959,12 +1048,15 @@ const home = StyleSheet.create({
   count: {
     ...typography.secondary,
     color: colors.warning,
-    fontWeight: "600",
+    fontWeight: "700",
     fontVariant: ["tabular-nums"],
-    backgroundColor: "rgba(240,179,94,0.12)",
+    backgroundColor: "rgba(240,179,94,0.14)",
+    minWidth: 28,
+    textAlign: "center",
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: radii.control,
+    borderRadius: radii.pill,
+    overflow: "hidden",
   },
   expand: {
     minHeight: minTouchTarget,
@@ -972,27 +1064,17 @@ const home = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,
+    borderRadius: radii.control,
   },
-  link: { ...typography.secondary, color: colors.accent },
-  title: {
-    ...typography.title,
-    color: colors.text,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: "700",
-    letterSpacing: -0.6,
-  },
-  sectionTitle: { ...typography.name, color: colors.text, fontWeight: "600" },
+  expandActive: { backgroundColor: "rgba(255,255,255,0.04)" },
+  link: { ...typography.secondary, color: colors.accent, fontWeight: "600" },
+  title: { ...typography.headline, color: colors.text },
   caption: { ...typography.secondary, color: colors.muted },
-  coverage: {
-    color: colors.muted,
-    fontSize: 10.5,
-    lineHeight: 15,
-  },
+  coverage: { ...typography.caption, color: colors.muted, marginTop: "auto" },
   filters: { gap: spacing.sm, paddingRight: 2 },
   roomCard: {
     width: 148,
-    minHeight: 82,
+    minHeight: 80,
     padding: spacing.md,
     borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1011,21 +1093,15 @@ const home = StyleSheet.create({
     gap: spacing.sm,
   },
   roomName: {
-    ...typography.secondary,
+    ...typography.body,
     color: colors.muted,
     fontWeight: "600",
     flex: 1,
   },
   roomDot: { width: 6, height: 6, borderRadius: 3 },
   roomMeta: { ...typography.secondary, color: colors.muted },
-  roomTitle: {
-    ...typography.secondary,
-    color: colors.muted,
-    fontWeight: "600",
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-    flexShrink: 1,
-  },
+  // A room, or Favorites: the title of one group of cards.
+  roomTitle: { ...typography.heading, color: colors.text, flexShrink: 1 },
   footer: {
     ...typography.secondary,
     color: colors.muted,

@@ -25,6 +25,10 @@ jest.mock("../../services/credentialStorage", () => ({
 jest.mock("../../services/confirmAction", () => ({
   confirmAction: ({ onConfirm }: { onConfirm: () => void }) => onConfirm(),
 }));
+jest.mock("../../components/EntityIcon", () => ({
+  ...jest.requireActual("../../components/EntityIcon"),
+  Icon: () => null,
+}));
 jest.mock("../../services/auth/browserAuth", () => ({
   browserSignInAvailable: true,
   browserSignIn: { compatibility: jest.fn(), begin: jest.fn() },
@@ -52,6 +56,69 @@ test("the manual token form and its memory-only wording stay available", () => {
   expect(
     screen.getByRole("button", { name: "Sign in with Home Assistant" }),
   ).toBeTruthy();
+});
+
+test("warnings stay on the page; only supporting detail is one press away", () => {
+  const screen = render(<SettingsScreen />);
+  // What remembering a browser exposes is never behind a disclosure.
+  expect(screen.getByText("Not for a shared computer")).toBeTruthy();
+  expect(
+    screen.getByText(
+      /Anyone using this browser profile, and any script running on this Maurice address, can use this sign-in; it is not protected like the phone's secure storage\./,
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.queryByText(/Power permissions you allow belong to/),
+  ).toBeNull();
+  fireEvent.press(
+    screen.getByRole("button", { name: "How sign-in works", expanded: false }),
+  );
+  expect(
+    screen.getByRole("button", { name: "How sign-in works", expanded: true }),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      /reloading asks you to sign in again, whatever you choose on that page/,
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      /Power permissions you allow belong to the Home Assistant user who signs in/,
+    ),
+  ).toBeTruthy();
+  expect(screen.queryByText(/Use a dedicated household user/)).toBeNull();
+  fireEvent.press(
+    screen.getByRole("button", { name: "How to create a token" }),
+  );
+  expect(screen.getByText(/Use a dedicated household user/)).toBeTruthy();
+});
+
+test("an HTTP address asks for trust and says what is sent unencrypted", () => {
+  const screen = render(<SettingsScreen />);
+  expect(
+    screen.queryByRole("switch", { name: "Trust local HTTP network" }),
+  ).toBeNull();
+  fillAddress(screen, "http://192.168.1.20:8123");
+  expect(
+    screen.getByRole("switch", { name: "Trust local HTTP network" }).props
+      .value,
+  ).toBe(false);
+  expect(
+    screen.getByText("The sign-in and the token will be sent unencrypted."),
+  ).toBeTruthy();
+});
+
+test("a failed connection is reported once, as an alert, with the token form kept", async () => {
+  jest.mocked(session.connect).mockRejectedValue(new Error("Rejected."));
+  const screen = render(<SettingsScreen />);
+  fillAddress(screen, "https://home.example");
+  fireEvent.press(screen.getByRole("button", { name: "Connect" }));
+  expect((await screen.findAllByRole("alert")).length).toBe(1);
+  expect(screen.getByRole("alert")).toHaveTextContent("Rejected.");
+  expect(
+    screen.getByText(/Check that Home Assistant opens in this browser/),
+  ).toBeTruthy();
+  expect(router.replace).not.toHaveBeenCalled();
 });
 
 test("sign-in starts with the chosen address and the explicit HTTP trust", async () => {

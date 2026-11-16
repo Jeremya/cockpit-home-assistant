@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { colors } from "../ui";
-import { radii, spacing } from "../../theme";
+import { layout, radii, spacing, typography } from "../../theme";
 
 export interface HomePulseRoom {
   id: string;
@@ -19,11 +20,14 @@ export function HomePulse({
   devices,
   alerts,
   ready,
+  cached = true,
 }: {
   rooms: HomePulseRoom[];
   devices: number;
   alerts: number;
   ready: boolean;
+  /** False before the first connection: nothing was observed, so nothing is cached. */
+  cached?: boolean;
 }) {
   // Real households often have more rooms than the ring can show, and many
   // unlinked rooms have no devices. Prioritise the rooms that carry data.
@@ -41,17 +45,23 @@ export function HomePulse({
   const circumference = 2 * Math.PI * radius;
   const segment = shown.length ? circumference / shown.length : 0;
   const dash = segment * 0.7;
+  // A narrow column keeps the room list readable by giving up ring, not type.
+  const [width, setWidth] = useState(0);
+  const ring = width > 0 && width < 350 ? 108 : 132;
   return (
     <View
       style={styles.card}
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       accessibilityLabel={
         ready
           ? `Home pulse: ${alerts} alerts, ${devices} devices, ${rooms.length} rooms`
-          : "Home pulse: cached until reconnect"
+          : cached
+            ? "Home pulse: cached until reconnect"
+            : "Home pulse: connect your home"
       }
     >
-      <View style={styles.ringWrap}>
-        <Svg width={132} height={132} viewBox="0 0 132 132">
+      <View style={[styles.ringWrap, { width: ring, height: ring }]}>
+        <Svg width={ring} height={ring} viewBox="0 0 132 132">
           <Circle
             cx={66}
             cy={66}
@@ -85,8 +95,13 @@ export function HomePulse({
           ))}
         </Svg>
         <View style={styles.ringCenter}>
-          <Text style={styles.ringValue}>{rooms.length}</Text>
-          <Text style={styles.ringLabel}>ROOMS</Text>
+          {/* Inside a fixed ring: the count is repeated, fully scaled, beside it. */}
+          <Text maxFontSizeMultiplier={1.3} style={styles.ringValue}>
+            {rooms.length}
+          </Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.ringLabel}>
+            ROOMS
+          </Text>
         </View>
       </View>
       <View style={styles.copy}>
@@ -110,7 +125,9 @@ export function HomePulse({
         <Text style={styles.meta}>
           {ready
             ? `${devices} ${devices === 1 ? "device" : "devices"} · ${rooms.length} ${rooms.length === 1 ? "room" : "rooms"}`
-            : "Cached until reconnect"}
+            : cached
+              ? "Cached until reconnect"
+              : "Connect your home"}
         </Text>
         <View style={styles.roomList}>
           {listed.map((room) => (
@@ -154,55 +171,37 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radii.panel,
+    gap: spacing.lg,
+    padding: layout.cardPadding,
+    borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  ringWrap: {
-    width: 132,
-    height: 132,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  ringWrap: { alignItems: "center", justifyContent: "center" },
   ringCenter: { position: "absolute", alignItems: "center" },
   ringValue: {
+    ...typography.display,
     color: colors.text,
-    fontSize: 30,
-    fontWeight: "700",
-    letterSpacing: -1,
     fontVariant: ["tabular-nums"],
   },
-  ringLabel: {
-    color: colors.muted,
-    fontSize: 8,
-    fontWeight: "800",
-    letterSpacing: 1.6,
-    marginTop: 1,
-  },
+  ringLabel: { ...typography.eyebrow, color: colors.muted, marginTop: -4 },
   copy: { flex: 1, minWidth: 0, gap: 2 },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: 8,
-    fontWeight: "800",
-    letterSpacing: 1.6,
-  },
-  title: {
+  eyebrow: { ...typography.eyebrow, color: colors.accent },
+  title: { ...typography.headline, color: colors.text },
+  meta: { ...typography.caption, color: colors.muted },
+  roomList: { marginTop: spacing.sm, gap: spacing.xs },
+  roomRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  roomName: {
+    ...typography.secondary,
+    flex: 1,
     color: colors.text,
-    fontSize: 22,
-    fontWeight: "700",
-    letterSpacing: -0.6,
+    fontWeight: "500",
   },
-  meta: { color: colors.muted, fontSize: 10.5 },
-  roomList: { marginTop: spacing.sm, gap: 5 },
-  roomRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  dot: { width: 5, height: 5, borderRadius: 3 },
-  roomName: { flex: 1, color: colors.text, fontSize: 10.5, fontWeight: "500" },
   roomValue: {
+    ...typography.caption,
     color: colors.muted,
-    fontSize: 9.5,
     fontVariant: ["tabular-nums"],
   },
 });

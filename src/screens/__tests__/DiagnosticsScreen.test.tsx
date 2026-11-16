@@ -8,6 +8,10 @@ import {
 } from "../../spatial/__tests__/placementFixtures";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+jest.mock("../../components/EntityIcon", () => ({
+  ...jest.requireActual("../../components/EntityIcon"),
+  Icon: () => null,
+}));
 jest.mock("../../services/runtime", () => ({
   session: { retry: jest.fn(), notice: jest.fn(), resetSpatial: jest.fn() },
 }));
@@ -36,14 +40,18 @@ test("diagnostics exposes retained unresolved spatial data and the saved revisio
   });
   const before = JSON.stringify(preferences);
   const screen = render(<DiagnosticsScreen />);
-  expect(screen.getByText(/Plan: Sample home \(revision 7\)/)).toBeTruthy();
+  // Each fact is one labelled row: the name and what was recorded.
+  expect(screen.getByLabelText("Plan: Sample home (revision 7)")).toBeTruthy();
   expect(
-    screen.getByText(
-      /Room links: 2 \(2 absent from cached HA areas\) \(1 to rooms not in this plan\)/,
+    screen.getByLabelText(
+      "Room links: 2 (2 absent from cached HA areas) (1 to rooms not in this plan)",
     ),
   ).toBeTruthy();
   expect(
-    screen.getByText(/Device placements: 1 \(1 unresolved or hidden\)/),
+    screen.getByLabelText("Device placements: 1 (1 unresolved or hidden)"),
+  ).toBeTruthy();
+  expect(
+    screen.getByText("Test lamp: Floor is no longer in this plan"),
   ).toBeTruthy();
   expect(
     screen.getByRole("button", { name: "Manage device placements" }),
@@ -53,10 +61,10 @@ test("diagnostics exposes retained unresolved spatial data and the saved revisio
     screen.getByText(/Attention rules are not a device health check/),
   ).toBeTruthy();
   expect(
-    screen.getByText(/Home Assistant: 2026.10.1 \(last synchronized\)/),
+    screen.getByLabelText("Home Assistant: 2026.10.1 (last synchronized)"),
   ).toBeTruthy();
   expect(
-    screen.getByText(/Snapshot: cached; awaiting synchronization/),
+    screen.getByLabelText("Snapshot: cached; awaiting synchronization"),
   ).toBeTruthy();
   expect(JSON.stringify(useCockpit.getState().preferences)).toBe(before);
 });

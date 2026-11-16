@@ -8,6 +8,7 @@ import { useCockpit } from "../../core/store";
 import { DemoBackend } from "../../session/demo/DemoBackend";
 import { emptyPreferences } from "../../preferences/types";
 import { router, useFocusEffect } from "expo-router";
+import { session } from "../../services/runtime";
 import { HomePlanOverview } from "../../components/HomePlanOverview";
 import { CockpitSceneView } from "../../components/CockpitSceneView";
 import { sampleHouse } from "../../spatial/plans";
@@ -643,3 +644,71 @@ test("the compact architectural preview opens the full floor plan", () => {
   expect(router.push).toHaveBeenCalledWith("/house");
   screen.unmount();
 });
+
+test("a wide Home lists every room's cards as one lattice; a phone keeps its room groups", () => {
+  const compact = render(<HomeScreen />);
+  expect(compact.getByRole("header", { name: "Kitchen" })).toBeTruthy();
+  expect(compact.getByRole("header", { name: "Office" })).toBeTruthy();
+  compact.unmount();
+  mockDesktop = true;
+  const wide = render(<HomeScreen />);
+  expect(wide.queryByRole("header", { name: "Kitchen" })).toBeNull();
+  expect(wide.queryByRole("header", { name: "Other devices" })).toBeNull();
+  // Without a room title the card itself still names its room.
+  expect(wide.getByText(/^Kitchen · 7 readings$/)).toBeTruthy();
+  // One room is a group again, under its own name.
+  fireEvent.press(wide.getByRole("tab", { name: "Office" }));
+  expect(wide.getByRole("header", { name: "Office" })).toBeTruthy();
+  wide.unmount();
+});
+
+test("on a wide Home favorites lead, and the remaining cards are named as such", () => {
+  const { snapshot, preferences } = useCockpit.getState();
+  useCockpit.setState({
+    preferences: {
+      ...preferences,
+      favorites: [snapshot!.entities["fan.office_vent"]!.key],
+    },
+  });
+  mockDesktop = true;
+  const screen = render(<HomeScreen />);
+  const order = readingOrder(screen.toJSON());
+  expect(order.indexOf("Favorites")).toBeLessThan(
+    order.indexOf("Other devices"),
+  );
+  expect(order.indexOf("Open device: Office booster vent")).toBeLessThan(
+    order.indexOf("Other devices"),
+  );
+  expect(
+    screen.getAllByLabelText("Open device: Office booster vent"),
+  ).toHaveLength(1);
+  screen.unmount();
+});
+
+test.each([false, true])(
+  "before any home is connected, Home offers one invitation (wide: %s)",
+  (desktop) => {
+    mockDesktop = desktop;
+    jest.mocked(session.connect).mockResolvedValue(undefined);
+    act(() =>
+      useCockpit.setState({
+        snapshot: null,
+        profileId: null,
+        mode: null,
+        status: { kind: "idle" },
+      }),
+    );
+    const screen = render(<HomeScreen />);
+    expect(
+      screen.getAllByRole("button", { name: "Connect Home Assistant" }),
+    ).toHaveLength(1);
+    fireEvent.press(screen.getByRole("button", { name: "Explore demo home" }));
+    expect(session.connect).toHaveBeenCalledWith({ demo: true });
+    // Nothing is assessed yet: no attention card, and no all-clear either.
+    expect(screen.queryByText("Needs attention")).toBeNull();
+    expect(screen.getByText("Status unknown")).toBeTruthy();
+    // Nothing was observed yet, so nothing is described as cached.
+    expect(screen.queryByText("Cached until reconnect")).toBeNull();
+    screen.unmount();
+  },
+);
