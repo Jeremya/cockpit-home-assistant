@@ -65,10 +65,39 @@ export function withFixturePlacements(raw, keys = fixtureMarkers) {
   );
   const next = structuredClone(file);
   next.profiles.demo.spatial.placements = placements;
-  return {
-    value: JSON.stringify(next),
-    floor: { id: floor.id, rooms: floor.rooms.map((room) => room.id) },
-  };
+  const floors = spatial.plan.floors.map((item) => ({
+    id: item.id,
+    rooms: item.rooms.map((room) => room.id),
+  }));
+  return { value: JSON.stringify(next), floor: floors[0], floors };
+}
+
+/** Drawn marker labels (centre-based rects, CSS px) must stay legible: inside
+ * the canvas and never on top of one another. Hidden labels are not drawn. */
+export function labelProblems(labels, size) {
+  const problems = [];
+  const drawn = labels
+    .map((label, index) => ({ ...label, index }))
+    .filter((label) => label.visible);
+  for (const label of drawn)
+    if (
+      label.x - label.w / 2 < 0 ||
+      label.y - label.h / 2 < 0 ||
+      label.x + label.w / 2 > size.width ||
+      label.y + label.h / 2 > size.height
+    )
+      problems.push(`label ${label.index} leaves the canvas`);
+  for (let i = 0; i < drawn.length; i++)
+    for (let j = i + 1; j < drawn.length; j++) {
+      const a = drawn[i];
+      const b = drawn[j];
+      if (
+        Math.abs(a.x - b.x) < (a.w + b.w) / 2 &&
+        Math.abs(a.y - b.y) < (a.h + b.h) / 2
+      )
+        problems.push(`labels ${a.index} and ${b.index} overlap`);
+    }
+  return problems;
 }
 
 /** Separates deliberately provoked WebGL messages from everything else. */

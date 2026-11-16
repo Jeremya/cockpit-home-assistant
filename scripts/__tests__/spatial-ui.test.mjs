@@ -5,6 +5,7 @@ import {
   assessPerformance,
   classifyConsole,
   fixtureMarkers,
+  labelProblems,
   median,
   parseSpatialArgs,
   withFixturePlacements,
@@ -21,6 +22,10 @@ const samplePlan = {
         { id: "room-a", label: { x: 2, z: 3 } },
         { id: "room-b", label: { x: 6, z: 3 } },
       ],
+    },
+    {
+      id: "floor-2",
+      rooms: [{ id: "room-c", label: { x: 1, z: 1 } }],
     },
   ],
 };
@@ -44,9 +49,10 @@ test("fixture placements require the public sample and replace only placements",
     placements: { "demo-sensor.old": {} },
     areaLinks: { "room-a": "area" },
   });
-  const { value, floor } = withFixturePlacements(raw);
+  const { value, floor, floors } = withFixturePlacements(raw);
   const next = JSON.parse(value);
   assert.deepEqual(floor, { id: "floor-1", rooms: ["room-a", "room-b"] });
+  assert.deepEqual(floors, [floor, { id: "floor-2", rooms: ["room-c"] }]);
   assert.deepEqual(Object.keys(next.profiles.demo.spatial.placements), [
     ...fixtureMarkers,
   ]);
@@ -154,5 +160,22 @@ test("renderer counters reject a second live renderer or inconsistent totals", (
         peakLive: 1,
       }),
     /inconsistent/,
+  );
+});
+
+test("visible marker labels stay inside the canvas and apart", () => {
+  const size = { width: 320, height: 240 };
+  const label = (x, y, visible = true) => ({ x, y, w: 80, h: 24, visible });
+  assert.deepEqual(labelProblems([label(60, 40), label(200, 40)], size), []);
+  assert.deepEqual(labelProblems([label(30, 40)], size), [
+    "label 0 leaves the canvas",
+  ]);
+  assert.deepEqual(labelProblems([label(60, 40), label(100, 50)], size), [
+    "labels 0 and 1 overlap",
+  ]);
+  // A label the layout chose to hide is not drawn, so it cannot collide.
+  assert.deepEqual(
+    labelProblems([label(60, 40), label(100, 50, false)], size),
+    [],
   );
 });

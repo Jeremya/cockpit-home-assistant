@@ -26,6 +26,7 @@ import {
   assessPerformance,
   classifyConsole,
   fixtureMarkers,
+  labelProblems,
   median,
   modelCamera,
   parseSpatialArgs,
@@ -226,7 +227,12 @@ async function fixtureContext(contextOptions) {
   }, fixture.value);
   await page.reload({ waitUntil: "networkidle" });
   await demo(page);
-  return { context, provoked, floor: fixture.floor };
+  return {
+    context,
+    provoked,
+    floor: fixture.floor,
+    floors: fixture.floors,
+  };
 }
 async function assertFixtureScene(target, floor) {
   const current = await probe(target);
@@ -260,6 +266,20 @@ async function cornersInside(target) {
     )
     .toBe(true);
 }
+/** Drawn marker labels stay inside the canvas and apart once the fit settles. */
+async function labelsLegible(target) {
+  await expect
+    .poll(
+      async () => {
+        const current = await probe(target);
+        return labelProblems(current.labels, current.size);
+      },
+      { message: "Marker labels must stay inside the canvas and apart" },
+    )
+    .toEqual([]);
+}
+const roomTabs = (plan) =>
+  plan.getByRole("tab", { name: /^Select .+ on plan$/ });
 /** Samples animatedCamera every frame while `action` runs. */
 async function animationDuring(target, action) {
   const sampling = scene(target).evaluate(
@@ -300,7 +320,7 @@ async function hideDocument(target, hidden) {
 
 async function functional() {
   const checks = report.checks;
-  const { context, provoked, floor } = await fixtureContext({
+  const { context, provoked, floor, floors } = await fixtureContext({
     viewport: { width: 1440, height: 1000 },
   });
   try {
@@ -312,6 +332,14 @@ async function functional() {
     await assertFixtureScene(page, floor);
     // Headless CI normally reports a software renderer: functional, not GPU.
     report.browser.webglRenderer = await webglRenderer(page);
+    // Every piece must end as its GLB model; a fallback volume means a load failed.
+    await expect
+      .poll(async () => (await probe(page)).furniture, {
+        message: "Furniture must load as models, not fallback volumes",
+      })
+      .toMatchObject({ fallbacks: 0 });
+    const { furniture } = await probe(page);
+    assert(furniture.models > 0, "The sample floor must show furniture");
     await resize(page, 1024);
     await ready(page);
     await expect(scene(page)).toHaveAttribute("data-camera-mode", "model");
@@ -321,7 +349,11 @@ async function functional() {
     await noScene(page);
     await resize(page, 1440);
     await ready(page);
-    checks.defaultView = { model3dAt: [1024, 1440], compact2dAt: 1023 };
+    checks.defaultView = {
+      model3dAt: [1024, 1440],
+      compact2dAt: 1023,
+      furnitureModels: furniture.models,
+    };
 
     stage = "keyboard-and-bounds";
     const yaw = async () => (await probe(page)).modelCamera.yaw;
@@ -567,6 +599,98 @@ async function functional() {
     await ready(page);
     await expect(scene(page)).toHaveAttribute("data-camera-mode", "model");
     checks.explicitChoice = { kept2d: true, compact3dOrbit: true };
+
+    stage = "compact-widths";
+    // The explicit 3D choice above must survive the return to phone widths.
+    const compact = [];
+    for (const [width, height] of [
+      [430, 932],
+      [320, 700],
+    ]) {
+      await resize(page, width, height);
+      await expandCompactPlan(page);
+      await expect(tab(plan, "3D view")).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      await ready(page);
+      await expect(scene(page)).toHaveAttribute("data-camera-mode", "orbit");
+      await assertFixtureScene(page, floor);
+      await cornersInside(page);
+      await labelsLegible(page);
+      await noOverflow(page);
+      const { size, labels } = await probe(page);
+      compact.push({
+        width,
+        canvas: [Math.round(size.width), Math.round(size.height)],
+        labelsDrawn: labels.filter((label) => label.visible).length,
+      });
+    }
+    assertSingleRenderer(await counters(page));
+    checks.compactWidths = {
+      orbitKept: true,
+      floorInsideCanvas: true,
+      labelsInsideAndApart: true,
+      noOverflow: true,
+      widths: compact,
+    };
+
+    stage = "floor-switch";
+    assert(floors.length >= 2, "The sample must have two floors");
+    const switches = [];
+    for (const [width, height, mode] of [
+      [430, 932, "orbit"],
+      [1440, 1000, "model"],
+    ]) {
+      await resize(page, width, height);
+      if (width < 1024) await expandCompactPlan(page);
+      await ready(page);
+      await expect(scene(page)).toHaveAttribute("data-camera-mode", mode);
+      await tab(plan, "Select Kitchen on plan").click();
+      await ready(page);
+      assert.equal((await probe(page)).selection, floor.rooms[1]);
+      const before = await counters(page);
+      await tab(plan, "Floor 2").click();
+      await expect(tab(plan, "Floor 2")).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      await ready(page);
+      await expect
+        .poll(async () => (await probe(page)).rooms.map((room) => room.id))
+        .toEqual(floors[1].rooms);
+      const upper = await probe(page);
+      assert.equal(upper.selection, null, "A floor change clears selection");
+      assert.equal(upper.markers.length, 0, "Floor 2 has no fixture marker");
+      await expect(roomTabs(plan)).toHaveCount(floors[1].rooms.length);
+      await cornersInside(page);
+      await noOverflow(page);
+      await tab(plan, "Floor 1").click();
+      await ready(page);
+      await expect
+        .poll(async () => (await probe(page)).rooms.map((room) => room.id))
+        .toEqual(floor.rooms);
+      await assertFixtureScene(page, floor);
+      assert.equal((await probe(page)).selection, null);
+      await expect(roomTabs(plan)).toHaveCount(floor.rooms.length);
+      await cornersInside(page);
+      await labelsLegible(page);
+      const after = await counters(page);
+      assertSingleRenderer(after);
+      switches.push({
+        width,
+        mode,
+        renderersCreated: after.created - before.created,
+      });
+    }
+    checks.floorSwitch = {
+      roomsMatch2dTabs: true,
+      selectionCleared: true,
+      markersFollowFloor: true,
+      floorInsideCanvas: true,
+      singleRenderer: true,
+      switches,
+    };
 
     stage = "context-loss";
     provoked.add("context-loss");
