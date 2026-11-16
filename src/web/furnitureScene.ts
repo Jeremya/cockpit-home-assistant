@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { readAssetBytes } from "./assetBytes";
 import { furnitureAssets } from "./furnitureAssets";
 import {
   furnitureCatalog,
@@ -83,14 +84,19 @@ const gltfCache = new Map<string, Promise<THREE.Object3D>>();
 export function loadFurnitureAsset(url: string) {
   const cached = gltfCache.get(url);
   if (cached) return cached;
-  const promise = new Promise<THREE.Object3D>((resolve, reject) => {
-    new GLTFLoader().load(
-      url,
-      (gltf) => resolve(gltf.scene),
-      undefined,
-      reject,
-    );
-  });
+  // GLTFLoader.load() reads through fetch(), which the Android WebView
+  // refuses for the APK's embedded file:// bundle; parse bytes read by XHR.
+  const promise = readAssetBytes(url).then(
+    (bytes) =>
+      new Promise<THREE.Object3D>((resolve, reject) => {
+        new GLTFLoader().parse(
+          bytes,
+          THREE.LoaderUtils.extractUrlBase(url),
+          (gltf) => resolve(gltf.scene),
+          reject,
+        );
+      }),
+  );
   gltfCache.set(url, promise);
   promise.catch(() => gltfCache.delete(url));
   return promise;
@@ -237,6 +243,8 @@ export function addFurniture(host: FurnitureHost, floor: SceneFloor) {
     const holder = new THREE.Group();
     holder.position.set(at.x, at.y, at.z);
     holder.rotation.y = THREE.MathUtils.degToRad(item.rotation);
+    // Read by the scene probe: a model silently stuck as a fallback is a defect.
+    holder.userData.furniture = "fallback";
     group.add(holder);
     const placeholder = fallback(item, entry, materialFor);
     holder.add(placeholder);
@@ -248,9 +256,20 @@ export function addFurniture(host: FurnitureHost, floor: SceneFloor) {
         holder.remove(placeholder);
         placeholder.geometry.dispose();
         holder.add(instantiate(asset, entry, item, materialFor));
+        holder.userData.furniture = "model";
         host.refreshShadows();
         host.invalidate();
       })
       .catch(() => undefined);
   }
+}
+
+/** Counts drawn furniture by what it currently shows. */
+export function furnitureState(content: THREE.Object3D) {
+  const state = { models: 0, fallbacks: 0 };
+  content.getObjectByName("furniture")?.children.forEach((holder) => {
+    if (holder.userData.furniture === "model") state.models++;
+    else state.fallbacks++;
+  });
+  return state;
 }

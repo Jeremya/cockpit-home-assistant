@@ -39,7 +39,7 @@ import {
   type FloorSurface,
 } from "./sceneStyle";
 import { wallPieces } from "./sceneWalls";
-import { addFurniture } from "./furnitureScene";
+import { addFurniture, furnitureState } from "./furnitureScene";
 import {
   groundPool,
   plinthOcclusion,
@@ -832,6 +832,7 @@ export default function CockpitScene(props: CockpitSceneProps) {
           },
           fit: r.model?.probe.share ?? r.orbitShare,
           labels: r.labelLayout.map((label) => ({ ...label })),
+          furniture: furnitureState(content),
           markerChanges: { ...r.markerChanges },
           camera: {
             position: camera.position.toArray(),
