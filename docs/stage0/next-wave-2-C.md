@@ -105,9 +105,10 @@ Consignées pour le coordinateur, non traitées dans cette vague :
 
 ## Gates restantes
 
-1. Candidat suivant intégrant le correctif : Pixel puis Seeker dans les créneaux de A. À vérifier : meubles réellement chargés (17/0), labels, marqueur → détail → Back, changement d'étage, reprise, fallback 2D. C'est une non-régression native, pas une reproduction du blocage.
-2. Seeker sur le code intégré : non rejoué dans cette vague tant que le candidat suivant n'est pas là.
-3. Acceptation de la maison personnelle : privée et distincte du sample, non faite ici (OQ-03).
+1. ~~Candidat suivant intégrant le correctif, Pixel puis Seeker~~ : fait sur `adcdd1da` / `948e642` (section ci-dessus), en non-régression native.
+2. La borne de 15 s n'est prouvée qu'en HTTP (runner) et en Jest ; aucune preuve native du blocage n'est possible sur `file://`.
+3. Fusion dans `main` : non autorisée à ce stade ; un nouvel APK construit après fusion devra être rejoué s'il diffère de `948e642`.
+4. Acceptation de la maison personnelle : privée et distincte du sample, non faite ici (OQ-03).
 
 ## Candidat suivant
 
@@ -129,9 +130,22 @@ Même appareil, même WebView et même pilote que la recette précédente. Profi
 | Mesure courte            | 5 balayages de 5 s : médiane 117,8 frames rendues/s (102,5 → 118,7) ; gfxinfo 0 janky sur 2 854, p90 9 ms, p99 ≤ 10 ms ; GPU HWUI p99 ≤ 3 ms ; timer WebGL indisponible ; 36,0 → 35,7 °C |
 | Journaux                 | 0 `FATAL` dans logcat                                                                                                                                                                    |
 
-### Seeker
+### Seeker (`SM02G4061971427`), 17 novembre, 17:00–17:06 UTC
 
-En attente du créneau de A, après B.
+Android 16, WebView 157.0.8103.38, Mali-G615 MC2, 1200×2670 à 3 dppx. Même APK `adcdd1da…`, haché installé vérifié. Trial 1012 installé et non touché ; le profil de preuve n'avait plus de placements (fixture de B oubliée).
+
+| Vérification              | Résultat                                                                                                                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Placements via le produit | Recréés par Plan → Place device : lampe → Living room, porte d'entrée → Kitchen, profil démo du paquet de preuve uniquement                                                                                                     |
+| Ouverture Plan → 3D       | 17 modèles, 0 repli ; 2 labels ; 2 marqueurs ; prête en 866 ms                                                                                                                                                                  |
+| Marqueur → détail → Back  | Écran « Device » de la lampe → Back → même scène, 17/0, 2 marqueurs, sélection nulle                                                                                                                                            |
+| Sélection et étages       | Cuisine au toucher ; Floor 2 efface la sélection (0 marqueur) ; Floor 1 : 2 marqueurs                                                                                                                                           |
+| Reprise                   | 0 frame cachée, 0 frame au repos, 17/0                                                                                                                                                                                          |
+| Fallback                  | Perte de contexte → « 3D view unavailable », stable après les onglets 2D/3D → Retry → 3D en 720 ms, 17/0                                                                                                                        |
+| Mesure courte             | 5 balayages de 5 s : médiane 119,0 frames rendues/s (118,6 → 119,5) ; gfxinfo 1 janky sur 5 952 ; durée de frame p50 11 ms, p90 13 ms, p99 ≤ 18 ms ; GPU HWUI p50 5 ms, p99 ≤ 10 ms ; timer WebGL indisponible ; 32,0 °C stable |
+| Journaux                  | 0 `FATAL`                                                                                                                                                                                                                       |
+
+Les durées `gfxinfo` mesurent le temps de production d'une frame, pas l'intervalle entre frames. Sur le Seeker, elles dépassent 8,3 ms sans frame perdue côté scène (119 frames rendues/s, 1 janky). Les preuves Pixel et Seeker restent séparées : appareils, écrans et WebView diffèrent.
 
 ## Fichiers modifiés
 
