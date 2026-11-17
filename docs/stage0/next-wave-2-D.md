@@ -6,6 +6,7 @@ Agent D, [vague 2](../handoff/parallel/2026-11-16-wave-2.md) et son extension du
 - **HA :** inspecté, avec une configuration réversible appliquée.
 - **Nouvelles intégrations :** aucune réalisée. Toutes attendent une connexion interactive du propriétaire.
 - **Caméra :** deux défauts reproduits sur Android au build `0f6d5fb`, puis leurs correctifs **observés sur le Seeker** au candidat `948e642`. Pixel non exécuté.
+- **Ce que la caméra ne prouve pas :** toutes les images des §4 et §5 viennent de la fixture publique `scripts/camera-fixture.mjs`, un serveur local qui imite `camera_proxy`. **Aucune caméra Ring n'est intégrée** : le comportement avec Ring reste inconnu.
 
 ## 1. État réel de Home Assistant (lecture seule, 17/11 vers 09:20 CST)
 
@@ -24,11 +25,11 @@ Méthode : commandes WebSocket de lecture (`get_config`, `get_states`, `config_e
 | Prise TP-Link | **HS103**, HW 5.0, FW 1.0.13 (registre HA) | `tplink` officielle (cœur 2026.10.1) | Local | 3 entités (dont 1 switch) ; 3 désactivées | Toutes disponibles | Carte Kasa, cycle M01 accepté sur Pixel Trial 1009 (preuve antérieure) | Aucun | Fiabilité sur 7 jours (M05) ; placement M02 |
 | Distributeur Petlibro | **PLAF103** Granary, FW 1.1.15, HW 1.0.0 | `petlibro` custom **1.2.32** | Cloud (polling) | 82 entités : capteurs, binaires, nombres, sélections, 2 switches, 13 boutons, 2 images, 2 dates, 1 mise à jour ; plus 2 entrées « Pet » de compte (pas des distributeurs) | 69 OK ; les 13 boutons sont « unknown » (jamais pressés, normal). Transitoirement « unavailable » juste après le redémarrage de HA, revenus ensuite | Résumé U03, 23 lectures (preuve antérieure) | Sens batterie/alimentation non établi ; aucune commande autorisée | Valider la sémantique batterie avec le propriétaire ; aucun bouton d'alimentation |
 | Bitaxe ×2 (**nouveau**, absent de l'inventaire) | **BM1370**, FW v2.15.3 | `bitaxe` custom **1.1.1** | Local (polling) | 92 entités : 90 capteurs (2 désactivés), 2 mises à jour (catégorie diagnostic) | 90/90 actives disponibles | **88 capteurs visibles par défaut** (sans catégorie d'entité ni masquage) | Déjà intégrés dans HA (pas une nouvelle intégration) ; cartes denses et 5 « issues » bruitées chacune (§6) | Décision produit sur la présentation compacte proposée (§7) ; aucune visibilité modifiée |
-| Nest Learning Thermostat | **3e génération** (réponse du propriétaire, 17/11) | Non configurée. Officielle `nest` (API SDM) | Cloud SDM ; Matter non confirmé pour la 3e génération dans les sources Google consultées | — | — | — | Connexion interactive : projet Device Access (5 $ non remboursables), projet Google Cloud OAuth + Pub/Sub, compte grand public | Le propriétaire crée le projet ; D l'accompagne et inspecte ensuite. Climat en lecture seule, **aucune consigne** |
-| Serrure Schlage | Encode Plus (déclaré, pas vu dans HA) | Non configurée. Officielle `schlage` (Encode Plus listée comme testée) | Cloud, serrure en Wi-Fi | — | — | — | Identifiants Schlage. Une serrure appairée d'abord à Apple Home peut ne pas apparaître (rapports communautaires) | Le propriétaire ajoute l'intégration ; lecture seule, **aucun déverrouillage** |
-| Samsung | **Électroménager** (réponse du propriétaire) ; identifiant `AFH-US-M64-24-…` introuvable publiquement | Non configurée. Officielle `smartthings` (OAuth) | Cloud SmartThings | — | — | — | OAuth Samsung interactif | Le propriétaire connecte ; D relève le type et les capacités réels |
-| Ring | « Plusieurs caméras », modèles inconnus | Non configurée. Officielle `ring` | Cloud ; caméras `live_view` et `last_recording` (cette dernière désactivée par défaut, vidéo soumise à Ring Protect) | — | — | — | Identifiants + 2FA | Le propriétaire connecte ; D teste le chemin d'image de `camera_proxy` dans Maurice (H01) |
-| AIRTAP | Inconnu : gamme AC Infinity AIRTAP (ventilateur de bouche) ; FW `F1.0.26` | Aucune intégration officielle trouvée | Wi-Fi selon le fabricant, Thread + Bluetooth selon une fiche CSA : sources contradictoires | — | — | — | Modèle exact (référence AC-RBF…) ; pas d'adaptateur Bluetooth ni de Matter Server dans ce HA en conteneur | Le propriétaire lit l'étiquette ; décision ensuite sur Matter/BLE |
+| Nest Learning Thermostat | **3e génération** (réponse du propriétaire, 17/11) | Non configurée. Officielle `nest` (API SDM, `google-nest-sdm` 9.2.1 présent dans le conteneur) | Cloud SDM ; la doc HA indique que « tous les thermostats Google Nest » sont exposés en `climate`, sans nommer la 3e génération | — | — | — | **Frais Device Access de 5 $ (achat non autorisé)**, projet Google Cloud (API SDM + Pub/Sub), identifiants OAuth avec redirection `my.home-assistant.io` | Attendre l'accord explicite pour les 5 $. Ensuite, climat en lecture seule, **aucune consigne** |
+| Serrure Schlage | Encode Plus (déclaré, pas vu dans HA) | Non configurée. Officielle `schlage` : Encode Plus listée comme testée, `pyschlage` 2026.9.0 installé | Cloud, serrure en Wi-Fi | — | — | — | **Seule étape restante : les identifiants Schlage, saisis par le propriétaire dans HA** (§8) | Le propriétaire ajoute l'intégration ; lecture seule, **aucun déverrouillage** |
+| Samsung | **Électroménager** (réponse du propriétaire) ; identifiant fourni introuvable publiquement | Non configurée. Officielle `smartthings` (connexion par compte Samsung, `pysmartthings` 4.0.3) | Cloud SmartThings | — | — | — | **Abonnement payant probable.** Selon la doc HA, l'accès gratuit à l'API SmartThings se retire progressivement depuis octobre 2026, au profit d'un « Personal Plan » à 4,99 $/mois. Non vérifié sur ce compte. Aucune souscription lancée | Le propriétaire décide s'il s'abonne. Sinon, l'appareil reste hors périmètre |
+| Ring | « Plusieurs caméras », modèles inconnus | Non configurée. Officielle `ring` (`ring-doorbell` 0.9.14) | Cloud ; caméras `live_view` et `last_recording`, cette dernière désactivée par défaut et soumise à Ring Protect pour la vidéo | — | — | — | Identifiants Ring et code de vérification (2FA), saisis dans HA. La doc ne dit pas si un instantané `live_view` exige un abonnement | Le propriétaire connecte ; D teste ensuite `camera_proxy` dans Maurice, sur une vraie caméra Ring. Les résultats de la fixture n'en tiennent pas lieu |
+| AIRTAP | Non confirmé : gamme AC Infinity AIRTAP (ventilateur de bouche) ; FW `F1.0.26`. Le manuel liste 8 références (AC-RBF4, -RBF42, -RBF6, -RBF62, chacune en -B/-W). Les fiches CSA donnent les variantes « 2 » comme connectées en Wi-Fi | Aucune intégration officielle trouvée | Inconnu. Écoute mDNS passive du réseau le 17/11 : aucun service `_matter`/`_matterc`, aucun nom AC Infinity | — | — | — | Référence exacte, lisible seulement sur l'étiquette ; pas d'adaptateur Bluetooth ni de Matter Server dans ce HA en conteneur | Le propriétaire lit l'étiquette ; décision ensuite sur Matter/BLE |
 | Démo HA | — | `demo` | — | **Retirée** (§3) | — | Ne pollue plus le foyer réel | — | A annote les preuves antérieures qui s'en servaient |
 
 Aucune compatibilité n'est déduite de la marque ni du nom d'entité. Aucun backend fournisseur n'a été ajouté à Maurice, et aucune commande n'a été envoyée à un appareil.
@@ -134,36 +135,72 @@ Sondage du 17/11 avec `HomeAssistantBackend`, `deviceSummaries` et `assessEntity
 
 136 entités visibles au total (126 `sensor`, 8 `binary_sensor`, 1 `switch`, 1 `event`). Chaque Bitaxe forme déjà **une seule carte** : les 88 capteurs ne sont pas 88 cartes. Le problème est la densité de chaque carte et l'attention bruitée. Les deux entrées « Pet » du compte Petlibro, que l'inventaire décrit comme n'étant pas des distributeurs, apparaissent comme des cartes d'appareil.
 
-## 7. Proposition : présentation compacte des Bitaxe (à décider, non implémentée)
+## 7. Proposition : Bitaxe lisibles, entrées « Pet » clarifiées (à décider, non implémentée)
 
-Les Bitaxe sont déjà intégrés dans HA ; ce n'est pas une nouvelle intégration. Aucune visibilité n'a été modifiée.
+Les Bitaxe sont déjà intégrés dans HA ; ce n'est pas une nouvelle intégration. **Rien n'a été masqué, supprimé ni reclassé**, ni dans HA ni dans Maurice. Toutes les identités ci-dessous viennent du registre HA (snapshot du 17/11) ou du code source de l'intégration, jamais d'un nom d'entité.
 
-- **Réutiliser le mécanisme du Petlibro** (`src/core/devices/petlibro.ts`) : un module de lectures-clés appliqué seulement si le fabricant est `Bitaxe`, le modèle `BM1370` et la plateforme `bitaxe` (1.1.1). Toutes les lectures restent accessibles derrière l'expansion existante de la carte.
-- **Identification sans nom.** L'intégration fixe `unique_id = f"{entry.entry_id}_{description.key}"` (vérifié dans `custom_components/bitaxe/sensor.py`, ligne 587). Le rôle est le suffixe exact après `config_entry_id + "_"`, comparé à une liste fermée. C'est l'équivalent de la `translation_key` du Petlibro, que le Bitaxe n'expose pas.
-- **Lectures-clés proposées** (libellés de l'intégration) : `hashRate` (Hash Rate, GH/s), `temp` (ASIC Temperature), `power` (Power, W), `uptimeSeconds` (Uptime). Optionnel : `sharesRejected` et `errorPercentage`.
-- **Attention** : les 5 clés textuelles ci-dessus ne devraient pas compter comme points d'attention sans règle explicite. `overheat_mode` mérite peut-être une règle réelle (signal de surchauffe), mais elle n'est pas déduite ici.
+### 7a. Bitaxe BM1370 : une carte courte, tout le reste accessible
+
+- **Portée.** Le module ne s'applique que si le fabricant est `Bitaxe`, le modèle `BM1370` et la plateforme `bitaxe` (1.1.1). Il réutilise le mécanisme du Petlibro (`src/core/devices/petlibro.ts`, rôle exact par `translation_key`).
+- **Identification sans nom.** L'intégration fixe `unique_id = f"{entry.entry_id}_{description.key}"` (`custom_components/bitaxe/sensor.py:587` ; `_energy` à `:626`). Le rôle est le suffixe exact après `config_entry_id + "_"`, comparé à une liste fermée. Une clé inconnue reste une lecture ordinaire, visible.
+- **Carte : 4 lectures-clés.** `hashRate` (GH/s), `temp` (`temperature`, °F), `power` (`power`, W) et `uptimeSeconds` (`duration`). Les 40 autres lectures visibles restent derrière l'expansion existante « All readings for this device ».
+- **Expansion : 4 groupes fermés**, sur les 46 clés observées par appareil :
+  - Performance : `hashRate*`, `expectedHashrate`, `asic1_hashrate`, `efficiency`, `sharesAccepted`, `sharesRejected`, `errorPercentage`, `asic1_errors`.
+  - Thermique et ventilation : `temp`, `temp2`, `vrTemp`, `temptarget`, `fanrpm`, `fan2rpm`, `fanspeed`, `manualFanSpeed`, `minFanSpeed`, `autofanspeed`, `overheat_mode`.
+  - Alimentation : `power`, `maxPower`, `voltage`, `nominalVoltage`, `coreVoltage`, `coreVoltageActual`, `current`, `frequency`, `energy`.
+  - Minage et réseau : `bestDiff*`, `bestSessionDiff*`, `blockFound`, `blockHeight`, `networkDifficulty`, `poolDifficulty`, `smallCoreCount`, `responseTime`, `wifiRSSI`, `overclockEnabled`.
+- **Attention : règles tirées du code de l'intégration**, `sensor.py:396-470`.
+  - `overheat_mode` ne vaut que `"Active"` ou `"Normal"` (`:463`). Proposition : `Active` → alerte, `Normal` → normal, toute autre valeur → `unknown`. C'est le seul signal de sécurité de l'ensemble.
+  - `autofanspeed` (`On`/`Off`, `:398`) et `overclockEnabled` (`Enabled`/`Disabled`, `:469`) sont des réglages. Ils restent informatifs.
+  - `bestDiff_formatted` et `bestSessionDiff_formatted` (`:295`, `:309`) sont des textes d'affichage, informatifs aussi.
+  - Effet sur le snapshot du 17/11 : 5 → 0 « issue » par Bitaxe (`overheat_mode` = `Normal` sur les deux), sans masquer une lecture.
 - **Propriété.** Le mapper et la sémantique d'attention sont attribués par A ; la présentation partagée relève de B. Décision produit requise avant toute écriture.
 
-## 8. Premier appareil à intégrer : Schlage Encode Plus (parcours prêt)
+### 7b. Entrées « Pet » du Petlibro : des services HA, pas des appareils
 
-Choisi parce que c'est l'appareil le plus accessible : modèle déclaré et listé comme testé par l'intégration officielle, connexion par simples identifiants (ni paiement, ni projet développeur, ni OAuth), affichage en lecture seule dans Maurice.
+- **Constat vérifié.** Les deux entrées ont `manufacturer: "Petlibro"`, `model: "Pet"` et **`entry_type: "service"`** dans le registre d'appareils HA. C'est le marqueur HA d'une entrée qui n'est pas un objet physique. Le même marqueur couvre aussi « Home Assistant Backup », Met.no, Google Translate et une entrée sans fabricant.
+- **Contenu de chaque entrée** (rôles par `translation_key`, valeurs gardées privées) :
+  - Profil de l'animal (type, race, âge, puce RFID).
+  - 3 compteurs de boisson du jour.
+  - Objectifs et réglages en catégorie `config`, déjà non visibles par défaut.
+- **Cause dans Maurice.** `PhysicalDevice` (`src/core/types.ts:66`) ne porte pas `entry_type`, donc une entrée de service devient une carte d'appareil.
+- **Proposition.**
+  - Transporter `entry_type` depuis le registre dans `HomeAssistantBackend`.
+  - Présenter les entrées `service` sous un libellé distinct (« Service Home Assistant », ici « Profil animal Petlibro »), sans les compter comme des appareils du foyer.
+  - **Ne rien masquer** : les lectures visibles aujourd'hui le restent.
+  - Le rattachement d'un profil à son distributeur (`bound_device_nums`) n'est pas un lien de registre ; il n'est donc pas proposé.
+- **Choix du propriétaire.**
+  1. Garder les profils animaux comme cartes de service.
+  2. Les déplacer vers le distributeur.
+  3. Les laisser dans HA seulement, ce qui exige un geste explicite de sa part et n'est pas fait automatiquement.
 
-| Élément | Constat |
+## 8. Premier appareil à intégrer : Schlage Encode Plus (prérequis vérifiés, en attente de la connexion)
+
+Choisi parce que c'est l'appareil le plus accessible : il ne demande ni paiement, ni projet développeur, ni OAuth, et l'intégration officielle liste l'Encode Plus comme testé.
+
+| Élément | Constat (17/11, en lecture seule) |
 | --- | --- |
-| Modèle | Encode Plus (déclaré) ; confirmé après connexion par le registre HA (fabricant, modèle, firmware) |
-| Intégration | `schlage` officielle du cœur 2026.10.1, `cloud_polling`, `pyschlage==2026.9.0` ; entités serrure, binary_sensor, sensor, select, switch |
-| Prérequis | Serrure ajoutée **en Wi-Fi** dans l'app Schlage Home avec ce compte. Une serrure appairée d'abord à Apple Home peut ne pas remonter (rapports communautaires) |
-| **Étape utilisateur** | HA → Paramètres → Appareils et services → Ajouter une intégration → **Schlage** → e-mail et mot de passe Schlage. Je ne vois ni ne stocke ces identifiants |
-| Garde-fous Maurice | Aucune commande de serrure dans l'interface : `ReadingDetailContent` affiche une serrure en lecture seule, avec une mention de délai cloud. **Aucun verrouillage ni déverrouillage** dans cette vague |
-| Preuve prévue | Snapshot HA en lecture seule (modèle, firmware, entités, catégories) ; sondage du backend Maurice (carte, lectures visibles, attention) ; capture privée de la carte. Rapport public anonymisé |
+| Modèle | Encode Plus (déclaré). Sera confirmé après connexion par le registre HA (fabricant, modèle, firmware) |
+| Intégration | `schlage` du cœur 2026.10.1, `cloud_polling`, `config_flow` actif ; `pyschlage` **2026.9.0 installé** dans le conteneur. Entités documentées : serrure, binary_sensor « Keypad disabled », select « Auto Lock Time », sensor « Lock Battery », switches « 1-Touch Locking » et « Keypress Beep » ; rafraîchissement toutes les 30 s |
+| Réseau | Depuis le conteneur, poignée de main TLS réussie vers l'API Schlage (`api.allegion.yonomi.cloud`) et vers Cognito `us-west-2` |
+| Prérequis côté foyer | Serrure en Wi-Fi dans l'app Schlage Home, sous ce compte. Une serrure appairée d'abord à Apple Home peut ne pas remonter (rapports communautaires, pas la doc HA) |
+| **Seule étape utilisateur** | Dans l'interface HA : Paramètres → Appareils et services → Ajouter une intégration → **Schlage** → e-mail et mot de passe Schlage. Les identifiants ne passent ni par le chat ni par D |
+| Garde-fous Maurice (code `0f6d5fb`) | **Serrure :** aucune commande de serrure dans l'interface, la carte est en lecture seule avec une mention de délai cloud (`ReadingDetailContent`). **Switches Schlage :** ils apparaîtront avec une carte, mais l'autorisation de puissance est réservée au TP-Link HS103 (`src/commands/switchControl.ts:52-53`, `src/preferences/storage.ts:118`) : aucune commande possible. **Select :** pas de commande. D n'actionne pas la serrure |
+| Preuve prévue après connexion | Snapshot HA en lecture seule (modèle, firmware, entités, catégories, état) ; sondage du backend Maurice (carte, lectures visibles, attention) ; capture privée de la carte. Ici, comptes et rôles seulement |
 
-Ensuite, dans cet ordre : Ring (2FA), puis SmartThings (OAuth, électroménager), puis Nest. Nest demande des frais Device Access de 5 $, donc un **achat à autoriser explicitement**.
+Ensuite :
+1. Ring : identifiants et 2FA, sans paiement connu pour l'instantané `live_view`.
+2. SmartThings : abonnement probablement requis, à décider par le propriétaire.
+3. Nest : achat de 5 $ à autoriser.
 
 ## 9. Ce qui reste demandé au propriétaire
 
-1. **Schlage** : ajouter l'intégration (étape ci-dessus) et répondre « fait ».
-2. Plus tard : Ring, SmartThings, puis Nest (achat de 5 $ à autoriser).
-3. Référence exacte de l'AIRTAP (étiquette AC-RBF…).
-4. Décision sur la proposition Bitaxe (§7) et sur l'affichage des entrées « Pet ».
+1. **Schlage, maintenant** : ajouter l'intégration dans HA (§8), puis répondre « fait ».
+2. AIRTAP : référence exacte, sur l'étiquette (AC-RBF4/42/6/62, -B ou -W).
+3. Décisions de présentation : la carte Bitaxe (§7a) et les entrées de service « Pet » (§7b, choix 1, 2 ou 3).
+4. Plus tard :
+   - Ring : connexion dans HA.
+   - SmartThings : **accepter ou non** l'abonnement Samsung, s'il est exigé.
+   - Nest : **autoriser ou non** les 5 $ Device Access.
 
 Sources officielles consultées le 17/11 : intégrations HA [Nest](https://www.home-assistant.io/integrations/nest/), [Schlage](https://www.home-assistant.io/integrations/schlage/), [SmartThings](https://www.home-assistant.io/integrations/smartthings/), [Ring](https://www.home-assistant.io/integrations/ring/) ; [Nest Learning Thermostat 4e gén.](https://store.google.com/us/product/nest_learning_thermostat_4th_gen?hl=en-US) et [historique des mises à jour Nest](https://support.google.com/googlehome/answer/9263516?hl=en) ; [fiche CSA AC Infinity](https://csa-iot.org/csa_product/ac-infinity-smart-register-booster-fan/). Flex : session `bd544f84-f0b4-4b67-92c9-7bb17a8a8a32`.
