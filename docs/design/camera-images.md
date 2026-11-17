@@ -4,7 +4,7 @@ Implemented 2026-10-26. A camera entity's detail shows its **latest available st
 
 Hardened 2026-11-16: every failure after the response headers arrive is now a visible result instead of an unhandled rejection, the whole retrieval shares one deadline, and the cache has a memory budget. The body is read through `response.arrayBuffer()` rather than a `Blob`, and Forget drops the profile's cached frames. See [Failure mapping](#failure-mapping), [Body read](#body-read) and [Memory bound](#memory-bound).
 
-Observed 2026-11-17 on Android (Seeker, proof APK `com.larrabee.homecockpit.s02proof`, SHA-256 `66a7f47f…`, source `0f6d5fb`) with the public camera fixture: see [Native evidence](#native-evidence). Two defects were reproduced there and are fixed after that build: a frame cut in transit was shown as an image, and leaving and resuming during a retrieval opened a second request. The fixes are automated in Jest; their native proof needs a later candidate.
+Observed 2026-11-17 on Android (Seeker, proof APK `com.larrabee.homecockpit.s02proof`, SHA-256 `66a7f47f…`, source `0f6d5fb`) with the public camera fixture: see [Native evidence](#native-evidence). Two defects were reproduced there and are fixed after that build: a frame cut in transit was shown as an image, and leaving and resuming during a retrieval opened a second request. Both fixes then passed on the Seeker with candidate `948e642` (SHA-256 `adcdd1da…`), which contains them.
 
 ## Scope
 
@@ -114,7 +114,7 @@ The budget covers retained images only. A retrieval in flight additionally holds
 
 Evidence level for everything above: implemented and automated on Node/Jest. None of it is built, installed or observed on a device.
 
-- **Fixes after `0f6d5fb` are not yet native.** The declared-length check and the shared in-flight retrieval are automated in Jest; the Seeker results below certify only the `0f6d5fb` build. Both must be re-run on a candidate that contains them.
+- **Fixes proven on the Seeker only.** The declared-length check and the shared in-flight retrieval pass on candidate `948e642` (see [Native evidence](#native-evidence)); a later build must replay the affected rows.
 - **Pixel not run.** The native evidence is the Seeker only.
 - **A cut chunked body is still undetectable on Android.** Without `Content-Length` there is nothing to compare; the card's `onError` remains the only signal, and a partial frame the decoder draws raises none.
 - **The size bound applies after the platform has read the body.** `arrayBuffer()` buffers the whole response before its size is checked; only the 15 s budget limits how much is transferred. A declared `Content-Length` is not pre-checked and the body is not streamed with a byte counter.
@@ -142,3 +142,18 @@ Seeker (Android 16), proof APK `com.larrabee.homecockpit.s02proof` 0.1.0 (1), SH
 | 9 unauthorized | "Home Assistant rejected the request." | A: one request | Pass |
 | Background at 3 s, resume at 5 s (scenario 7) | — | **Two requests open at once** | **Fail at `0f6d5fb`**, fixed after |
 | Forget, reconnect, reopen (8 s delayed frame) | "Loading image…" then the new frame | — | Pass; control without Forget showed the cached frame first |
+
+### After the fixes — candidate `948e642`
+
+Seeker, same package, SHA-256 `adcdd1da50650303d194f15f13b6ee583836684feb331e44d600d12dd751f83e`, source `948e642` (contains `f8b0144`), 2026-11-17, same fixture and transport (Expo fetch).
+
+| Check | Card on Android | Fixture log | Verdict |
+| --- | --- | --- | --- |
+| 6 body cut in transit | "The image could not be loaded.", no frame, no "Fetched" | A: response not completed | Pass |
+| Background at 3 s, resume at 5.4 s (scenario 7) | "The image request timed out." after the budget | **One request open**; closed at 14,999 ms; next poll at 15.8 s | Pass |
+| 3 cross-origin redirect | "The image redirects to another server and was not loaded." | **B: 0 requests** | Pass |
+| 1 image | Frame, "Fetched" time | A: credential | Pass |
+| Forget, reconnect, reopen (8 s delayed frame) | "Loading image…" then the new frame | — | Pass; control without Forget showed the cached frame first |
+| Late result: retrieval in flight across Forget and reconnection | Reopened card: "Loading image…" | The earlier request was delivered at 10,010 ms, after reconnection | Pass; the late frame is not reused |
+
+Still undetectable: a cut body with no `Content-Length` (chunked). Pixel not run.
