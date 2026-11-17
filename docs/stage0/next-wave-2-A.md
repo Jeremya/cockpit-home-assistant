@@ -103,6 +103,28 @@ Not done here, on purpose:
 
 The docs touched were not Prettier-clean at the base already, and they are outside `format:check`. Jest was not rerun: no application or Jest-covered file was changed. The `0f6d5fb` CI is the one recorded in the wave-2 plan.
 
+## B/C/D integration plan (prepared 2026-11-17)
+
+State of the worktrees at the time of writing: all three are based on `0f6d5fb`, with **uncommitted** changes and no PR open yet.
+
+| Lot | Files touched | Overlap | Precondition before integration |
+| --- | --- | --- | --- |
+| B | `src/components/ui.tsx` (`ThemedSwitch` 48 dp), `src/navigation/DetailWorkspace.web.tsx`, new `listFocus.web.ts`, `scripts/check-detail-panel.mjs`, tests | none with C/D | The `DetailWorkspace.web.tsx` change implements the **route-focus extension**, which the wave plan sends for product validation first: the owner's agreement must be cited in the PR |
+| C | `src/web/assetBytes.ts` (15 s bound, abort, single settle), `scripts/check-spatial-ui.mjs`, tests | none | Fixture that reproduces the blocked GLB, cited in the PR |
+| D | `src/components/camera/useCameraImage.ts` (D3 non-overlap), test | none; `SessionManager` untouched | Defect reproduced in Jest before the fix, cited |
+
+**Order.** #1 (rule + plan) → #2 (A: tooling + records) → B → C → D. B, C and D can merge independently. B goes before C's final recette because `ui.tsx` is a shared primitive. After each merge: typecheck, lint, format, Jest, tooling, then the PR's Public checks.
+
+**After the merge authorization:** `npm run build:proof:android` on the integrated SHA → new APK, recorded here (hash, GLB, installation `--user 0` on the Pixel). Then replay **only** what is affected, on that binary:
+
+| Agent | Recette to replay on the A3 candidate | Phone |
+| --- | --- | --- |
+| B | 48 dp switch target (lamp/feeder loop) + text at 200 %; web focus covered by `check:detail-panel` in CI | Seeker, short slot |
+| C | Native furniture loading (models/fallbacks), marker → detail → Back, floor change; the bound itself stays proven by the fixture | Pixel, then Seeker if needed |
+| D | D3 background/resume scenario during a read + one nominal fixture scenario | Seeker |
+
+Rules: one install per phone between two recettes, `--user 0` on the Pixel, Trial 1012 never replaced.
+
 ## Next step (A3)
 
 1. Receive the B/C/D patches. C has announced a C3 fix (`src/web/assetBytes.ts`: 15 s bound, abort, single settle), which is **not in `66a7f47f…`**.
