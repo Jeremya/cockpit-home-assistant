@@ -63,8 +63,8 @@ What this establishes: the binary is **Installed** on both phones and starts wit
 
 | Phone | Order | Status |
 | --- | --- | --- |
-| Seeker `SM02G4061971427` | 1. B (accessibility, TalkBack) → 2. D (9 camera scenarios, `adb reverse` on 2 ports) | B: go given, APK already installed. D: waits for B's explicit release, then A's go |
-| Pixel `47091FDAP000S2` | C (spatial) | Go given to C after the hash check; owner unlock needed for visual interaction |
+| Seeker `SM02G4061971427` | 1. B (accessibility, TalkBack) → 2. D (9 camera scenarios, `adb reverse` on 2 ports) | B done and released (checked by A: font 1.0, accessibility off, hash intact, Trial unchanged). D: go given, recette running |
+| Pixel `47091FDAP000S2` | C (spatial) | C's recette done on `66a7f47f`, Pixel **released** by C (checked by A: app stopped, no reverse/forward, hash intact); results in C's report. Free until A3 |
 
 Rules sent to each agent:
 
