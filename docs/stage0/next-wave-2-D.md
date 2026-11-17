@@ -1,0 +1,153 @@
+# Vague 2 — rapport D : objets du foyer (H01) et caméra Android
+
+Agent D, [vague 2](../handoff/parallel/2026-11-16-wave-2.md) et son extension du 17 novembre (ADR-19). Base `0f6d5fb41e1126d4e5fb82f6626458b96f0e59cb`, worktree `../maurice-wave2-D`. Correctifs caméra : PR draft [#5](https://github.com/Jeremya/cockpit-home-assistant/pull/5) (`work/wave-2-D`, `f8b0144`). Rapport public anonymisé : pas d'adresse, de compte, de jeton ni de capture du foyer. Les preuves brutes sont dans `.local/proof/wave2-D/` (ignoré). Le coordinateur (A) réconcilie `inventory.md`, les index et les registres.
+
+**Maturité, à ne pas confondre :**
+- **HA :** inspecté, avec une configuration réversible appliquée.
+- **Nouvelles intégrations :** aucune réalisée. Toutes attendent une connexion interactive du propriétaire.
+- **Caméra :** observée sur Android pour le build `0f6d5fb` ; deux défauts y ont été reproduits. Leurs correctifs sont *Implemented + Automated* et attendent le candidat A3.
+
+## 1. État réel de Home Assistant (lecture seule, 17/11 vers 09:20 CST)
+
+Méthode : commandes WebSocket de lecture (`get_config`, `get_states`, `config_entries/get`, registres d'appareils, d'entités et de zones, `manifest/list`). Jeton lu localement, jamais affiché. Snapshot brut privé : `.local/proof/wave2-D/ha-snapshot.json`.
+
+- HA `2026.10.1` en conteneur Docker sur le Mac de développement (`compose.yaml`). Il n'y a pas d'add-ons : pas de Matter Server ni de proxy Bluetooth intégrés.
+- Matériel réel présent : TP-Link `tplink` (entrée utilisateur), Petlibro `petlibro` 1.2.32 (custom, `cloud_polling`), **deux Bitaxe** `bitaxe` 1.1.1 (custom, `local_polling`).
+- **Absents de HA : Nest, Schlage, SmartThings, Ring.** Aucune entrée de configuration n'existe pour eux.
+- Contamination démo : l'intégration HA `demo` était chargée par `configuration.yaml`. Maurice n'a aucun filtre par plateforme (`src/core/selectors.ts` `isVisible`), donc **ses 72 entités de registre étaient visibles par défaut dans le foyer réel**. Elles s'ajoutaient à 33 entités d'état sans registre (serrures, caméras, humidificateurs, lecteurs…), dont celles des domaines observés par Maurice (`lock`, `camera`…). Voir §3.
+- `last_updated` de Kasa et Petlibro ≈ heure du redémarrage précédent : c'est l'absence de changement d'état, pas une preuve de données périmées.
+
+## 2. Matrice des objets
+
+| Objet | Modèle confirmé | Intégration / version | Chemin | Exposé dans HA (activé) | Fraîcheur / disponibilité | Dans Maurice | Blocage | Prochain geste |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Prise TP-Link | **HS103**, HW 5.0, FW 1.0.13 (registre HA) | `tplink` officielle (cœur 2026.10.1) | Local | 3 entités (dont 1 switch) ; 3 désactivées | Toutes disponibles | Carte Kasa, cycle M01 accepté sur Pixel Trial 1009 (preuve antérieure) | Aucun | Fiabilité sur 7 jours (M05) ; placement M02 |
+| Distributeur Petlibro | **PLAF103** Granary, FW 1.1.15, HW 1.0.0 | `petlibro` custom **1.2.32** | Cloud (polling) | 82 entités : capteurs, binaires, nombres, sélections, 2 switches, 13 boutons, 2 images, 2 dates, 1 mise à jour ; plus 2 entrées « Pet » de compte (pas des distributeurs) | 69 OK ; les 13 boutons sont « unknown » (jamais pressés, normal). Transitoirement « unavailable » juste après le redémarrage de HA, revenus ensuite | Résumé U03, 23 lectures (preuve antérieure) | Sens batterie/alimentation non établi ; aucune commande autorisée | Valider la sémantique batterie avec le propriétaire ; aucun bouton d'alimentation |
+| Bitaxe ×2 (**nouveau**, absent de l'inventaire) | **BM1370**, FW v2.15.3 | `bitaxe` custom **1.1.1** | Local (polling) | 92 entités : 90 capteurs (2 désactivés), 2 mises à jour (catégorie diagnostic) | 90/90 actives disponibles | **88 capteurs visibles par défaut** (sans catégorie d'entité ni masquage) | Déjà intégrés dans HA (pas une nouvelle intégration) ; cartes denses et 5 « issues » bruitées chacune (§6) | Décision produit sur la présentation compacte proposée (§7) ; aucune visibilité modifiée |
+| Nest Learning Thermostat | **3e génération** (réponse du propriétaire, 17/11) | Non configurée. Officielle `nest` (API SDM) | Cloud SDM ; Matter non confirmé pour la 3e génération dans les sources Google consultées | — | — | — | Connexion interactive : projet Device Access (5 $ non remboursables), projet Google Cloud OAuth + Pub/Sub, compte grand public | Le propriétaire crée le projet ; D l'accompagne et inspecte ensuite. Climat en lecture seule, **aucune consigne** |
+| Serrure Schlage | Encode Plus (déclaré, pas vu dans HA) | Non configurée. Officielle `schlage` (Encode Plus listée comme testée) | Cloud, serrure en Wi-Fi | — | — | — | Identifiants Schlage. Une serrure appairée d'abord à Apple Home peut ne pas apparaître (rapports communautaires) | Le propriétaire ajoute l'intégration ; lecture seule, **aucun déverrouillage** |
+| Samsung | **Électroménager** (réponse du propriétaire) ; identifiant `AFH-US-M64-24-…` introuvable publiquement | Non configurée. Officielle `smartthings` (OAuth) | Cloud SmartThings | — | — | — | OAuth Samsung interactif | Le propriétaire connecte ; D relève le type et les capacités réels |
+| Ring | « Plusieurs caméras », modèles inconnus | Non configurée. Officielle `ring` | Cloud ; caméras `live_view` et `last_recording` (cette dernière désactivée par défaut, vidéo soumise à Ring Protect) | — | — | — | Identifiants + 2FA | Le propriétaire connecte ; D teste le chemin d'image de `camera_proxy` dans Maurice (H01) |
+| AIRTAP | Inconnu : gamme AC Infinity AIRTAP (ventilateur de bouche) ; FW `F1.0.26` | Aucune intégration officielle trouvée | Wi-Fi selon le fabricant, Thread + Bluetooth selon une fiche CSA : sources contradictoires | — | — | — | Modèle exact (référence AC-RBF…) ; pas d'adaptateur Bluetooth ni de Matter Server dans ce HA en conteneur | Le propriétaire lit l'étiquette ; décision ensuite sur Matter/BLE |
+| Démo HA | — | `demo` | — | **Retirée** (§3) | — | Ne pollue plus le foyer réel | — | A annote les preuves antérieures qui s'en servaient |
+
+Aucune compatibilité n'est déduite de la marque ni du nom d'entité. Aucun backend fournisseur n'a été ajouté à Maurice, et aucune commande n'a été envoyée à un appareil.
+
+## 3. Configuration HA réalisée : retrait de la démo
+
+Accord du propriétaire le 17/11 ; B confirmé hors HA réel, C inactif, A prévenu.
+
+1. **Sauvegarde** : `.local/proof/wave2-D/ha-backup-20261117-092639/` (`configuration.yaml`, copie de `.storage/`, `known_devices.yaml`).
+2. Ligne `demo:` retirée de `configuration.yaml` ; `check_config` sans erreur.
+3. Entrée de configuration `demo` supprimée (`DELETE /api/config/config_entries/entry/<id>`, `require_restart: false`).
+4. **Redémarrage HA le 2026-11-17 à 09:27:54 CST.** Snapshot après : 0 entité de plateforme `demo`, Kasa, Petlibro et Bitaxe présents.
+5. `known_devices.yaml` (uniquement `demo_paulus`, `demo_anne_therese`, `demo_home_boy`) sauvegardé puis vidé. **Effectif au prochain redémarrage HA** : les trois `device_tracker.demo_*` restent jusque-là (domaine non affiché par Maurice).
+
+Retour arrière : restaurer `configuration.yaml` et `known_devices.yaml` depuis la sauvegarde, puis redémarrer ; l'entrée `demo` est recréée par l'import.
+
+**Résultat, constaté sur le snapshot pris après le redémarrage :**
+- 72 entités de registre de plateforme `demo` et 30 entités d'état sans registre ne sont plus présentes (serrures, caméras, climatisation, volets, ventilateurs, lumières, aspirateurs, vannes, lecteurs, capteurs…).
+- Les trois `device_tracker.demo_*` partiront au prochain redémarrage *naturel* de HA. Je ne redémarre pas HA uniquement pour ce nettoyage : Maurice n'affiche pas ce domaine.
+- Restent dans HA, comme prévu : `sun.sun`, `zone.home` et `conversation.home_assistant` (cœur), ainsi que le matériel réel.
+- La liste exacte des identifiants retirés (noms standard de l'intégration démo de HA) reste en preuve privée : `.local/proof/wave2-D/demo-entities-before.json`.
+
+Conséquence pour les registres : toute preuve antérieure qui s'appuyait sur ces entités dans le HA de développement n'est plus reproductible telle quelle.
+
+## 4. Caméra sur Android (D1)
+
+**Binaire :** Seeker (Android 16), APK de preuve `com.larrabee.homecockpit.s02proof` 0.1.0 (1), SHA-256 `66a7f47f75e065d5c44929cc0e21ddc69bc022006312de3f437f1bd5df80580d`, source `0f6d5fb`, installé par A ; pas de réinstallation. Créneau accordé par A après la libération par B ; toutes les commandes adb ciblent explicitement le numéro de série (non publié). Fixture `scripts/camera-fixture.mjs` sur 8124/8125 via `adb reverse`, jeton public. Captures **de la fixture seulement**, dans `.local/proof/wave2-D/seeker/`.
+
+**Fetch effectif : celui d'Expo.** Chaque requête annonce `Accept-Encoding: zstd, br, gzip` (intercepteur Expo) et `okhttp/4.9.2`. L'en-tête est consigné par la fixture, qui n'enregistre pas le jeton.
+
+| # | Scénario | Carte observée | Journal des origines | Verdict sur `0f6d5fb` |
+| --- | --- | --- | --- | --- |
+| 1 | Image | Cadre à bandes complet, « Fetched » | A, avec credential | **Pass** : `arrayBuffer()` Expo, base64 sous Hermes et rendu établis |
+| 2 | Redirection même origine | Cadre | A : proxy puis `/frames/same-origin.png`, credential sur les deux | **Pass** |
+| 3 | Redirection autre origine | « The image redirects to another server and was not loaded. » | A : 1 requête ; **B : 0 requête** | **Pass** : OkHttp ne suit pas |
+| 4 | Pas une image | « Home Assistant did not return an image. » | A : 1 | **Pass** |
+| 5 | Octets indécodables | « The image could not be loaded. » (`onError` déclenché) | A : 1 | **Pass** |
+| 6 | Corps coupé | **Cadre partiel (une bande, le reste vide) avec « Fetched »** | A : réponse non terminée | **Échec reproduit (D2)** |
+| 7 | Corps bloqué | « The image request timed out. » | Fermée par le client à **15 015 ms** | **Pass** |
+| 8 | Aucune réponse | « The image request timed out. » | Fermée à **15 002 ms** | **Pass** |
+| 9 | 401 | « Home Assistant rejected the request. » | A : 1 | **Pass** |
+| — | Sortie d'écran pendant le scénario 8 | — | Requête restante fermée à 14 995 ms | Conforme au contrat (pas d'annulation à la sortie) |
+| — | Arrière-plan à 3 s, reprise à 5 s (scénario 7) | — | **2 requêtes ouvertes en même temps** | **Échec reproduit (D3)** |
+| — | Contrôle : réouverture avec un cadre retardé de 8 s | Ancien cadre (10:00:19) pendant 8 s, puis nouveau (10:00:30) | — | Le cache est observable |
+| — | Forget → reconnexion → réouverture (8 s) | **« Loading image… »**, puis nouveau cadre (10:03:16) | — | **Pass** : pas de réutilisation après oubli |
+
+Pour finir : profil fixture oublié, app remise en « Explore demo home », `adb reverse` supprimés, `font_scale` 1.0, Trial 1012 non touché, Seeker rendu à A.
+
+### Observation de confidentialité (hors de mon périmètre, transmise à A)
+
+Après « Connect » sur l'écran Connection (champ « Long-lived access token », masqué), Android a affiché la feuille **« Save password to Google Password Manager? »**, préremplie avec l'URL comme nom d'utilisateur et le jeton comme mot de passe. Elle a disparu sans aucun tap de ma part ; je ne peux pas prouver qu'elle n'a rien enregistré (il s'agissait du jeton public de la fixture). Seeker sous Android 16 ; la version du service Autofill n'a pas été relevée, le téléphone étant déjà rendu. Avec un vrai jeton HA, ce serait une fuite possible vers un tiers. Le correctif touche l'écran de connexion et les identifiants, hors de mon périmètre ; A le remonte au propriétaire pour lui attribuer un responsable.
+
+## 5. Correctifs (D2, D3) et preuve non native
+
+Les deux défauts ont été reproduits sur Android avant toute correction.
+
+- **D2 — corps tronqué.** `fetchCameraImage` accepte une option `verifyDeclaredLength`. Quand elle est active, un corps plus court qu'un `Content-Length` purement numérique donne `network`. Le hook l'active seulement si `Platform.OS !== "web"`.
+  - Pourquoi c'est sûr sur natif : `TransparentCompressionInterceptor` d'Expo retire `Content-Length` quand il décompresse (lu dans les sources), et la recette a confirmé que le fetch effectif est celui d'Expo.
+  - Le web reste inchangé : un navigateur peut exposer la longueur compressée d'un corps qu'il a décodé.
+  - Limite : un corps *chunked* coupé reste indétectable.
+- **D3 — chevauchement à la reprise.** La lecture en cours est portée par la carte (`useRef`), plus par une seule exécution de l'effet. À la reprise, la carte attend la même lecture et applique son résultat ; le sondage reprend une fois qu'elle est terminée. La clé profil/entité est conservée : un autre profil lance sa propre lecture.
+- **Fixture** : enregistrement de `User-Agent` et `Accept-Encoding`, et un réglage public borné `POST /_proof/camera/config {"imageDelayMs"}` pour la recette d'oubli.
+- **Document** `docs/design/camera-images.md` : table de défaillances, décisions, gates et section « Native evidence ».
+
+| Commande (worktree `work/wave-2-D`, Node 24.11.1) | Résultat |
+| --- | --- |
+| Test D2, puis le même test sans le correctif du service | Vert ; **rouge** sans correctif (1 échec) |
+| Test D3, puis le même test sans le correctif du hook | Vert ; **rouge** sans correctif (2 appels au lieu de 1) |
+| `npm test` | 85 suites, **1160 tests** |
+| `npm run test:tooling` | 41/41 |
+| `npm run proof:camera` | PASS, 3 exécutions |
+| `typecheck`, `lint`, `format:check`, `check:public-inputs`, `git diff --check` | exit 0 ; plan `sample` |
+
+**Gate restante :** D2 et D3 doivent être rejoués sur le candidat A3 (scénario 6 et arrière-plan/reprise). Les résultats ci-dessus certifient seulement `66a7f47f…` / `0f6d5fb`. Le Pixel n'a pas été exécuté.
+
+## 6. Présentation actuelle dans Maurice (vrai backend, vrai HA)
+
+Sondage du 17/11 avec `HomeAssistantBackend`, `deviceSummaries` et `assessEntity(…, ready = true)` du code `0f6d5fb`, préférences vides (sans masquage local). Sortie limitée aux comptes, modèles et clés d'intégration ; script privé `.local/d-bitaxe-presence.ts`.
+
+| Carte (appareil HA) | Lectures visibles | « Issues » comptées | Nature des issues |
+| --- | --- | --- | --- |
+| TP-Link HS103 | 1 | 0 | — |
+| PETLIBRO PLAF103 | 23 | 4 | 1 batterie en `attention` ; 3 capteurs à valeur sans règle (`unknown`) |
+| Petlibro « Pet » ×2 (entrées de compte) | 9 chacune | 4 chacune | Capteurs à valeur sans règle |
+| Bitaxe BM1370 ×2 | 44 chacune | **5 chacune** | Capteurs **textuels avec valeur** sans règle : `autofanspeed`, `bestDiff_formatted`, `bestSessionDiff_formatted`, `overclockEnabled`, `overheat_mode` |
+| HA Backup | 5 | 5 | Horodatages `unknown` |
+
+136 entités visibles au total (126 `sensor`, 8 `binary_sensor`, 1 `switch`, 1 `event`). Chaque Bitaxe forme déjà **une seule carte** : les 88 capteurs ne sont pas 88 cartes. Le problème est la densité de chaque carte et l'attention bruitée. Les deux entrées « Pet » du compte Petlibro, que l'inventaire décrit comme n'étant pas des distributeurs, apparaissent comme des cartes d'appareil.
+
+## 7. Proposition : présentation compacte des Bitaxe (à décider, non implémentée)
+
+Les Bitaxe sont déjà intégrés dans HA ; ce n'est pas une nouvelle intégration. Aucune visibilité n'a été modifiée.
+
+- **Réutiliser le mécanisme du Petlibro** (`src/core/devices/petlibro.ts`) : un module de lectures-clés appliqué seulement si le fabricant est `Bitaxe`, le modèle `BM1370` et la plateforme `bitaxe` (1.1.1). Toutes les lectures restent accessibles derrière l'expansion existante de la carte.
+- **Identification sans nom.** L'intégration fixe `unique_id = f"{entry.entry_id}_{description.key}"` (vérifié dans `custom_components/bitaxe/sensor.py`, ligne 587). Le rôle est le suffixe exact après `config_entry_id + "_"`, comparé à une liste fermée. C'est l'équivalent de la `translation_key` du Petlibro, que le Bitaxe n'expose pas.
+- **Lectures-clés proposées** (libellés de l'intégration) : `hashRate` (Hash Rate, GH/s), `temp` (ASIC Temperature), `power` (Power, W), `uptimeSeconds` (Uptime). Optionnel : `sharesRejected` et `errorPercentage`.
+- **Attention** : les 5 clés textuelles ci-dessus ne devraient pas compter comme points d'attention sans règle explicite. `overheat_mode` mérite peut-être une règle réelle (signal de surchauffe), mais elle n'est pas déduite ici.
+- **Propriété.** Le mapper et la sémantique d'attention sont attribués par A ; la présentation partagée relève de B. Décision produit requise avant toute écriture.
+
+## 8. Premier appareil à intégrer : Schlage Encode Plus (parcours prêt)
+
+Choisi parce que c'est l'appareil le plus accessible : modèle déclaré et listé comme testé par l'intégration officielle, connexion par simples identifiants (ni paiement, ni projet développeur, ni OAuth), affichage en lecture seule dans Maurice.
+
+| Élément | Constat |
+| --- | --- |
+| Modèle | Encode Plus (déclaré) ; confirmé après connexion par le registre HA (fabricant, modèle, firmware) |
+| Intégration | `schlage` officielle du cœur 2026.10.1, `cloud_polling`, `pyschlage==2026.9.0` ; entités serrure, binary_sensor, sensor, select, switch |
+| Prérequis | Serrure ajoutée **en Wi-Fi** dans l'app Schlage Home avec ce compte. Une serrure appairée d'abord à Apple Home peut ne pas remonter (rapports communautaires) |
+| **Étape utilisateur** | HA → Paramètres → Appareils et services → Ajouter une intégration → **Schlage** → e-mail et mot de passe Schlage. Je ne vois ni ne stocke ces identifiants |
+| Garde-fous Maurice | Aucune commande de serrure dans l'interface : `ReadingDetailContent` affiche une serrure en lecture seule, avec une mention de délai cloud. **Aucun verrouillage ni déverrouillage** dans cette vague |
+| Preuve prévue | Snapshot HA en lecture seule (modèle, firmware, entités, catégories) ; sondage du backend Maurice (carte, lectures visibles, attention) ; capture privée de la carte. Rapport public anonymisé |
+
+Ensuite, dans cet ordre : Ring (2FA), puis SmartThings (OAuth, électroménager), puis Nest. Nest demande des frais Device Access de 5 $, donc un **achat à autoriser explicitement**.
+
+## 9. Ce qui reste demandé au propriétaire
+
+1. **Schlage** : ajouter l'intégration (étape ci-dessus) et répondre « fait ».
+2. Plus tard : Ring, SmartThings, puis Nest (achat de 5 $ à autoriser).
+3. Référence exacte de l'AIRTAP (étiquette AC-RBF…).
+4. Décision sur la proposition Bitaxe (§7) et sur l'affichage des entrées « Pet ».
+
+Sources officielles consultées le 17/11 : intégrations HA [Nest](https://www.home-assistant.io/integrations/nest/), [Schlage](https://www.home-assistant.io/integrations/schlage/), [SmartThings](https://www.home-assistant.io/integrations/smartthings/), [Ring](https://www.home-assistant.io/integrations/ring/) ; [Nest Learning Thermostat 4e gén.](https://store.google.com/us/product/nest_learning_thermostat_4th_gen?hl=en-US) et [historique des mises à jour Nest](https://support.google.com/googlehome/answer/9263516?hl=en) ; [fiche CSA AC Infinity](https://csa-iot.org/csa_product/ac-infinity-smart-register-booster-fan/). Flex : session `bd544f84-f0b4-4b67-92c9-7bb17a8a8a32`.
