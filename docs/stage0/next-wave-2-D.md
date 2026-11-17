@@ -2,10 +2,10 @@
 
 Agent D, [vague 2](../handoff/parallel/2026-11-16-wave-2.md) et son extension du 17 novembre (ADR-19). Base `0f6d5fb41e1126d4e5fb82f6626458b96f0e59cb`, worktree `../maurice-wave2-D`. Correctifs caméra : PR draft [#5](https://github.com/Jeremya/cockpit-home-assistant/pull/5) (`work/wave-2-D`, `f8b0144`). Rapport public anonymisé : pas d'adresse, de compte, de jeton ni de capture du foyer. Les preuves brutes sont dans `.local/proof/wave2-D/` (ignoré). Le coordinateur (A) réconcilie `inventory.md`, les index et les registres.
 
-**Maturité, à ne pas confondre :**
+**Maturité, à ne pas confondre (mise à jour après le candidat `948e642`) :**
 - **HA :** inspecté, avec une configuration réversible appliquée.
 - **Nouvelles intégrations :** aucune réalisée. Toutes attendent une connexion interactive du propriétaire.
-- **Caméra :** observée sur Android pour le build `0f6d5fb` ; deux défauts y ont été reproduits. Leurs correctifs sont *Implemented + Automated* et attendent le candidat A3.
+- **Caméra :** deux défauts reproduits sur Android au build `0f6d5fb`, puis leurs correctifs **observés sur le Seeker** au candidat `948e642`. Pixel non exécuté.
 
 ## 1. État réel de Home Assistant (lecture seule, 17/11 vers 09:20 CST)
 
@@ -102,7 +102,23 @@ Les deux défauts ont été reproduits sur Android avant toute correction.
 | `npm run proof:camera` | PASS, 3 exécutions |
 | `typecheck`, `lint`, `format:check`, `check:public-inputs`, `git diff --check` | exit 0 ; plan `sample` |
 
-**Gate restante :** D2 et D3 doivent être rejoués sur le candidat A3 (scénario 6 et arrière-plan/reprise). Les résultats ci-dessus certifient seulement `66a7f47f…` / `0f6d5fb`. Le Pixel n'a pas été exécuté.
+### Après correctifs : candidat A `948e642` (contient #5 à `f8b0144`)
+
+Seeker, même paquet, SHA-256 `adcdd1da50650303d194f15f13b6ee583836684feb331e44d600d12dd751f83e`, installé par A ; créneau après B et C ; aucune réinstallation. Script de recette privé, une étape par commande (`setup`, `scenarios`, `resume`, `forget`, `late`, `cleanup`). Captures de la fixture seulement.
+
+| Contrôle | Résultat observé | Verdict |
+| --- | --- | --- |
+| D2 : corps coupé (scénario 6) | « The image could not be loaded. », ni cadre partiel ni « Fetched » | **Pass** (cadre partiel sur `66a7f47f`) |
+| D3 : arrière-plan à 3 s, reprise à 5,4 s (scénario 7) | **1 requête ouverte** (2 sur `66a7f47f`) ; fermée à 14 999 ms ; carte « timed out » ; sondage suivant à 15,8 s | **Pass** |
+| Redirection vers une autre origine (3) | Refus ; **B : 0 requête** | **Pass** |
+| Image (1) | Cadre et « Fetched » | **Pass** |
+| Oubli | Contrôle sans oubli : le cadre en cache s'affiche. Après Forget et reconnexion : « Loading image… », puis nouveau cadre | **Pass** |
+| Résultat tardif | Lecture lancée avant Forget et livrée à 10 010 ms, après la reconnexion ; la carte rouverte affiche « Loading image… » | **Pass** : le cadre tardif n'est pas réutilisé |
+| Autofill | Invite non revue lors des 3 connexions de cette session | Observation, pas une correction |
+
+Nettoyage : profil fixture oublié, retour en démo (placements publics de C intacts), `adb reverse` vides, `font_scale` 1.0, téléphone rendu à A.
+
+**Limites conservées :** un corps tronqué **sans `Content-Length`** (chunked) reste indétectable ; aucune annulation à la sortie d'écran (contrat documenté) ; preuve sur le **Seeker seulement**, Pixel non exécuté.
 
 ## 6. Présentation actuelle dans Maurice (vrai backend, vrai HA)
 
