@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { AppState } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AppState, Platform } from "react-native";
 import { useIsFocused } from "expo-router";
 import type { EntityRecord } from "../../core/types";
 import { session } from "../../services/runtime";
@@ -14,6 +14,12 @@ import {
 } from "../../services/cameraImage";
 
 const CAMERA_POLL_MS = 10_000;
+/**
+ * Native only: Expo's fetch keeps `Content-Length` just for bodies it did not
+ * decompress, so a shorter body was cut in transit. A browser may expose the
+ * compressed length of a body it decoded, so the web keeps the check off.
+ */
+const VERIFY_DECLARED_LENGTH = Platform.OS !== "web";
 
 export type CameraImageState =
   | { status: "idle" }
@@ -83,6 +89,13 @@ export function useCameraImage({
     return readCameraCache(cameraCacheKey(profileId, entity.key)) ?? null;
   });
 
+  // The retrieval in flight for this card, shared across runs of the effect
+  // below, so leaving and resuming never overlaps two requests (I02).
+  const pending = useRef<{
+    key: string;
+    retrieval: Promise<CameraImageResult | null>;
+  } | null>(null);
+
   useEffect(() => {
     if (!enabled || !profileId) return;
     const cacheKey = cameraCacheKey(profileId, entity.key);
@@ -92,16 +105,36 @@ export function useCameraImage({
     const refresh = async () => {
       if (inFlight) return;
       inFlight = true;
-      let fetched: CameraImageResult | null;
-      try {
-        const request = session.cameraImageRequest(entity.entityId);
-        fetched = request ? await fetchCameraImage(request) : null;
-      } catch {
-        // `fetchCameraImage` is total by contract. Should it or the session
-        // ever throw, the failure is shown like any other instead of leaving
-        // "loading" or a previous frame on screen.
-        fetched = { kind: "error", reason: "network" };
+      // A retrieval started by an earlier run of this effect (before a
+      // blur/background) is still pending: wait for it instead of opening a
+      // second request to the same camera. Its result is applied here, since
+      // the earlier run has been cancelled and drops it.
+      const shared = pending.current;
+      let retrieval: Promise<CameraImageResult | null>;
+      if (shared?.key === cacheKey) retrieval = shared.retrieval;
+      else {
+        retrieval = (async () => {
+          try {
+            const request = session.cameraImageRequest(entity.entityId);
+            return request
+              ? await fetchCameraImage(request, {
+                  verifyDeclaredLength: VERIFY_DECLARED_LENGTH,
+                })
+              : null;
+          } catch {
+            // `fetchCameraImage` is total by contract. Should it or the
+            // session ever throw, the failure is shown like any other instead
+            // of leaving "loading" or a previous frame on screen.
+            return { kind: "error", reason: "network" } as const;
+          }
+        })();
+        const entry = { key: cacheKey, retrieval };
+        pending.current = entry;
+        void retrieval.finally(() => {
+          if (pending.current === entry) pending.current = null;
+        });
       }
+      const fetched = await retrieval;
       inFlight = false;
       if (cancelled || fetched === null) return;
       // The cache only ever seeds the frame of the latest completed retrieval:

@@ -274,3 +274,43 @@ test("ignores a rejection that arrives after unmount", async () => {
   expect(readCameraCache(cacheKey)).toEqual(imageResult);
   expect(mockFetch).toHaveBeenCalledTimes(1);
 });
+
+test("background and resume during a retrieval does not start a second request", async () => {
+  let resolveFirst!: (value: typeof imageResult) => void;
+  mockFetch.mockImplementationOnce(
+    () => new Promise((resolve) => (resolveFirst = resolve)),
+  );
+  const { result } = mountCamera();
+  await act(async () => {});
+  expect(mockFetch).toHaveBeenCalledTimes(1);
+
+  // Leave and come back before the first retrieval has settled.
+  await act(async () => {
+    for (const listener of listeners) listener("background");
+  });
+  await act(async () => {
+    for (const listener of listeners) listener("active");
+  });
+  expect(mockFetch).toHaveBeenCalledTimes(1);
+
+  // The resumed card applies the shared retrieval's result.
+  await act(async () => {
+    resolveFirst(imageResult);
+  });
+  expect(result.current.status).toBe("loaded");
+  expect(readCameraCache(cacheKey)).toEqual(imageResult);
+
+  // Once it has settled, polling resumes with a new request.
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(10_000);
+  });
+  expect(mockFetch).toHaveBeenCalledTimes(2);
+});
+
+test("asks the service to verify the declared length on a native platform", async () => {
+  mountCamera();
+  await act(async () => {});
+  expect(mockFetch).toHaveBeenCalledWith(expect.anything(), {
+    verifyDeclaredLength: true,
+  });
+});
