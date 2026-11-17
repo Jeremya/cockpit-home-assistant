@@ -132,7 +132,7 @@ The M01 lamp enrollment was accepted on Pixel Trial 1009. **It does not carry ov
 4. **Household journeys to accept, by the owner, on the installed binary:**
    1. Cold start without Metro, then connect to HA over the home network with the owner's own token. The token is typed by the owner and never captured. Because #6 is excluded, entering the token can open a Google Autofill session and offer "Save password". Before typing, the owner either turns Autofill off themself (Settings → Passwords & autofill → None, then back on afterwards), or declines with "Never". No agent changes this setting over adb.
    2. Home: real devices, no `demo` entity, personal plan, room names readable at 100 % and 200 % text. Three `device_tracker.demo_*` entities stay in HA until its next natural restart. Maurice does not display that domain.
-   3. Rooms, then device detail, then Back, for the Kasa lamp, the Petlibro feeder and one Bitaxe (read-only). Observe how dense the Bitaxe cards are: about 88 readings, and 5 noisy "issues" per card are expected until the §7a decision in #7.
+   3. Rooms, then device detail, then Back, for the Kasa lamp, the Petlibro feeder and one Bitaxe (read-only). Observe how dense the Bitaxe cards are: 44 visible readings and 5 noisy "issues" per card (88 sensors across both Bitaxe) are expected until the §7a decision in #7.
    4. Background and resume, airplane mode and recovery, with honest states and no replay.
    5. Forget the session, then reconnect.
    6. Optional, separately authorized: enroll the lamp and run one physical On/Off cycle that restores the original state.
