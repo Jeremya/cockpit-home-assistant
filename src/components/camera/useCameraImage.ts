@@ -95,6 +95,14 @@ export function useCameraImage({
     key: string;
     retrieval: Promise<CameraImageResult | null>;
   } | null>(null);
+  // Only a blur or a background may hand a retrieval over to the next run. A
+  // session that stops being ready (Forget, disconnect) or another profile
+  // drops it: the profile key comes from the URL, so a reconnect to the same
+  // home must not resume a request made with the previous session's token.
+  const sessionLive = isCamera && !!profileId && ready;
+  useEffect(() => {
+    pending.current = null;
+  }, [sessionLive, profileId]);
 
   useEffect(() => {
     if (!enabled || !profileId) return;
