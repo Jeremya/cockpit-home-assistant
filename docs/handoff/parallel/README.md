@@ -1,5 +1,9 @@
 # Backlog parallèle — 2 ou 3 agents Opus 5.5
 
+> **Livraison, 17 novembre :** les agents committent, poussent leur branche et ouvrent une PR conformément à [AGENTS.md](../../../AGENTS.md#agent-delivery-through-pull-requests). Les anciennes consignes de non-commit sont remplacées ; aucune fusion automatique n'est autorisée.
+
+> **Après intégration à `0f6d5fb` :** suivre [la revue et la vague 2 pour quatre agents](2026-11-16-wave-2.md). Les lots de la première vague sont intégrés ; la suite porte sur le candidat Android commun, le focus/accessibilité, la fin de recette spatiale et la caméra native.
+
 > **Reprise du 16 novembre 2026 :** ce découpage conserve le checkpoint du 22 octobre ; B/C sont maintenant intégrés. Pour le travail restant, utiliser [la nouvelle vague à quatre agents](2026-11-16-next-wave.md), basée sur `ebce4f0`, avec ownership, critères de sortie et prompts actualisés.
 
 État inspecté le **22 octobre 2026**, code de référence **`e52ac06`**. Ce dossier est le **point d’entrée des prochains agents**. Il remplace l’ordre séquentiel UX00→UX09 pour le travail restant, sans renommer les jalons du [backlog produit](../../BACKLOG.md). Les tickets ci-dessous sont des tâches futures, sauf les preuves explicitement citées.
