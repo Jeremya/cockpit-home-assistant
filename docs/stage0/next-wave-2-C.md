@@ -111,7 +111,27 @@ Consignées pour le coordinateur, non traitées dans cette vague :
 
 ## Candidat suivant
 
-À compléter quand A fournit un APK qui contient le correctif.
+Candidat A `candidate/wave2-1` : source `948e642b4b566244a4a6ea240a300bcbf7494d1a` = `0f6d5fb` + #1 `41b506b` + #2 `816d444` + #3 `9fcf6e8` + #4 (ce lot) `3cff2ba` + #5 `f8b0144`. APK `com.larrabee.homecockpit.s02proof` 0.1.0 (1), SHA-256 `adcdd1da50650303d194f15f13b6ee583836684feb331e44d600d12dd751f83e`, installé par A en mise à jour en place ; haché installé vérifié avant la recette. Campagne locale de A sur ce SHA : 17/17, dont `check:spatial-ui` et Jest 88/1 172.
+
+Portée : **non-régression native** du chargement avec la borne. Le blocage HTTP de C3 n'est pas reproductible sur le `file://` de l'APK et n'est donc pas prouvé sur téléphone.
+
+### Pixel 9 Pro (`47091FDAP000S2`), 17 novembre, 16:48–16:52 UTC
+
+Même appareil, même WebView et même pilote que la recette précédente. Profil démo et ses deux placements conservés par la mise à jour en place.
+
+| Vérification             | Résultat                                                                                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ouverture Plan → 3D      | 17 modèles, 0 repli ; 2 labels ; 2 marqueurs ; prête en 711 ms                                                                                                                           |
+| Marqueur → détail → Back | Toucher réel sur la lampe → écran « Device » Living room lamp → Back système → même scène, 17/0, 2 marqueurs, sélection nulle                                                            |
+| Sélection et étages      | Cuisine sélectionnée au toucher ; Floor 2 efface la sélection (0 marqueur) ; Floor 1 : 2 marqueurs                                                                                       |
+| Reprise                  | Home puis relance : 0 frame cachée, 0 frame au repos sur 3 s, 17/0                                                                                                                       |
+| Fallback                 | Perte de contexte réelle → « 3D view unavailable » ; reste indisponible après les onglets 2D/3D (pas de réessai automatique) → Retry → 3D en 443 ms, 17/0                                |
+| Mesure courte            | 5 balayages de 5 s : médiane 117,8 frames rendues/s (102,5 → 118,7) ; gfxinfo 0 janky sur 2 854, p90 9 ms, p99 ≤ 10 ms ; GPU HWUI p99 ≤ 3 ms ; timer WebGL indisponible ; 36,0 → 35,7 °C |
+| Journaux                 | 0 `FATAL` dans logcat                                                                                                                                                                    |
+
+### Seeker
+
+En attente du créneau de A, après B.
 
 ## Fichiers modifiés
 
