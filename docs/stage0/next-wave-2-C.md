@@ -57,8 +57,8 @@ Rien d'autre n'est modifié. `loadFurnitureAsset` libérait déjà l'entrée de 
 ### Binaire et appareil
 
 - APK : `com.larrabee.homecockpit.s02proof` 0.1.0 (1), SHA-256 `66a7f47f75e065d5c44929cc0e21ddc69bc022006312de3f437f1bd5df80580d`, construit par A depuis `0f6d5fb` (git archive propre, sample public, 3D actif, signature de preuve). Haché installé vérifié par `pm path --user 0` + `sha256sum`, avant et après l'incident ci-dessous.
-- Pixel 9 Pro `47091FDAP000S2`, Android 17 (`CP3A.261005.005`), WebView 157.0.8103.50, GPU Mali-G715, affichage 120 Hz, rendu 960×2142 à 2,25 dppx. Aucun paquet Maurice n'était présent avant l'installation de A : pas de profil personnel ni de Trial sur ce téléphone.
-- Toutes les commandes ont visé `adb -s 47091FDAP000S2` et `--user 0` (un second profil Android, user 11, bloque les commandes sans utilisateur).
+- Pixel 9 Pro, Android 17 (`CP3A.261005.005`), WebView 157.0.8103.50, GPU Mali-G715, affichage 120 Hz, rendu 960×2142 à 2,25 dppx. Aucun paquet Maurice n'était présent avant l'installation de A : pas de profil personnel ni de Trial sur ce téléphone.
+- Toutes les commandes ont visé ce seul téléphone, avec `--user 0` (un second profil utilisateur bloque les commandes sans utilisateur).
 - Hors Metro : bundle DOM servi depuis `file:///android_asset/www.bundle/`.
 
 **Incident** : une première installation de A, bloquée depuis le mode veille, s'est validée à 09:54:59 (heure du téléphone) quand le téléphone a été déverrouillé. Le paquet a été remis à jour en place pendant ma vérification de la perte de contexte et le processus a été tué. Même APK, données conservées, placements intacts. Les étapes terminées avant (marqueur, interactions) restent valides. La perte de contexte et la mesure ont été rejouées après.
@@ -116,7 +116,7 @@ Candidat A `candidate/wave2-1` : source `948e642b4b566244a4a6ea240a300bcbf7494d1
 
 Portée : **non-régression native** du chargement avec la borne. Le blocage HTTP de C3 n'est pas reproductible sur le `file://` de l'APK et n'est donc pas prouvé sur téléphone.
 
-### Pixel 9 Pro (`47091FDAP000S2`), 17 novembre, 16:48–16:52 UTC
+### Pixel 9 Pro, 17 novembre, 16:48–16:52 UTC
 
 Même appareil, même WebView et même pilote que la recette précédente. Profil démo et ses deux placements conservés par la mise à jour en place.
 
@@ -130,7 +130,7 @@ Même appareil, même WebView et même pilote que la recette précédente. Profi
 | Mesure courte            | 5 balayages de 5 s : médiane 117,8 frames rendues/s (102,5 → 118,7) ; gfxinfo 0 janky sur 2 854, p90 9 ms, p99 ≤ 10 ms ; GPU HWUI p99 ≤ 3 ms ; timer WebGL indisponible ; 36,0 → 35,7 °C |
 | Journaux                 | 0 `FATAL` dans logcat                                                                                                                                                                    |
 
-### Seeker (`SM02G4061971427`), 17 novembre, 17:00–17:06 UTC
+### Seeker, 17 novembre, 17:00–17:06 UTC
 
 Android 16, WebView 157.0.8103.38, Mali-G615 MC2, 1200×2670 à 3 dppx. Même APK `adcdd1da…`, haché installé vérifié. Trial 1012 installé et non touché ; le profil de preuve n'avait plus de placements (fixture de B oubliée).
 
