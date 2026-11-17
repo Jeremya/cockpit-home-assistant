@@ -176,6 +176,7 @@ export async function startCameraFixture({
 } = {}) {
   /** Every request each origin received, in order; never the token itself. */
   const log = [];
+  const config = { imageDelayMs: 0 };
   const sockets = new Set();
   let nextRequest = 0;
 
@@ -186,6 +187,10 @@ export async function startCameraFixture({
       path: req.url ?? "",
       credential: req.headers.authorization === BEARER,
       anyAuthorization: req.headers.authorization !== undefined,
+      // Identify the client transport without recording anything private:
+      // Expo's native fetch asks for "zstd, br, gzip", plain OkHttp for "gzip".
+      userAgent: req.headers["user-agent"] ?? null,
+      acceptEncoding: req.headers["accept-encoding"] ?? null,
       startedAt: Date.now(),
       closedAfterMs: null,
       completed: false,
@@ -226,10 +231,19 @@ export async function startCameraFixture({
       return;
     }
     switch (scenario.id) {
-      case "image":
-        res.writeHead(200, { "content-type": "image/png" });
-        res.end(FIXTURE_PNG);
+      case "image": {
+        // `imageDelayMs` (POST /_proof/camera/config) holds the answer back,
+        // so a recipe can see what the card shows before the frame arrives.
+        const send = () => {
+          res.writeHead(200, { "content-type": "image/png" });
+          res.end(FIXTURE_PNG);
+        };
+        if (config.imageDelayMs > 0) {
+          const guard = setTimeout(send, config.imageDelayMs);
+          res.on("close", () => clearTimeout(guard));
+        } else send();
         return;
+      }
       case "same_redirect":
         res.writeHead(302, { location: "/frames/same-origin.png" });
         res.end();
@@ -281,6 +295,25 @@ export async function startCameraFixture({
       if (req.url === "/_proof/camera") {
         res.setHeader("content-type", "application/json");
         res.end(JSON.stringify(report()));
+        return;
+      }
+      if (req.url === "/_proof/camera/config" && req.method === "POST") {
+        let body = "";
+        req.on("data", (part) => {
+          body += part;
+        });
+        req.on("end", () => {
+          res.setHeader("content-type", "application/json");
+          try {
+            const delay = Number(JSON.parse(body).imageDelayMs);
+            if (!Number.isInteger(delay) || delay < 0 || delay > STALL_MS)
+              throw new Error("invalid");
+            config.imageDelayMs = delay;
+            res.end(JSON.stringify(config));
+          } catch {
+            res.writeHead(400).end('{"error":"invalid fixture input"}');
+          }
+        });
         return;
       }
       if (req.url === "/_proof/camera/reset" && req.method === "POST") {

@@ -101,6 +101,34 @@ test(
       assert(!report.includes(CAMERA_FIXTURE_TOKEN));
       assert.equal(JSON.parse(report).originBRequests, 0);
 
+      // The image delay is a bounded public setting; anything else is refused.
+      const post = (body) =>
+        fetch(`${fixture.originA}/_proof/camera/config`, {
+          method: "POST",
+          body,
+        });
+      assert.equal((await post('{"imageDelayMs":-1}')).status, 400);
+      assert.equal((await post("not json")).status, 400);
+      assert.deepEqual(await (await post('{"imageDelayMs":200}')).json(), {
+        imageDelayMs: 200,
+      });
+      const started = Date.now();
+      const delayed = await fetch(
+        `${fixture.originA}/api/camera_proxy/camera.fixture_image`,
+        {
+          headers: {
+            authorization: `Bearer ${CAMERA_FIXTURE_TOKEN}`,
+            "accept-encoding": "zstd, br, gzip",
+          },
+        },
+      );
+      assert.equal(delayed.status, 200);
+      assert(Date.now() - started >= 180);
+      // The transport is identified by its headers, never by the credential.
+      const last = fixture.requests().at(-1);
+      assert.equal(last.acceptEncoding, "zstd, br, gzip");
+      assert.equal(typeof last.userAgent, "string");
+
       // Origin B records any contact, so a leak cannot go unseen.
       await fetch(`${fixture.originB}/frames/other-origin.png`);
       assert.equal(fixture.report().originBRequests, 1);
