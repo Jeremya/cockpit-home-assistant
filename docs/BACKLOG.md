@@ -1,7 +1,8 @@
 # Implementation backlog and agent handoff
 
 **Wave 2 closeout — 2026-11-17 (PRs open, not merged):** the reference checkpoint is candidate `948e642` (`0f6d5fb` + #1–#5), with proof APK `adcdd1da…`. Native observations on that APK (public sample plan):
-- **Seeker:** 48 dp switches (#3); camera D2/D3 (#5).
+- **Seeker:** 48 dp switches (#3).
+- **Seeker and Pixel:** camera D2/D3 (#5).
 - **Pixel and Seeker:** 3D with the GLB bound (#4).
 
 #6 (token autofill) is **not effective on Android 16** and is excluded. #7 (H01 report) is reviewed. `main` stays at `0f6d5fb` until the owner authorizes the batch #1 → #2 → closeout → #3 → #4 → #5 → #7. Remote CI is paused (credits exhausted). M05 is prepared: proposed Trial 1013 on the Seeker, which would replace 1012 and needs explicit permission. It is **not started**. [Decision table and M05 procedure](reviews/2026-11-17-wave-2-closeout.md).
@@ -163,7 +164,7 @@ The final preparation restores local development configuration. Browser storage 
 | C05  | Not started         | P2 / S                 | Deliberate lock controls and code input              | C03, C04, U04, verified locks                            |
 | C06  | Not started         | P2 / S                 | Climate controls                                     | C03, C04, U04, verified climate                          |
 | C07b | Not started         | P2 / S                 | Fan controls                                         | C03, C04, U04, verified fan                              |
-| I01  | Done; D2/D3 native fixes observed on Seeker (proof APK `adcdd1da`, #5 not merged) | P2 / M | Native image transport and redirect isolation | Loopback proof + unit tests; Pixel camera run pending; chunked truncation undetectable |
+| I01  | Done; D2/D3 native fixes observed on Seeker and Pixel (proof APK `adcdd1da`, #5 not merged) | P2 / M | Native image transport and redirect isolation | Loopback proof + unit tests; Pixel camera passes too (C, same APK); chunked truncation undetectable |
 | I02  | Done (detail)       | P2 / M                 | Latest image, polling lifecycle and events           | I01; Home preview and motion/event association later       |
 | U01  | Implemented / native partial; 48 dp switches observed on Seeker (#3); token autofill fix #6 failed on Android | P2 / S | Diagnostics and screen-reader pass | P03/P04/C03 as applicable; #6 decision (native patch, web-only or close) |
 | U02  | Not started         | P2 / S                 | Measured large-home rendering                        | Realistic public fixture                                 |
