@@ -439,7 +439,10 @@ export function ThemedSwitch({
       value={value}
       onValueChange={onValueChange}
       disabled={disabled}
-      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+      // Android's native switch ignores hitSlop (measured on the Seeker: a touch
+      // 6 dp above the 47 x 27 dp switch did nothing), so its own box is the
+      // target. Web gets its 48 px target from desktop.css.
+      style={Platform.OS === "web" ? undefined : styles.switchTarget}
       trackColor={{ false: colors.hover, true: colors.accentBorder }}
       thumbColor={value ? colors.accent : colors.muted}
       ios_backgroundColor={colors.hover}
@@ -495,6 +498,7 @@ export function ListRow({
 }
 
 export const styles = StyleSheet.create({
+  switchTarget: { minWidth: 48, minHeight: 48 },
   screen: { flex: 1, backgroundColor: colors.background },
   content: {
     padding: layout.gutter,
