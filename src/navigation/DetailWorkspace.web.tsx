@@ -26,15 +26,10 @@ import { restoreReadingFocus } from "../components/readingFocus";
 import { DetailPane } from "../components/details/DetailPane";
 import { detailLayout, escapeAction, focusOriginOf } from "./detailNavigation";
 import { publishWorkspacePanel } from "./workspacePanel";
+import { listFocusTarget, visible } from "./listFocus.web";
 
 const HomeInWorkspace = createContext(false);
 export const useHomeInWorkspace = () => use(HomeInWorkspace);
-
-const visible = (node: Element | null | undefined): node is HTMLElement =>
-  !!node &&
-  node.isConnected &&
-  node.getClientRects().length > 0 &&
-  !node.closest('[inert], [aria-hidden="true"]');
 
 /** A bounded UI key for the control that opened a detail: a card id or a plan marker. */
 function captureOrigin() {
@@ -128,21 +123,17 @@ export function DetailWorkspace({
     const closed = !open && wasOpen.current;
     wasOpen.current = open;
     if (opened) origin.current = captureOrigin();
-    if (!closed || !paneled) return;
+    if (!closed) return;
     const selector = origin.current;
     origin.current = null;
-    // Back to the origin while it is still shown, otherwise to the list title.
-    return restoreReadingFocus(() => {
-      const node = selector ? document.querySelector(selector) : null;
-      const target = visible(node)
-        ? node
-        : document.getElementById("home-list-title");
-      return (visible(target) ? target : null) as unknown as View | null;
-    });
-  }, [open, paneled]);
-  // Every detail the panel shows, opened or stepped back to, focuses its title.
+    return restoreReadingFocus(
+      () => listFocusTarget(selector) as unknown as View | null,
+    );
+  }, [open]);
+  // Every detail shown, in the panel or as a route, opened, drilled into or
+  // stepped back to, focuses its title. Only the visible workspace moves focus.
   useLayoutEffect(() => {
-    if (!paneled || !open) return;
+    if (!open || !shown) return;
     return restoreReadingFocus(() => {
       const node = pane.current as unknown as HTMLElement | null;
       const title = node
@@ -152,7 +143,7 @@ export function DetailWorkspace({
         : undefined;
       return (title ?? null) as unknown as View | null;
     });
-  }, [paneled, open, focused?.key]);
+  }, [open, shown, focused?.key]);
   useEffect(() => {
     if (!paneled || !open || !shown) return;
     const onKey = (event: KeyboardEvent) => {

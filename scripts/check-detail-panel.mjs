@@ -535,6 +535,137 @@ try {
       }
     },
   );
+  // Route presentation follows the panel's focus rule (wave 2, B1): each detail
+  // focuses its title; returning to the list focuses the visible origin, else
+  // the list title, else the main region. Nothing hidden ever holds focus.
+  const focusMoved = (page) =>
+    page
+      .waitForFunction(
+        () =>
+          document.activeElement !== document.body &&
+          document.activeElement?.getClientRects().length > 0,
+        null,
+        { timeout: 3_000 },
+      )
+      .catch(() => {});
+  for (const width of [390, 768])
+    await row(
+      `Route presentation focus at ${width} px`,
+      "Title on open, drill-in, step back and Forward; the card on Back to the list; header Back too",
+      async (step) => {
+        const { context, page } = await open(width);
+        try {
+          await demo(page);
+          const origin = card(page, "Cat feeder");
+          const originId = await origin.getAttribute("id");
+          await origin.focus();
+          await page.keyboard.press("Enter");
+          await focusMoved(page);
+          await step("device", page, (s) => {
+            assert.equal(s.path, feederPath);
+            assert.equal(s.panel, 0);
+            assert.equal(s.focusTestId, "detail-title");
+          });
+          await page
+            .getByRole("button", { name: "Show all 7 readings", exact: true })
+            .click();
+          await page
+            .getByRole("button", { name: /^Last distribution,/ })
+            .focus();
+          await page.keyboard.press("Enter");
+          await page.waitForURL("**/device/**");
+          await focusMoved(page);
+          await step("reading", page, (s) => {
+            assert.equal(s.path, readingPath);
+            assert.equal(s.focusTestId, "detail-title");
+          });
+          await page.goBack();
+          await focusMoved(page);
+          await step("back to device", page, (s) => {
+            assert.equal(s.path, feederPath);
+            assert.equal(s.focusTestId, "detail-title");
+          });
+          await page.goBack();
+          await focusMoved(page);
+          await step("back to list", page, (s) => {
+            assert.equal(s.path, "/");
+            assert.equal(s.visibleHomes, 1);
+            assert.equal(s.homes, 1);
+            assert.equal(s.focus, originId);
+          });
+          await page.goForward();
+          await focusMoved(page);
+          await step("forward to device", page, (s) => {
+            assert.equal(s.path, feederPath);
+            assert.equal(s.focusTestId, "detail-title");
+          });
+          await page
+            .getByRole("link", { name: "Home, back", exact: true })
+            .filter({ visible: true })
+            .focus();
+          await page.keyboard.press("Enter");
+          await page.waitForURL(server.origin + "/");
+          await focusMoved(page);
+          await step("header Back", page, (s) => {
+            assert.equal(s.path, "/");
+            assert.equal(s.focus, originId);
+          });
+        } finally {
+          await context.close();
+        }
+      },
+    );
+  await row(
+    "Origin filtered away, then panel to route",
+    "Opened beside the panel, filtered out of Home, narrowed to 768 px: Back focuses the list title",
+    async (step) => {
+      const { context, page } = await open(1440);
+      try {
+        await demo(page);
+        await card(page, "Cat feeder").focus();
+        await page.keyboard.press("Enter");
+        await page.getByRole("tab", { name: "Office", exact: true }).click();
+        await page.setViewportSize({ width: 768, height: 932 });
+        await step("route", page, (s) => {
+          assert.equal(s.panel, 0);
+          assert.equal(s.summary, 1);
+        });
+        await page.goBack();
+        await focusMoved(page);
+        await step("back to list", page, (s) => {
+          assert.equal(s.path, "/");
+          assert.equal(s.focus, "home-list-title");
+        });
+      } finally {
+        await context.close();
+      }
+    },
+  );
+  await row(
+    "Direct link without a session, route Back",
+    "No list yet: Back focuses the main region instead of the page body",
+    async (step) => {
+      const { context, page } = await open(390);
+      try {
+        await page.goto(server.origin + feederPath, {
+          waitUntil: "networkidle",
+        });
+        await page
+          .getByRole("link", { name: "Home, back", exact: true })
+          .filter({ visible: true })
+          .focus();
+        await page.keyboard.press("Enter");
+        await page.waitForURL(server.origin + "/");
+        await focusMoved(page);
+        await step("back", page, (s) => {
+          assert.equal(s.path, "/");
+          assert.equal(s.focus, "maurice-content");
+        });
+      } finally {
+        await context.close();
+      }
+    },
+  );
   for (const [width, expected] of [
     [1280, 360],
     [1440, 389],
