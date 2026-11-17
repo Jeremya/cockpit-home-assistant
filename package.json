@@ -27,6 +27,7 @@
     "ha:logs": "docker compose logs --tail=100 homeassistant",
     "proof:dependencies": "tsx scripts/prove-dependencies.ts",
     "build:trial:android": "node scripts/build-trial-android.mjs",
+    "build:proof:android": "node scripts/build-proof-android.mjs",
     "test:tooling": "node --test scripts/__tests__/*.test.mjs",
     "check:ui": "node scripts/check-ui.mjs",
     "check:spatial-ui": "node scripts/check-spatial-ui.mjs",

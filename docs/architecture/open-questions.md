@@ -89,7 +89,7 @@ The A01 acceptance line "n'expose aucune entrée 3D" (`b340b28b`, msg 1546) read
 
 ---
 
-## OQ-06 — Project status table is stale in two rows
+## OQ-06 — Project status table is stale in two rows (RESOLVED 2026-11-17)
 
 **Severity: Medium (traceability).**
 
@@ -101,6 +101,11 @@ The A01 acceptance line "n'expose aucune entrée 3D" (`b340b28b`, msg 1546) read
 **Missing.** Status reconciliation. The evidence bundled under both features exists; only the summary table is out of date.
 
 **Needs.** Documentation owner (low risk, but it misleads the next agent the same way the quick-action summary did).
+
+**Resolution (2026-11-17).** The `docs/README.md` table already carried the corrected D02/D03 rows;
+the remaining stale statements were the README overview sentence ("browser credentials stay in
+memory"), the D01 row and roadmap item 3, and the `docs/BACKLOG.md` §4 D02/D03 rows. They now
+point to the delivered state; the D01 memory-only claim is kept as its historical scope.
 
 ---
 
@@ -149,6 +154,13 @@ Both Pi sessions (`01a1831e-349b-74d6-a1a5-37516f7252b8`, `01a182da-7ecc-7797-bb
 **Residual.** If EAS Update/OTA is adopted, add a DOM-bundle asset copy or use the upstream fix;
 `updates.enabled` is false for the trial and no update server is in use. The standalone app is not
 affected. No product decision is needed.
+
+**Annotation (2026-11-17).** "Rendered the furnished sample" above is contradicted at `ebce4f0`:
+the GLBs were embedded but the WebView's `fetch` refused the `file://` bundle, leaving fallback
+volumes. Asset *embedding* stays resolved; asset *loading* was a separate defect, fixed in
+`45be3f1` (XHR bytes → `GLTFLoader.parse`) and observed on the Seeker in a proof APK
+([lot C](../stage0/2026-11-16-next-wave-C.md)). Presence of the files alone no longer counts as
+rendering evidence. See ADR-17 correction.
 
 ## Non-findings (checked, no issue)
 
