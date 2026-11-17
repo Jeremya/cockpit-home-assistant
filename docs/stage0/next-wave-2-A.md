@@ -103,6 +103,20 @@ Not done here, on purpose:
 
 The docs touched were not Prettier-clean at the base already, and they are outside `format:check`. Jest was not rerun: no application or Jest-covered file was changed. The `0f6d5fb` CI is the one recorded in the wave-2 plan.
 
+## GitHub Actions paused (credits exhausted)
+
+The owner reported on 2026-11-17 that the GitHub Actions credits are exhausted. Before any further push:
+
+| Workflow | ID | File | State before | State after (2026-11-17T16:34:52Z) |
+| --- | --- | --- | --- | --- |
+| Public checks | `388943613` | `.github/workflows/public-checks.yml` | `active` | `disabled_manually` |
+| Dependency audit | `388943612` | `.github/workflows/dependency-audit.yml` | `active` | `disabled_manually` |
+
+- Command: `gh workflow disable <id>`, with the admin rights confirmed on the repository. No run was in progress.
+- Unchanged: the workflow files, the tests, the branch protection (none on `main`, no ruleset), GitGuardian (an external app, not Actions). No status was created.
+- Consequence: no push or PR from now on gets a remote run. Every new SHA carries **"CI distante non exécutée : crédits épuisés"**. The earlier green runs (`0f6d5fb`, `3a127c0`, `#3 9fcf6e8`) only certify their own SHAs.
+- **Reactivation** once credits are back: `gh workflow enable 388943613 && gh workflow enable 388943612`. Then `gh workflow run "Public checks" --ref <branch>` and `gh workflow run "Dependency audit" --ref <branch>` on each open PR branch (both workflows accept `workflow_dispatch`), or push a commit. Check the list with `gh workflow list --all`. The weekly audit `schedule` resumes on its own.
+
 ## B/C/D integration plan (prepared 2026-11-17)
 
 State of the worktrees at the time of writing: all three are based on `0f6d5fb`, with **uncommitted** changes and no PR open yet.
