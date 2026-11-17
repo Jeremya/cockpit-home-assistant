@@ -139,6 +139,54 @@ State of the worktrees at the time of writing: all three are based on `0f6d5fb`,
 
 Rules: one install per phone between two recettes, `--user 0` on the Pixel, Trial 1012 never replaced.
 
+## A3 — assembled candidate and validation matrix (2026-11-17)
+
+**Remote CI not run: credits exhausted** for every SHA below (workflows paused, see above). The earlier green runs certify only `0f6d5fb`, `3a127c0` (#2) and `9fcf6e8` (#3).
+
+### Candidates
+
+| Candidate | Local branch | SHA | Content (merges at exact SHAs, no merge into `main`) |
+| --- | --- | --- | --- |
+| 1 | `candidate/wave2-1` (pushed, no run) | `948e642b4b566244a4a6ea240a300bcbf7494d1a` | `0f6d5fb` + #1 `41b506b` + #2 `816d444` + #3 B `9fcf6e8` + #4 C `3cff2ba` + #5 D `f8b0144` |
+| 2 | `candidate/wave2-2` (local) | `5de3c2fc1db40a8f37d558217f953add3e123bb3` | candidate 1 + #6 B token `fd77a0f` |
+
+Merging produced no conflicts. The other agents' branches were not rewritten.
+
+### Local campaign (Node 24.11.1, `CI=1`, `EXPO_OFFLINE=1`, sample plan, short `TMPDIR`, sequenced steps)
+
+| SHA | Command | Result |
+| --- | --- | --- |
+| `948e642` | `check:public-inputs` (before and after the export), `typecheck`, `lint`, `format:check` | pass |
+| `948e642` | `npm test -- --watch=false` | **88 suites / 1172 tests** pass |
+| `948e642` | `test:tooling` | 43/43 |
+| `948e642` | `proof:dependencies`, `proof:protocol`, `proof:camera` | pass |
+| `948e642` | `export:android -- --source-maps` + `check:runtime-dependencies -- dist android`, `check:audit` | pass |
+| `948e642` | `check:ui`, `check:spatial-ui`, `check:detail-panel`, `check:web-auth` (in sequence) | 4/4 pass (66/81/74/67 s) |
+| `948e642` | tracked files after the campaign | unchanged |
+| `5de3c2f` | same full campaign | all pass; **Jest 1174** (+2 token tests), tooling 43/43, 4/4 browser recipes; tracked files unchanged |
+
+### APKs (`npm run build:proof:android -- --revision <sha>`, `.s02proof`, sample, 3D, debug signing)
+
+| SHA | APK SHA-256 | GLB | Installation |
+| --- | --- | --- | --- |
+| `948e642` | `adcdd1da50650303d194f15f13b6ee583836684feb331e44d600d12dd751f83e` | 23/23 | Pixel (`--user 0`, 10:47:52) and Seeker (in place). Installed hash checked; `Running "main"` without Metro; no FATAL; no `adb install` client or session pending before each handover |
+| `5de3c2f` | `8f9a9079a2029309ef6148248f0d008666514111f3e3a04757e9c7eb66f5b7f7` | 23/23 | Seeker, in place after D's release (11:16): installed hash checked, `Running "main"` without Metro, no FATAL, no pending install; for B's token proof |
+
+### Native recettes on `adcdd1da` (`948e642`)
+
+| Agent | Device | Recipe | Result | Limits |
+| --- | --- | --- | --- | --- |
+| C | Pixel 9 Pro, Android 17, WebView 157.0.8103.50 | Plan 3D; marker → detail → Back; touch selection; floor change; Home/resume; real context loss → Retry; 5 × 5 s orbits | 17 models / 0 fallbacks, 2 labels, 2 markers; journeys OK; 0 hidden or idle frames; no automatic retry, Retry 443 ms; **median 117.8 rendered fps**, 0 janky / 2854, GPU HWUI p99 ≤ 3 ms | Native non-regression of C3 only: the HTTP block cannot be reproduced on `file://` (the bound is proven by fixture/Jest). Short gestures, no thermal or WebGL timer |
+| C | Seeker, Android 16, WebView 157.0.8103.38, Mali-G615 MC2 | same protocol; 2 placements recreated through Place device (demo profile of the proof package) | 17/0, 2 labels, journeys OK, Retry 720 ms; **median 119.0 rendered fps**, 1 janky / 5952, GPU HWUI p99 ≤ 10 ms, 32 °C stable | same |
+| B | Seeker | 48 dp switches (`Show Front door`, `Show token`) at 100/200 %, touch 6 dp from the edge; lamp 1 press on/off; feeder open/Back | 48×48 dp, toggles OK and restored; loops OK → **#3 validated natively** | TalkBack not replayed on this binary |
+| B | Seeker | Token baseline **without #6** (public fixture, `adb reverse` of its port only) | Google autofill session on the field (FillResponse with 2 datasets, "Passwords" chip); no save prompt in this run; a `SAVE_SHOWN` at 09:52 in the history (consistent with D) | Behaviour is not deterministic; nothing saved |
+| D | Seeker (fixture `f8b0144`, effective Expo fetch, `adb reverse` 8124/8125, public token) | D2 truncated body (scenario 6); D3 background at 3 s / resume at 5.4 s during scenario 7; cross-origin redirect (3); image (1); Forget; late result after Forget | D2: "could not be loaded", **no partial frame** (partial frame on `66a7f47f`). D3: **1 request** (2 on `66a7f47f`), closed at 14,999 ms, next poll at 15.8 s. Redirect refused, B = 0 requests. Image OK. Forget: new frame after reconnect. Late result (10,010 ms) not reused → **all PASS** | Seeker only (Pixel not run). A truncated body without `Content-Length` (chunked) stays undetectable. No cancellation on leave (documented). No autofill prompt seen in these 3 connections |
+| B | Seeker, APK `8f9a9079…` (`5de3c2f`, with #6) | Token with #6: `settings get secure autofill_service`, `dumpsys autofill` after focusing the field, `device_config list autofill` | **#6 NOT EFFECTIVE on Android**: an autofill session still starts on the field (STATE_ACTIVE, FillResponse with 1 dataset) and Gboard still shows "Passwords", whether the token is masked or shown. Probable cause: `autofill trigger_fill_request_on_unimportant_view=true` (Android 14+), which ignores `importantForAutofill="no"`. Save prompt absent, but it was also absent in the baseline, so no difference is proven | Release build without verbose logs, so the view's importance was not read. Real prevention would need native code (`AUTOFILL_TYPE_NONE`, a react-native patch): **product decision**. #6 stays a draft |
+
+PR heads after the candidate: #5 is at `3b8f349`. `git diff --stat f8b0144 3b8f349` shows `docs/design/camera-images.md` only, checked by A, so the candidate still certifies D's code. #7 (H01 report, docs) at `1e80a9d` is not part of the candidate.
+
+**Summary.** On `948e642`: #3 (B), #4 (C, native non-regression) and #5 (D2/D3) are validated on the devices named above. #6 is built and installed but **not effective** on Android 16, pending an owner decision. Phones at the end: Pixel with `adcdd1da`, Seeker with `8f9a9079`. Both are released and clean (no reverse, font 1.0, accessibility off). Trial 1012 was not touched (`lastUpdateTime` 2026-11-16 13:58:19). No PR was merged.
+
 ## Next step (A3)
 
 1. Receive the B/C/D patches. C has announced a C3 fix (`src/web/assetBytes.ts`: 15 s bound, abort, single settle), which is **not in `66a7f47f…`**.
