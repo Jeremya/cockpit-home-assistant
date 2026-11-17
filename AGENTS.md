@@ -76,8 +76,32 @@ Claim only the maturity level reached, on the named revision and binary.
 ## Read-only audit rule
 
 An audit or review task modifies **no** application code, dependencies,
-configuration or tests. Deliver findings as documentation. Never commit unless
-explicitly asked.
+configuration or tests. Deliver findings as documentation. The PR workflow below
+also applies to documentation-only findings unless the user explicitly requests
+no file changes or no commits.
+
+## Agent delivery through pull requests
+
+Owner instruction, 2026-11-17: agents deliver their authorized work through PRs.
+This supersedes older handoff prompts saying not to commit or push without a new
+request. Creating commits, pushing the task branch and opening a PR are standing
+authorization for in-scope work; they do not authorize merging or expanding scope.
+
+- Use an isolated task branch/worktree; never commit or push directly to `main`.
+- Commit coherent changes, push the branch and open a PR against `main`. Do not
+  leave completed work only as an uncommitted diff or a chat report.
+- Open a draft PR when reviewable work exists but required checks, native proof
+  or product decisions remain. State those gaps explicitly; do not weaken checks
+  to make the PR appear ready.
+- Include the problem, resulting behavior, verification at the exact revision,
+  device/APK evidence when applicable, limitations and linked dependencies.
+- Review the staged diff for unrelated work and private data before pushing.
+  Keep tokens, household payloads, personal geometry and private captures out of
+  commits, PR bodies and uploaded artifacts.
+- Follow CI results on the PR. Fix failures caused by the change or document an
+  external blocker. Return the PR URL and its actual readiness status.
+- Do not merge, enable auto-merge or rewrite another agent's branch without an
+  explicit integration mandate. Keep dependency relationships visible in PRs.
 
 ## Known traps in this repository
 

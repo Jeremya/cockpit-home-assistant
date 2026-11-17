@@ -51,6 +51,12 @@ Flex sources:
 
 ---
 
+## ADR-19 — Household integration work proceeds alongside native validation
+
+**ACCEPTED, 2026-11-17.** The owner explicitly requested work on the other connected household devices while supplying both Seeker and Pixel 9 Pro for validation. H01 inventory, HA integration setup and read-only capability proofs may proceed during wave 2 rather than waiting for M05. This supersedes only the scheduling restriction that deferred that integration work until after the usage trial; it does not supersede ADR-01 (HA owns integrations), scoped permissions, privacy or the per-device physical acceptance requirement for new controls.
+
+The existing inventory names Nest, Schlage, Samsung/SmartThings, Ring and AIRTAP as unverified leads, not compatibility claims. Agent D owns this investigation and available integration work; the coordinator owns shared records. No new device integration is claimed implemented or verified by this decision. See [wave 2 extension](../handoff/parallel/2026-11-16-wave-2.md#extension-demandée-le-17-novembre).
+
 ## Rationale, alternatives and findings
 
 ### ADR-01 — HA as the only integration point
