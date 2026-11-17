@@ -8,7 +8,7 @@ Agent D, [vague 2](../handoff/parallel/2026-11-16-wave-2.md) et son extension du
 - **Caméra :** deux défauts reproduits sur Android au build `0f6d5fb`, puis leurs correctifs **observés sur le Seeker** au candidat `948e642`. Pixel non exécuté.
 - **Ce que la caméra ne prouve pas :** toutes les images des §4 et §5 viennent de la fixture publique `scripts/camera-fixture.mjs`, un serveur local qui imite `camera_proxy`. **Aucune caméra Ring n'est intégrée** : le comportement avec Ring reste inconnu.
 
-## 1. État réel de Home Assistant (lecture seule, 17/11 vers 09:20 CST)
+## 1. État réel de Home Assistant (lecture seule, 17/11 vers 15:20 UTC)
 
 Méthode : commandes WebSocket de lecture (`get_config`, `get_states`, `config_entries/get`, registres d'appareils, d'entités et de zones, `manifest/list`). Jeton lu localement, jamais affiché. Snapshot brut privé : `.local/proof/wave2-D/ha-snapshot.json`.
 
@@ -41,7 +41,7 @@ Accord du propriétaire le 17/11 ; B confirmé hors HA réel, C inactif, A prév
 1. **Sauvegarde** : `.local/proof/wave2-D/ha-backup-20261117-092639/` (`configuration.yaml`, copie de `.storage/`, `known_devices.yaml`).
 2. Ligne `demo:` retirée de `configuration.yaml` ; `check_config` sans erreur.
 3. Entrée de configuration `demo` supprimée (`DELETE /api/config/config_entries/entry/<id>`, `require_restart: false`).
-4. **Redémarrage HA le 2026-11-17 à 09:27:54 CST.** Snapshot après : 0 entité de plateforme `demo`, Kasa, Petlibro et Bitaxe présents.
+4. **Redémarrage HA le 2026-11-17 à 15:27:54 UTC.** Snapshot après : 0 entité de plateforme `demo`, Kasa, Petlibro et Bitaxe présents.
 5. `known_devices.yaml` (uniquement `demo_paulus`, `demo_anne_therese`, `demo_home_boy`) sauvegardé puis vidé. **Effectif au prochain redémarrage HA** : les trois `device_tracker.demo_*` restent jusque-là (domaine non affiché par Maurice).
 
 Retour arrière : restaurer `configuration.yaml` et `known_devices.yaml` depuis la sauvegarde, puis redémarrer ; l'entrée `demo` est recréée par l'import.
@@ -120,6 +120,8 @@ Seeker, même paquet, SHA-256 `adcdd1da50650303d194f15f13b6ee583836684feb331e44d
 Nettoyage : profil fixture oublié, retour en démo (placements publics de C intacts), `adb reverse` vides, `font_scale` 1.0, téléphone rendu à A.
 
 **Limites conservées :** un corps tronqué **sans `Content-Length`** (chunked) reste indétectable ; aucune annulation à la sortie d'écran (contrat documenté) ; preuve sur le **Seeker seulement**, Pixel non exécuté.
+
+**Point de revue de B (#5), non reproduit et donc non corrigé :** si le profil est oublié puis reconnecté à la **même URL** (même `profileId`) pendant qu'une lecture est en cours, et que la carte caméra **reste montée** (non focalisée) pendant ce temps, la lecture d'avant l'oubli pourrait être partagée à la reprise (fenêtre ≤ 15 s). Dans la recette Seeker, la carte est démontée et le cadre tardif n'est pas réutilisé. Correctif proposé pour plus tard, hors du code testé à `f8b0144` : inclure l'identifiant de session dans la clé de la lecture partagée, avec un test Jest dédié.
 
 ## 6. Présentation actuelle dans Maurice (vrai backend, vrai HA)
 
