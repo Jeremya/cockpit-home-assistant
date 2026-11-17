@@ -81,6 +81,8 @@ process.once("SIGINT", stop);
 process.once("SIGTERM", stop);
 const deadline = setTimeout(stop, 15 * 60_000);
 const expect = playwrightExpect.configure({ timeout: 10_000 });
+// The app bounds one furniture asset read at 15 s (src/web/assetBytes.ts).
+const assetBoundMs = 15_000;
 // Playwright would otherwise exit(130) on SIGINT before this runner's cleanup.
 const ownSignals = {
   handleSIGINT: false,
@@ -195,6 +197,26 @@ function observe(context, provoked) {
       socket.close();
     }),
   ]);
+}
+/**
+ * Holds one same-origin asset at the network layer: the browser keeps the
+ * request open and never answers until `release()`, so the app sees a
+ * transport that does not finish. Only that asset's URL is affected.
+ */
+async function holdAsset(context, pattern) {
+  const control = { requests: 0, hold: true, held: [] };
+  await context.route(pattern, (route) => {
+    control.requests++;
+    if (control.hold) control.held.push(route);
+    else return route.fallback();
+  });
+  control.release = async () => {
+    const held = control.held.splice(0);
+    // A request the page already aborted can no longer be answered.
+    for (const route of held) await route.fallback().catch(() => {});
+    return held.length;
+  };
+  return control;
 }
 /** Fresh demo, then the same demo with two public placements on floor 1. */
 async function fixtureContext(contextOptions) {
@@ -813,6 +835,111 @@ async function functional() {
   }
 }
 
+/**
+ * C3: a furniture GLB whose transport never finishes. The held asset must stay
+ * a visible fallback, a floor change or scene teardown while it loads must not
+ * receive a late result, and once the wait is bounded a later scene build may
+ * request it again. Waiting alone must not trigger a second request.
+ */
+async function stalledAsset() {
+  stage = "stalled-asset";
+  const { context, floor } = await fixtureContext({
+    viewport: { width: 1440, height: 1000 },
+  });
+  try {
+    // Held from here on: the setup pages above loaded every asset normally.
+    const held = await holdAsset(context, "**/loungeSofa*.glb");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await demo(page);
+    const plan = page.getByTestId("home-plan-overview");
+    const nav = page.getByRole("navigation", { name: "Main navigation" });
+    const oneHeld = async () => {
+      await expect
+        .poll(async () => (await probe(page)).furniture.models)
+        .toBeGreaterThan(0);
+      await expect
+        .poll(async () => (await probe(page)).furniture.fallbacks)
+        .toBe(1);
+    };
+    await ready(page);
+    await assertFixtureScene(page, floor);
+    await oneHeld();
+    const { models } = (await probe(page)).furniture;
+
+    // Floor change and teardown while the asset is in flight, then a late success.
+    const lateStart = held.requests;
+    await tab(plan, "Floor 2").click();
+    await ready(page);
+    await nav.getByRole("link", { name: "Connection", exact: true }).click();
+    await noScene(page);
+    assert.equal(await held.release(), 1, "One held sofa request");
+    await page.goBack();
+    await ready(page);
+    await expect(tab(plan, "Floor 2")).toHaveAttribute("aria-selected", "true");
+    await settle(page);
+    assert.deepEqual(
+      (await probe(page)).furniture,
+      { models: 0, fallbacks: 0 },
+      "A late asset never lands on another floor",
+    );
+    await tab(plan, "Floor 1").click();
+    await ready(page);
+    await expect
+      .poll(async () => (await probe(page)).furniture)
+      .toEqual({ models: models + 1, fallbacks: 0 });
+    assert.equal(held.requests - lateStart, 0, "The late result was reused");
+    assertSingleRenderer(await counters(page));
+
+    // A transport that never finishes: fresh page, so nothing is cached.
+    held.hold = true;
+    const before = held.requests;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await demo(page);
+    await ready(page);
+    await oneHeld();
+    await nav.getByRole("link", { name: "Connection", exact: true }).click();
+    await noScene(page);
+    await page.goBack();
+    await ready(page);
+    await oneHeld();
+    // Waiting past the app's bound must not, by itself, ask again.
+    await page.waitForTimeout(assetBoundMs + 2_000);
+    assert.equal(held.requests - before, 1, "No automatic retry");
+    assert.equal((await probe(page)).furniture.fallbacks, 1);
+    held.hold = false;
+    await tab(plan, "Floor 2").click();
+    await ready(page);
+    await tab(plan, "Floor 1").click();
+    await ready(page);
+    await expect
+      .poll(async () => (await probe(page)).furniture, {
+        message: "A later scene build must load the asset that timed out",
+      })
+      .toEqual({ models: models + 1, fallbacks: 0 });
+    assert.equal(held.requests - before, 2, "Exactly one later attempt");
+    await held.release();
+    await settle(page);
+    assert.deepEqual((await probe(page)).furniture, {
+      models: models + 1,
+      fallbacks: 0,
+    });
+    assertSingleRenderer(await counters(page));
+    report.checks.stalledAsset = {
+      heldAsset: "loungeSofa",
+      lateSuccessAfterFloorChangeAndTeardown: "ignored, then reused",
+      stalledFallbackVisible: true,
+      noAutomaticRetry: true,
+      laterAttemptLoads: true,
+      waitedWithoutRetryMs: assetBoundMs + 2_000,
+    };
+  } catch (error) {
+    await failureEvidence();
+    throw error;
+  } finally {
+    await context.close();
+  }
+}
+
 async function measure() {
   stage = "performance";
   const { context, floor } = await fixtureContext({
@@ -1016,6 +1143,7 @@ try {
   };
   console.log(`Spatial UI: functional checks (${report.mode})`);
   await functional();
+  await stalledAsset();
   if (options.performance) {
     console.log("Spatial UI: GPU budget and browser zoom");
     await measure();
