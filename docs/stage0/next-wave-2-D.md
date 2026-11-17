@@ -121,7 +121,7 @@ Nettoyage : profil fixture oublié, retour en démo (placements publics de C int
 
 **Limites conservées :** un corps tronqué **sans `Content-Length`** (chunked) reste indétectable ; aucune annulation à la sortie d'écran (contrat documenté) ; preuve sur le **Seeker seulement**, Pixel non exécuté.
 
-**Point de revue de B (#5), non reproduit et donc non corrigé :** si le profil est oublié puis reconnecté à la **même URL** (même `profileId`) pendant qu'une lecture est en cours, et que la carte caméra **reste montée** (non focalisée) pendant ce temps, la lecture d'avant l'oubli pourrait être partagée à la reprise (fenêtre ≤ 15 s). Dans la recette Seeker, la carte est démontée et le cadre tardif n'est pas réutilisé. Correctif proposé pour plus tard, hors du code testé à `f8b0144` : inclure l'identifiant de session dans la clé de la lecture partagée, avec un test Jest dédié.
+**Point de revue de B, puis de C (D-1) sur #5 :** si le profil est oublié puis reconnecté à la **même URL** (même `profileId`) pendant qu'une lecture est en cours, et que la carte reste montée, la lecture faite avec l'ancien jeton était reprise, affichée et réécrite dans le cache vidé. C l'a reproduit en Jest. Le cas n'est pas atteignable dans la navigation actuelle : la carte est démontée à l'oubli, sur le Seeker comme sur le Pixel (C). **Corrigé dans la PR de suivi [#10](https://github.com/Jeremya/cockpit-home-assistant/pull/10)** (`3fdcb86`, empilée sur #5). Le test est rouge sans le correctif, vert avec. #5 reste à `3b8f349`, le code testé. Le correctif demande un nouveau candidat et une recette rejouée, avec l'accord du propriétaire.
 
 ## 6. Présentation actuelle dans Maurice (vrai backend, vrai HA)
 
