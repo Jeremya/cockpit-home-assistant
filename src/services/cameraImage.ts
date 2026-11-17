@@ -237,6 +237,13 @@ async function readBodyBytes(
   return new Uint8Array(buffer);
 }
 
+/** A `Content-Length` that is a plain byte count, otherwise null. */
+function declaredLength(header: string | null): number | null {
+  if (header === null || !/^\d+$/.test(header.trim())) return null;
+  const length = Number(header.trim());
+  return Number.isSafeInteger(length) ? length : null;
+}
+
 function dataUriContentType(uri: string): string {
   return /^data:([^;,]+)/.exec(uri)?.[1] ?? "";
 }
@@ -254,6 +261,13 @@ export async function fetchCameraImage(
     fetchImpl?: CameraFetch;
     signal?: AbortSignal;
     now?: () => number;
+    /**
+     * Refuse a body shorter than its declared `Content-Length`. Only for a
+     * transport that keeps that header solely for bodies it did not decode
+     * (Expo's native fetch strips it when it decompresses). Off on the web,
+     * where a decompressed body legitimately differs from the declared length.
+     */
+    verifyDeclaredLength?: boolean;
   } = {},
 ): Promise<CameraImageResult> {
   let budget: RetrievalBudget | undefined;
@@ -336,9 +350,16 @@ export async function fetchCameraImage(
       // unreadable body ends as a result below, never as a pending promise.
       // The size bound applies to the bytes actually read.
       const bytes = await active.run(() => readBodyBytes(response));
-      if (bytes.byteLength === 0) return { kind: "empty" };
       if (bytes.byteLength > CAMERA_MAX_BYTES)
         return { kind: "error", reason: "too_large" };
+      // A frame cut in transit: Android's native fetch resolves the bytes
+      // received before the I/O failure instead of rejecting.
+      if (options.verifyDeclaredLength) {
+        const declared = declaredLength(response.headers.get("content-length"));
+        if (declared !== null && bytes.byteLength < declared)
+          return { kind: "error", reason: "network" };
+      }
+      if (bytes.byteLength === 0) return { kind: "empty" };
 
       return {
         kind: "image",
