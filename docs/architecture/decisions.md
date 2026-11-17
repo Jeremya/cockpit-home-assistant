@@ -154,8 +154,9 @@ volumes only. `45be3f1` loads the bytes through `XMLHttpRequest` and `GLTFLoader
 corrected proof APK showed 17 models / 0 fallbacks on the Seeker
 ([lot C](../stage0/2026-11-16-next-wave-C.md#contradiction-à-réconcilier-coordinateur)). What the
 October observation actually saw (fallback volumes taken for furniture, or a different WebView) is
-not known and is not inferred here. Embedding is proven; native rendering is evidenced only from
-`45be3f1` on, per named binary ([wave 2 A](../stage0/next-wave-2-A.md)).
+not known and is not inferred here. Embedding is proven. Native rendering is evidenced only per named binary containing `45be3f1`:
+the lot C proof APK, then the wave 2 proof APKs `66a7f47f` (`0f6d5fb`) and `adcdd1da`
+(candidate `948e642`) on Pixel and Seeker ([wave 2 A](../stage0/next-wave-2-A.md)).
 
 **P2 (2026-11-16).** One owner-approved value changed: the proportional `0.05` margin around the model is replaced by an exact fit in which the drawn silhouette spans 80 % of the limiting viewport dimension (`MODEL_FILL = 0.8`); elevation 38°, yaw 35° and FOV 26° are unchanged. The phone orbit lens narrowed from 45° to 30°. Device names are attached, collision-free tags; each marker condition has its own silhouette in addition to its colour; selection is an emissive accent; daylight appears only under saved `window` lines. Desktop hosts give the scene the 2D stage height. Evidence is Implemented + Automated on web (`check:spatial-ui`, software renderer); GPU cost and native rendering are unmeasured. [Details](../design/3d-asset-system.md).
 

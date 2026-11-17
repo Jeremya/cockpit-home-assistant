@@ -1,6 +1,6 @@
 # Wave 2 — A: shared Android candidate, phone slots and records
 
-Dated report for lot A of [wave 2](../handoff/parallel/2026-11-16-wave-2.md), 2026-11-17. Base `main` at `0f6d5fb41e1126d4e5fb82f6626458b96f0e59cb`, branch `work/wave2-A`, delivered as a PR under the PR delivery rule (PR #1). Only lot A writes this file. The wave-2 plan link resolves once PR #1 is merged.
+Dated report for lot A of [wave 2](../handoff/parallel/2026-11-16-wave-2.md), 2026-11-17. Base `main` at `0f6d5fb41e1126d4e5fb82f6626458b96f0e59cb`, branch `work/wave2-A`, delivered as a PR under the PR delivery rule (introduced by PR #1, now in `AGENTS.md`). Only lot A writes this file. The wave-2 plan link resolves once PR #1 is merged.
 
 ## Summary
 
@@ -25,7 +25,7 @@ New files: `scripts/build-proof-android.mjs`, `scripts/lib/proof-android.mjs` (i
 - **Exact source.** The script takes `git archive` of the commit into a temporary directory. No working-tree edit, ignored file, `.local/` or `.env*` enters the build. `npm ci` runs in that directory.
 - **Clean environment.** It strips `EXPO_PUBLIC_*`, `COCKPIT_PLAN_*` and `MAURICE_*`, then sets `COCKPIT_PLAN_FILE=src/spatial/sample-plan.json`, `NODE_ENV=production`, `CI=1`, `EXPO_NO_DOTENV=1`, `EXPO_OFFLINE=1` and `EXPO_PUBLIC_S01_PROOF=1`. The last one is the existing inspector gate the spatial probes use.
 - **Default variant.** `MAURICE_VARIANT` is unset, so `buildFeatures.spatial3d` is true. The `withTrialAndroid` plugin and the Trial key are untouched.
-- **Gradle.** It adds an `s02Proof` build type copied from `release`: `applicationIdSuffix .s02proof`, not debuggable, no minify or shrink, debug signing. Then it runs `:app:assembleS02Proof -PreactNativeArchitectures=arm64-v8a`.
+- **Gradle.** It adds an `s02Proof` build type initialized from the app's `release` build type (`initWith`, so it inherits whatever the generated `release` declares, then overrides): `applicationIdSuffix .s02proof`, not debuggable, no minify or shrink, debug signing. Then it runs `:app:assembleS02Proof -PreactNativeArchitectures=arm64-v8a`.
 - **Built-in checks.** The APK identity is `com.larrabee.homecockpit.s02proof` and it is not debuggable. The Hermes header of `assets/index.android.bundle` is present. The number of `assets/www.bundle/assets/assets/furniture/*.glb` entries must equal the number of `.glb` files in `assets/furniture/` of the source.
 - Output goes to `.local/proof/<sha12>/`, which is ignored. It holds the APK, `build.json`, the logs and `proof.gradle`.
 
@@ -36,13 +36,13 @@ Only JDK 17 and the SDK paths are read from `.env.local`.
 | Field | Value |
 | --- | --- |
 | Source | `0f6d5fb41e1126d4e5fb82f6626458b96f0e59cb`, clean `git archive` |
-| Build script | worktree `work/wave2-A` (uncommitted); the script is not part of the source archive |
+| Build script | worktree `work/wave2-A` (uncommitted at A1, committed since in `fe728fb`); the script is not part of the source archive |
 | applicationId | `com.larrabee.homecockpit.s02proof`, versionName `0.1.0`, versionCode `1` |
 | Plan | public sample; the prepared plan has the same content as `sample-plan.json` |
 | Features | default variant → 3D enabled; WebView inspector (`EXPO_PUBLIC_S01_PROOF=1`) |
 | Signature | debug, certificate SHA-256 `fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c` (same key as C's earlier proof, so in-place update is possible) |
 | APK | 44,747,029 bytes, SHA-256 **`66a7f47f75e065d5c44929cc0e21ddc69bc022006312de3f437f1bd5df80580d`** |
-| Shared path | `/Users/jeremy/dev/cockpit-larrabee/.local/proof/0f6d5fb41e11/maurice-proof-0f6d5fb41e11-arm64.apk` + `build.json` (ignored) |
+| Shared path | `<main checkout>/.local/proof/0f6d5fb41e11/maurice-proof-0f6d5fb41e11-arm64.apk` + `build.json` (ignored) |
 | Embedded GLB | **23 / 23** under `assets/www.bundle/assets/assets/furniture/` |
 | Embedded Hermes bundle | yes (`c61fbc03c103191f`) |
 
@@ -52,10 +52,10 @@ The APK hash identifies this binary. The command reproduces the procedure, but G
 
 | Device | Before | Action | Result |
 | --- | --- | --- | --- |
-| Seeker `SM02G4061971427`, Android 16, WebView 157.0.8103.38 | `.s02proof` from C (`b8467632…`, 2026-11-16), Trial `0.1.0-trial.12` in the foreground, dev client, `.s01proof` | `adb -s … install -r` (in-place update, data kept) | Installed hash `66a7f47f…` (`pm path` + `sha256sum`). No `adb reverse`. `am start -W` OK (241 ms). Process alive after 10 s. No `FATAL`. Home "Sample home" with the 2D preview. Trial untouched (`lastUpdateTime` 2026-11-16 13:58:19) |
-| Pixel 9 Pro `47091FDAP000S2`, Android 17, WebView 157.0.8103.50 | **no Maurice package for user 0** (no Trial, no dev client) | `adb -s … install --user 0` | Installed hash `66a7f47f…` (`pm path --user 0` + `sha256sum`), versionName 0.1.0 / versionCode 1. No `adb reverse`. `am start -W --user 0` OK. Process alive. `ReactNativeJS: Running "main"` from the embedded bundle. No `FATAL`. The phone stayed locked (keyguard + dream), so the first screen was **not seen** |
+| Seeker, Android 16, WebView 157.0.8103.38 | `.s02proof` from C (`b8467632…`, 2026-11-16), Trial `0.1.0-trial.12` in the foreground, dev client, `.s01proof` | `adb -s … install -r` (in-place update, data kept) | Installed hash `66a7f47f…` (`pm path` + `sha256sum`). No `adb reverse`. `am start -W` OK (241 ms). Process alive after 10 s. No `FATAL`. Home "Sample home" with the 2D preview. Trial untouched (`lastUpdateTime` 2026-11-16 13:58:19) |
+| Pixel 9 Pro, Android 17, WebView 157.0.8103.50 | **no Maurice package for user 0** (no Trial, no dev client) | `adb -s … install --user 0` | Installed hash `66a7f47f…` (`pm path --user 0` + `sha256sum`), versionName 0.1.0 / versionCode 1. No `adb reverse`. `am start -W --user 0` OK. Process alive. `ReactNativeJS: Running "main"` from the embedded bundle. No `FATAL`. The phone stayed locked (keyguard + dream), so the first screen was **not seen** |
 
-**Pixel incident, diagnosed.** A plain `adb install` stayed blocked for about 50 minutes. It was neither a confirmation prompt nor the lock screen. The phone runs a second Android profile, `UserInfo{11:User:1030}` (probably Private Space), which `shell` cannot access: `pm list packages` without `--user` fails with `Shell does not have permission to access user 11`. The default install targets every user, so it never finished. Once the blocked process was stopped, `install --user 0` succeeded in a few seconds. **Rule for the Pixel: every `pm`/`install`/`am` command carries `--user 0`.** **Side effect caused by A:** killing the blocked `adb install` client on the Mac (about 09:48) did not abandon the install session on the phone. That session committed at **09:54:59**, once the phone was unlocked, in the middle of C's recette: the same APK (`66a7f47f…`) was reinstalled in place and C's process was killed. C must treat its measurements before 09:54:59 as possibly interrupted. Protocol from now on: never start an install on a locked phone that has a second profile; if an install blocks, check and abandon its session on the phone before handing the phone over. No manual action is needed to install. The owner only has to unlock the phone for the visual recettes.
+**Pixel incident, diagnosed.** A plain `adb install` stayed blocked for about 50 minutes. It was neither a confirmation prompt nor the lock screen. The phone has a second Android user profile that `shell` cannot access: `pm list packages` without `--user` fails with a permission error on that user. The default install targets every user, so it never finished. Once the blocked process was stopped, `install --user 0` succeeded in a few seconds. **Rule for the Pixel: every `pm`/`install`/`am` command carries `--user 0`.** **Side effect caused by A:** killing the blocked `adb install` client on the Mac (about 09:48) did not abandon the install session on the phone. That session committed at **09:54:59**, once the phone was unlocked, in the middle of C's recette: the same APK (`66a7f47f…`) was reinstalled in place and C's process was killed. C must treat its measurements before 09:54:59 as possibly interrupted. Protocol from now on: never start an install on a locked phone that has a second profile; if an install blocks, check and abandon its session on the phone before handing the phone over. No manual action is needed to install. The owner only has to unlock the phone for the visual recettes.
 
 What this establishes: the binary is **Installed** on both phones and starts without Metro. The first screen was seen on the Seeker only. Rendering the furniture, the spatial journeys, camera and accessibility belong to the B/C/D recettes on this exact binary.
 
@@ -63,8 +63,8 @@ What this establishes: the binary is **Installed** on both phones and starts wit
 
 | Phone | Order | Status |
 | --- | --- | --- |
-| Seeker `SM02G4061971427` | 1. B (accessibility, TalkBack) → 2. D (9 camera scenarios, `adb reverse` on 2 ports) | B done and released (checked by A: font 1.0, accessibility off, hash intact, Trial unchanged). D done and released (checked by A: no reverse, font 1.0, hash intact, Trial unchanged); results in D's report. Free until A3 |
-| Pixel `47091FDAP000S2` | C (spatial) | C's recette done on `66a7f47f`, Pixel **released** by C (checked by A: app stopped, no reverse/forward, hash intact); results in C's report. Free until A3 |
+| Seeker | 1. B (accessibility, TalkBack) → 2. D (9 camera scenarios, `adb reverse` on 2 ports) | B done and released (checked by A: font 1.0, accessibility off, hash intact, Trial unchanged). D done and released (checked by A: no reverse, font 1.0, hash intact, Trial unchanged); results in D's report. Free until A3 |
+| Pixel 9 Pro | C (spatial) | C's recette done on `66a7f47f`, Pixel **released** by C (checked by A: app stopped, no reverse/forward, hash intact); results in C's report. Free until A3 |
 
 Rules sent to each agent:
 
@@ -87,7 +87,7 @@ Changes in the worktree (not committed):
 
 Not done here, on purpose:
 
-- **ADR-19.** It is present as an uncommitted change in the main checkout (owner/coordinator). It is not duplicated in this worktree; the two hunks are separate and will merge at integration.
+- **ADR-19.** At A1 it was an uncommitted change in the main checkout (owner/coordinator); it is now delivered by PR #1. It is not duplicated in this worktree; the two hunks are separate and will merge at integration.
 - **`proof:camera` description.** `docs/design/camera-images.md` §Verification still describes the three paths from before the fixture. That document belongs to D; D should update it in its lot. The `README.md` I01 row stays correct (redirect isolation through `npm run proof:camera`).
 - **H01 inventory** (2 Bitaxe BM1370 reported by D; Nest/Schlage/SmartThings/Ring not configured in HA). This waits for `next-wave-2-D.md` before `inventory.md` and the registers are updated.
 
@@ -192,3 +192,7 @@ PR heads after the candidate: #5 is at `3b8f349`. `git diff --stat f8b0144 3b8f3
 1. Receive the B/C/D patches. C has announced a C3 fix (`src/web/assetBytes.ts`: 15 s bound, abort, single settle), which is **not in `66a7f47f…`**.
 2. Check each diff, integrate on a new SHA, then run typecheck/lint/format/Jest/tooling and push only if mandated.
 3. `npm run build:proof:android` on that SHA. Install it in a free slot, then replay the affected recettes (C: loading/journeys; D: fixed scenarios; B: affected journeys). The `66a7f47f…` APK does not certify any later fix.
+
+## Privacy correction (2026-11-17, evening)
+
+D's review of #2 found the two phones' serial numbers, an absolute local path and a detail of the personal phone's user profiles in this public report. They are removed from the current text. Earlier commits on this branch still contain them. Removing them from history would need the owner to choose a squash merge for #2, or a rewrite of this branch; the closeout leaves that choice to the owner.
