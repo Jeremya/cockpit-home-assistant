@@ -768,3 +768,65 @@ describe("camera cache", () => {
     clearCameraCache("ha:evict");
   });
 });
+
+describe("fetchCameraImage declared length (native transport)", () => {
+  // Reproduced on Android (Seeker, Expo fetch): after a mid-body I/O failure
+  // the native response still resolves `arrayBuffer()` with the bytes received
+  // so far. Where the transport keeps `Content-Length` only for bodies it did
+  // not decode (Expo strips it when it decompresses), fewer bytes than declared
+  // mean the frame was cut in transit.
+  const retrieve = (served: CameraFetchResponse, verifyDeclaredLength = true) =>
+    fetchCameraImage(request, {
+      fetchImpl: jest.fn(async () => served),
+      verifyDeclaredLength,
+    });
+  const withLength = (length: string, body: Uint8Array = png) =>
+    response(200, {
+      headers: { ...imageHeaders, "content-length": length },
+      body,
+    });
+
+  test("refuses a body shorter than its declared length", async () => {
+    await expect(
+      retrieve(withLength(String(png.byteLength + 100))),
+    ).resolves.toEqual({
+      kind: "error",
+      reason: "network",
+    });
+  });
+
+  test("accepts a body that matches its declared length", async () => {
+    await expect(
+      retrieve(withLength(String(png.byteLength))),
+    ).resolves.toMatchObject({
+      kind: "image",
+      dataUri: pngDataUri,
+    });
+  });
+
+  test("leaves a response without a declared length unchanged", async () => {
+    await expect(
+      retrieve(response(200, { headers: imageHeaders, body: png })),
+    ).resolves.toMatchObject({ kind: "image", dataUri: pngDataUri });
+  });
+
+  test("ignores a declared length that is not a plain byte count", async () => {
+    for (const length of ["", "abc", "-1", "12, 12", "1e3"])
+      await expect(retrieve(withLength(length))).resolves.toMatchObject({
+        kind: "image",
+      });
+  });
+
+  test("is off unless the caller asks for it (web: a decoded body can differ from its length)", async () => {
+    await expect(
+      retrieve(withLength(String(png.byteLength + 100)), false),
+    ).resolves.toMatchObject({ kind: "image" });
+    await expect(
+      fetchCameraImage(request, {
+        fetchImpl: jest.fn(async () =>
+          withLength(String(png.byteLength + 100)),
+        ),
+      }),
+    ).resolves.toMatchObject({ kind: "image" });
+  });
+});
