@@ -88,7 +88,7 @@ away, then panel to route", "Direct link without a session, route Back".
 
 ## Seeker recette
 
-Device `SM02G4061971427` (Seeker, Android 16, 1200 × 2670, 480 dpi = 3 px/dp, gesture navigation).
+Device: Seeker (Android 16, 1200 × 2670, 480 dpi = 3 px/dp, gesture navigation).
 Candidate from A: `com.larrabee.homecockpit.s02proof` 0.1.0 (1), APK SHA-256
 `66a7f47f75e065d5c44929cc0e21ddc69bc022006312de3f437f1bd5df80580d` (installed hash checked), source
 `0f6d5fb`, demo home. It contains **none** of the B corrections above. Slot granted by A, released
