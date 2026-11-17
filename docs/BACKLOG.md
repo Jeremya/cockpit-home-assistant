@@ -1,5 +1,12 @@
 # Implementation backlog and agent handoff
 
+**Wave 2 closeout — 2026-11-17 (PRs open, not merged):** the reference checkpoint is candidate `948e642` (`0f6d5fb` + #1–#5), with proof APK `adcdd1da…`. Native observations on that APK (public sample plan):
+- **Seeker:** 48 dp switches (#3).
+- **Seeker and Pixel:** camera D2/D3 (#5).
+- **Pixel and Seeker:** 3D with the GLB bound (#4).
+
+#6 (token autofill) is **not effective on Android 16** and is excluded. #7 (H01 report) is reviewed. `main` stays at `0f6d5fb` until the owner authorizes the batch #1 → #2 → closeout → #3 → #4 → #5 → #7. Remote CI is paused (credits exhausted). M05 is prepared: proposed Trial 1013 on the Seeker, which would replace 1012 and needs explicit permission. It is **not started**. [Decision table and M05 procedure](reviews/2026-11-17-wave-2-closeout.md).
+
 **Consolidation and visual wave — 2026-11-16:** the 2026-10-26/29 work is committed and pushed, and five branches are integrated on `main` (dependency fixes with an empty audit, camera hardening, redrawn 2D plan, 3D P2 polish, screens polish): 1146 Jest tests / 81 suites and the four browser recettes pass. Private Trial **1012** (`4230f52`, personal plan) is installed on the Seeker, not accepted. Next: household setup and an authorized lamp cycle on 1012, then A04/M05. [Review and execution log](reviews/2026-11-16-ceo-review.md).
 
 **Parallel handoff — 2026-10-22:** use [the 2–3 agent execution backlog](handoff/parallel/README.md). A owns candidate acceptance/tooling/integration; B owns shared detail content and panel navigation; C owns browser auth. UX00–UX08 are implemented at `e52ac06`; B and C are integrated and Trial **1011** is the acceptance candidate (see the 2026-10-29 note). The product IDs below remain canonical; A/B/C are bounded execution slices, not completed features.
@@ -137,7 +144,7 @@ The final preparation restores local development configuration. Browser storage 
 | M02  | Complete for dedicated Chrome profile; other clients separate | P0 / S–M | Personal household plan, room links, placements and favorites | [UX04](handoff/UX04-household.md); can proceed independently of visual work |
 | M03 | Présentation et action de carte livrées localement ; effet physique en attente | P1 / split | Shared daily Home and direct card action | UX01–UX03 delivered locally ([UX01](stage0/desktop-validation.md#ux01-shared-home--2026-10-20), [UX03](stage0/desktop-validation.md#ux03-card-action--2026-10-20)); physical one-press effect belongs to UX09 |
 | M04 | Pending target acceptance | P1 / split | Spatial camera/lifecycle and exact-candidate acceptance | UX05–UX09; native scope remains separate |
-| M05 | Not yet observed | Field trial | Seven days of useful household use | UX09; D02/H02 if needed |
+| M05 | Prepared, not started (2026-11-17) | Field trial | Seven days of useful household use | Merge batch, Trial 1013 on the Seeker (replacing 1012 needs explicit permission), HA kept available (Mac awake or H02), household journeys accepted; [procedure](reviews/2026-11-17-wave-2-closeout.md#5-m05-start-proposed-daily-candidate), [log](stage0/m05-usage-log.md) |
 | F01  | Done                | —                      | Native floor-plan acceptance                         | Recorded Pixel proof                                     |
 | F02  | Done; see M00       | P1 / S                 | Reproducible sample UI smoke                         | None                                                     |
 | H01  | Partial             | P0 / hardware          | Actual household capabilities                        | Kasa/Petlibro read-only proven; remaining hardware/setup |
@@ -148,7 +155,7 @@ The final preparation restores local development configuration. Browser storage 
 | U04  | Done                | P1 / M                 | Sensor attention, availability and honest coverage   | Pure fixtures + verified H01 semantics                   |
 | P04  | Done                | P2 / M                 | Place entities on the 2D plan                        | P03                                                      |
 | S01  | Done                | P1 / M                 | Measured native Three.js feasibility                 | Pixel 9 Pro + Seeker proof; report retained              |
-| S02  | Implemented         | P2 / M                 | Production scene and 2D/3D switching                 | S01 pass, P04                                            |
+| S02  | Implemented; native non-regression observed on proof APK `adcdd1da` (Pixel + Seeker, 2026-11-17, #4 not merged) | P2 / M | Production scene and 2D/3D switching | S01 pass, P04; personal-plan/daily-binary acceptance open |
 | C01  | Done                | P1 / M                 | Typed intents, validation and service mapping        | None for fixtures; H01 before real control               |
 | C02  | Done                | P1 / M                 | Observation revisions and outcomes                   | C01                                                      |
 | C03  | Done                | P1 / M                 | Serialization, cancellation and no replay            | C02                                                      |
@@ -157,9 +164,9 @@ The final preparation restores local development configuration. Browser storage 
 | C05  | Not started         | P2 / S                 | Deliberate lock controls and code input              | C03, C04, U04, verified locks                            |
 | C06  | Not started         | P2 / S                 | Climate controls                                     | C03, C04, U04, verified climate                          |
 | C07b | Not started         | P2 / S                 | Fan controls                                         | C03, C04, U04, verified fan                              |
-| I01  | Done                | P2 / M                 | Native image transport and redirect isolation        | Loopback proof + unit tests; native Pixel gate open        |
+| I01  | Done; D2/D3 native fixes observed on Seeker and Pixel (proof APK `adcdd1da`, #5 not merged) | P2 / M | Native image transport and redirect isolation | Loopback proof + unit tests; Pixel camera passes too (C, same APK); chunked truncation undetectable |
 | I02  | Done (detail)       | P2 / M                 | Latest image, polling lifecycle and events           | I01; Home preview and motion/event association later       |
-| U01  | Implemented / native partial | P2 / S                 | Diagnostics and screen-reader pass                   | P03/P04/C03 as applicable                                |
+| U01  | Implemented / native partial; 48 dp switches observed on Seeker (#3); token autofill fix #6 failed on Android | P2 / S | Diagnostics and screen-reader pass | P03/P04/C03 as applicable; #6 decision (native patch, web-only or close) |
 | U02  | Not started         | P2 / S                 | Measured large-home rendering                        | Realistic public fixture                                 |
 | R01  | Assessed / follow-up | P1 / M                 | Runtime decoder fixed; SDK 57 maintenance             | Three expiring tooling exceptions; native incident open       |
 | R02  | Done; see M00       | P1 / S                 | CI with public fixtures                              | F02 for browser checks                                   |
