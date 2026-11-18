@@ -307,6 +307,45 @@ test("background and resume during a retrieval does not start a second request",
   expect(mockFetch).toHaveBeenCalledTimes(2);
 });
 
+test.each([
+  ["the session stops being ready", { profileId: "ha:a", ready: false }],
+  ["the profile is forgotten", { profileId: null, ready: false }],
+] as const)(
+  "a retrieval started before %s is never resumed after reconnecting to the same URL",
+  async (_case, lost) => {
+    let resolveFirst!: (value: typeof imageResult) => void;
+    mockFetch.mockImplementationOnce(
+      () => new Promise((resolve) => (resolveFirst = resolve)),
+    );
+    const newer = { ...imageResult, dataUri: "data:image/png;base64,BBBB" };
+    mockFetch.mockResolvedValueOnce(newer);
+    const { result, rerender } = renderHook(
+      (props: { profileId: string | null; ready: boolean }) =>
+        useCameraImage({ entity: camera(), ...props }),
+      { initialProps: { profileId: "ha:a" as string | null, ready: true } },
+    );
+    await act(async () => {});
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    // Forget while the card stays mounted, then reconnect to the same URL.
+    rerender(lost);
+    clearCameraCache("ha:a");
+    rerender({ profileId: "ha:a", ready: true });
+    await act(async () => {});
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    // The retrieval made with the forgotten session settles late: dropped.
+    await act(async () => {
+      resolveFirst(imageResult);
+    });
+    expect(result.current).toMatchObject({
+      status: "loaded",
+      dataUri: newer.dataUri,
+    });
+    expect(readCameraCache(cacheKey)).toEqual(newer);
+  },
+);
+
 test("asks the service to verify the declared length on a native platform", async () => {
   mountCamera();
   await act(async () => {});
