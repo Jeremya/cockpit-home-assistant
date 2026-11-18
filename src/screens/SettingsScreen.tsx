@@ -40,6 +40,7 @@ import {
   colors,
   styles,
 } from "../components/ui";
+import { secretEntryProps } from "../components/secretEntry";
 import { radii, spacing, typography } from "../theme";
 const signInHelp: Record<CompatibilityBlock, string> = {
   invalid_url:
@@ -309,10 +310,8 @@ export function SettingsScreen() {
                   accessibilityLabel="Access token"
                   value={token}
                   onChangeText={setToken}
-                  autoCapitalize="none"
-                  autoCorrect={false}
+                  {...secretEntryProps}
                   secureTextEntry={!showToken}
-                  textContentType="password"
                   placeholder="Paste your access token"
                   placeholderTextColor={colors.muted}
                   style={styles.input}

@@ -298,3 +298,21 @@ test.each([
     expect(router.dismissTo).not.toHaveBeenCalled();
   },
 );
+
+test("the access token stays out of autofill, masked or shown, and still accepts a paste", () => {
+  const screen = render(<SettingsScreen />);
+  const field = () => screen.getByLabelText("Access token");
+  for (const shown of [false, true]) {
+    expect(field().props).toMatchObject({
+      importantForAutofill: "no",
+      autoComplete: "off",
+      textContentType: "none",
+      secureTextEntry: !shown,
+    });
+    expect(field().props.textContentType).not.toBe("password");
+    if (!shown)
+      fireEvent(screen.getByLabelText("Show token"), "valueChange", true);
+  }
+  fireEvent.changeText(field(), "pasted-public-fixture-token");
+  expect(field().props.value).toBe("pasted-public-fixture-token");
+});
